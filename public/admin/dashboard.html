@@ -3,232 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - V. Gallery</title>
-    <meta name="robots" content="noindex, nofollow, noarchive">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdnjs.cloudflare.com; connect-src 'self'; img-src 'self' data: https:; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
-    <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="Referrer-Policy" content="no-referrer">
+    <title>Admin · V. Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/admin/admin.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body class="admin-dashboard-body">
     <div class="container">
         <header>
-            <h1>V. Gallery Admin</h1>
-            <button class="logout-btn" data-action="logout">Logout</button>
+            <h1>Admin · V. Gallery</h1>
+            <span class="sync-badge" id="syncBadge">Local mode</span>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
         </header>
 
-        <div class="stats" id="stats" aria-live="polite">
-            <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">Revenue</div></div>
-            <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">Orders</div></div>
-            <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">Products</div></div>
-            <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">Customers</div></div>
+        <div class="stats" id="stats"></div>
+
+        <div class="section">
+            <h2>Recent Orders</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+                    </thead>
+                    <tbody id="recentOrdersBody"></tbody>
+                </table>
+            </div>
         </div>
 
         <div class="section">
-            <h2>Quick Actions</h2>
             <div class="action-buttons">
-                <button data-action="show-products">📦 Manage Products</button>
-                <button data-action="show-orders">📋 View Orders</button>
-                <button data-action="show-customers">👥 View Customers</button>
-                <button data-action="show-discount-codes">🏷️ Discount Codes</button>
-                <button data-action="show-settings">⚙️ Settings</button>
+                <h2 style="margin:0; flex:1;">Manage Products</h2>
+                <button id="addProductBtn">+ Add Product</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="adminProductsBody"></tbody>
+                </table>
             </div>
         </div>
 
-        <div class="section" id="content" aria-live="polite">
-            <p style="color:#888; text-align:center; padding:40px;">Select an option above to get started.</p>
+        <div class="section">
+            <h2>All Orders</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr>
+                    </thead>
+                    <tbody id="adminOrdersBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Store Settings</h2>
+            <div style="max-width: 500px;">
+                <div class="edit-section">
+                    <label class="section-label">Branding</label>
+                    <div class="form-group">
+                        <label for="storeName">Store Name</label>
+                        <input type="text" id="storeName" value="V. Gallery">
+                    </div>
+                    <div class="form-group">
+                        <label>Store Logo</label>
+                        <div class="image-upload-area" id="logoUploadArea">Click to upload logo</div>
+                        <input type="file" id="logoUpload" accept="image/*" style="display:none;">
+                        <img id="logoPreview" class="image-preview">
+                    </div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Shipping</label>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label for="standardShipping">Standard ($)</label>
+                            <input type="number" id="standardShipping" value="7" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="expressShipping">Express ($)</label>
+                            <input type="number" id="expressShipping" value="15" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="settingWhatsapp">WhatsApp Number</label>
+                        <input type="text" id="settingWhatsapp" placeholder="2349012345678">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="admin-btn" id="saveSettingsBtn" style="flex:1;">Save Settings</button>
+                    <button class="admin-btn" id="exportDataBtn" style="flex:1;">Export JSON</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="modal" id="productModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-content" style="max-width: 640px;">
-            <h3 id="modalTitle">Add Product</h3>
-
-            <div class="edit-section">
-                <label class="section-label">Basic Info</label>
-                <label for="productTitle">Title *</label>
-                <input type="text" id="productTitle" placeholder="Product title">
-                <label class="inline-check"><input type="checkbox" id="productShowAuthor" checked> Show author next to title</label>
-                <label for="productAuthor">Author</label>
-                <input type="text" id="productAuthor" placeholder="V." value="V.">
-                <label for="productDesc">Description</label>
-                <textarea id="productDesc" placeholder="Description" rows="3"></textarea>
-                <label for="productContentOrder">Content order</label>
-                <select id="productContentOrder">
-                    <option value="title-first">Title before description</option>
-                    <option value="description-first">Description before title</option>
-                </select>
-                <div class="row-3">
-                    <div>
-                        <label for="productType">Category</label>
-                        <select id="productType">
-                            <option value="merch">Merch</option>
-                            <option value="print">Print</option>
-                            <option value="original">Original</option>
-                            <option value="craft">Craft</option>
-                        </select>
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h3 id="editModalTitle">Add Product</h3>
+            <form id="editProductForm">
+                <div class="edit-section">
+                    <label class="section-label">Basic Info</label>
+                    <div class="row-2">
+                        <div class="form-group"><label>Title *</label><input type="text" id="editTitle" required></div>
+                        <div class="form-group"><label>Author</label><input type="text" id="editAuthor" value="V."></div>
                     </div>
-                    <div>
-                        <label for="productOrientation">Orientation</label>
-                        <select id="productOrientation">
-                            <option value="square">Square</option>
-                            <option value="portrait">Portrait</option>
-                            <option value="landscape">Landscape</option>
-                        </select>
+                    <label class="inline-check"><input type="checkbox" id="editShowAuthor" checked> Show author next to title</label>
+                    <div class="form-group"><label>Description</label><textarea id="editDescription" rows="4"></textarea></div>
+                    <div class="row-3">
+                        <div class="form-group"><label>Type</label><select id="editType"><option value="original">Original</option><option value="print">Print</option><option value="merch">Merch</option><option value="craft">Craft</option></select></div>
+                        <div class="form-group"><label>Orientation</label><select id="editOrientation"><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
+                        <div class="form-group"><label>Stock</label><input type="number" id="editStock" min="0" value="1"></div>
                     </div>
-                    <div>
-                        <label for="productStock">Stock</label>
-                        <input type="number" id="productStock" min="0" value="1">
-                    </div>
-                </div>
-                <label class="inline-check"><input type="checkbox" id="productShowStock" checked> Show stock badge</label>
-                <div class="row-2">
-                    <div>
-                        <label for="productPrice">Price (USD)</label>
-                        <input type="number" id="productPrice" placeholder="Price" step="0.01">
-                    </div>
-                    <div>
-                        <label for="productComparePrice">Compare-at price (optional, strikethrough)</label>
-                        <input type="number" id="productComparePrice" placeholder="Was-price" step="0.01">
-                    </div>
-                </div>
-                <label class="inline-check"><input type="checkbox" id="productShowPrice" checked> Show price on page</label>
-            </div>
-
-            <div class="edit-section">
-                <label class="section-label">Media</label>
-                <label for="productMediaKind">Media kind</label>
-                <select id="productMediaKind" data-action="media-kind-changed">
-                    <option value="image">Image</option>
-                    <option value="video">Video</option>
-                    <option value="text">Text / meditation</option>
-                </select>
-                <div id="mediaUrlGroup">
-                    <label for="productImage">Image/Video URL</label>
-                    <input type="text" id="productImage" placeholder="https://...">
-                    <div class="media-kind-hint">For image or video media kind.</div>
+                    <div class="form-group"><label>Price (USD)</label><input type="number" id="editPrice" step="0.01"></div>
                 </div>
 
-                <div class="video-controls" id="videoControls">
-                    <label class="inline-check"><input type="checkbox" id="productVideoAutoplay" checked> Autoplay</label>
-                    <label class="inline-check"><input type="checkbox" id="productVideoLoop" checked> Loop</label>
-                    <label class="inline-check"><input type="checkbox" id="productVideoMuted" checked> Muted</label>
+                <div class="edit-section">
+                    <label class="section-label">Media</label>
+                    <div class="form-group"><label>Image/Video URL</label><input type="text" id="editImageUrl" placeholder="https://..."></div>
+                    <div class="file-upload-section visible">
+                        <label>Or Upload from Device</label>
+                        <div class="image-upload-area" id="deviceUploadArea">Click to upload from device</div>
+                        <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display:none;">
+                        <img id="previewMain" class="image-preview">
+                    </div>
                 </div>
 
-                <div class="text-controls" id="textControls">
-                    <label for="productTextContent">Text content</label>
-                    <textarea id="productTextContent" rows="4" placeholder="Meditation text, poem, or quote..."></textarea>
+                <div class="edit-section">
+                    <label class="section-label">Frame</label>
+                    <div class="row-2">
+                        <div class="form-group"><label>Border Width (px)</label><input type="number" min="0" max="20" id="editBorderWidth" value="0"></div>
+                        <div class="form-group"><label>Border Color</label><input type="color" id="editBorderColor" value="#000000"></div>
+                    </div>
                 </div>
 
-                <label for="productVariations">Variations (JSON array of image URLs, optional)</label>
-                <input type="text" id="productVariations" placeholder='["url1","url2"]'>
-            </div>
-
-            <div class="edit-section">
-                <label class="section-label">Frame</label>
-                <div class="row-3">
-                    <div>
-                        <label for="productFrameWidth">Border width (px)</label>
-                        <input type="number" id="productFrameWidth" min="0" max="20" value="0">
-                    </div>
-                    <div>
-                        <label for="productFrameColor">Border color</label>
-                        <input type="color" id="productFrameColor" value="#000000">
-                    </div>
-                    <div>
-                        <label for="productObjectFit">Object fit</label>
-                        <select id="productObjectFit">
-                            <option value="contain">Contain</option>
-                            <option value="cover">Cover</option>
-                            <option value="fill">Fill</option>
-                        </select>
-                    </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="admin-btn confirm-pay" style="flex:2;">Save Product</button>
+                    <button type="button" class="admin-btn" id="cancelEditBtn" style="flex:1;">Cancel</button>
+                    <button type="button" class="admin-btn" id="deleteProductBtn" style="flex:1; display:none;">Delete</button>
                 </div>
-            </div>
-
-            <div class="edit-section">
-                <label class="section-label">Backdrop</label>
-                <div class="bg-half-toggle">
-                    <button type="button" class="active" data-action="toggle-bg-half" data-half="top">Product half</button>
-                    <button type="button" data-action="toggle-bg-half" data-half="bottom">Info half</button>
-                </div>
-                <div id="bgPanelTop" class="bg-control-group active">
-                    <label>Type</label>
-                    <select class="bg-type-select" data-half="top" data-action="bg-type-changed">
-                        <option value="color">Solid color</option>
-                        <option value="gradient">Gradient</option>
-                        <option value="animated">Animated pulse</option>
-                        <option value="image">Image / GIF</option>
-                        <option value="video">Video</option>
-                    </select>
-                    <div class="color-row"><span style="font-size:11px;">Color 1</span><input type="color" class="bg-color1" data-half="top" value="#f8f8f8"></div>
-                    <div class="color-row bg-color2-row" data-half="top" style="display:none;"><span style="font-size:11px;">Color 2</span><input type="color" class="bg-color2" data-half="top" value="#e0e0e0"></div>
-                    <div class="bg-media-row" data-half="top">
-                        <label>Media URL (image, gif, or video)</label>
-                        <input type="text" class="bg-media-url" data-half="top" placeholder="https://...">
-                    </div>
-                </div>
-                <div id="bgPanelBottom" class="bg-control-group">
-                    <label>Type</label>
-                    <select class="bg-type-select" data-half="bottom" data-action="bg-type-changed">
-                        <option value="color">Solid color</option>
-                        <option value="gradient">Gradient</option>
-                        <option value="animated">Animated pulse</option>
-                        <option value="image">Image / GIF</option>
-                        <option value="video">Video</option>
-                    </select>
-                    <div class="color-row"><span style="font-size:11px;">Color 1</span><input type="color" class="bg-color1" data-half="bottom" value="#f8f8f8"></div>
-                    <div class="color-row bg-color2-row" data-half="bottom" style="display:none;"><span style="font-size:11px;">Color 2</span><input type="color" class="bg-color2" data-half="bottom" value="#e0e0e0"></div>
-                    <div class="bg-media-row" data-half="bottom">
-                        <label>Media URL (image, gif, or video)</label>
-                        <input type="text" class="bg-media-url" data-half="bottom" placeholder="https://...">
-                    </div>
-                </div>
-            </div>
-
-            <div class="edit-section">
-                <label class="section-label">Description typography</label>
-                <div class="row-2">
-                    <div>
-                        <label for="productFontFamily">Font</label>
-                        <select id="productFontFamily">
-                            <option value="'Copperplate', serif">Copperplate (default)</option>
-                            <option value="'Work Sans', sans-serif">Work Sans</option>
-                            <option value="Georgia, serif">Georgia</option>
-                            <option value="'Roboto Mono', monospace">Roboto Mono</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="productFontWeight">Weight</label>
-                        <select id="productFontWeight">
-                            <option value="300">Light</option>
-                            <option value="400" selected>Regular</option>
-                            <option value="600">Semi-bold</option>
-                            <option value="700">Bold</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row-2">
-                    <div>
-                        <label for="productFontSize">Size (px)</label>
-                        <input type="number" id="productFontSize" min="10" max="24" value="11">
-                    </div>
-                    <div>
-                        <label for="productTextTransform">Transform</label>
-                        <select id="productTextTransform">
-                            <option value="none">None</option>
-                            <option value="uppercase">UPPERCASE</option>
-                            <option value="capitalize">Capitalize</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button data-action="save-product" style="flex: 1;">Save</button>
-                <button data-action="close-modal" style="background: #666;">Cancel</button>
-            </div>
+            </form>
         </div>
     </div>
 
