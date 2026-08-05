@@ -201,7 +201,6 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (!p) return;
 
-        // Smooth transition on info panel
         if (this.el.infoContainer) {
             this.el.infoContainer.classList.add('transitioning');
             setTimeout(() => {
@@ -406,7 +405,6 @@ class HybridApp {
         }
     }
 
-    // ---------- Double-tap-to-expand + single-tap-zoom ----------
     handleImageTap() {
         const p = this.products[this.currentIndex];
         if (p && (p.media_kind === 'text' || p.type === 'text')) return;
@@ -529,7 +527,6 @@ class HybridApp {
         }
     }
 
-    // ---------- Share-preview flow ----------
     async shareProduct() {
         this.showLoading(true);
         try {
@@ -608,7 +605,6 @@ class HybridApp {
         }
     }
 
-    // Renders the breakdown (subtotal/shipping/tax/total) returned by initialize-payment
     updateCheckoutTotal() {
         const p = this.products[this.currentIndex];
         const shippingSelect = document.getElementById('checkoutShippingSelect');
@@ -713,7 +709,6 @@ class HybridApp {
                 throw new Error(data.error || 'Payment failed');
             }
 
-            // Render breakdown if backend returns it (subtotal/shipping/tax/total)
             if (data.breakdown) {
                 if (this.el.checkoutSubtotal) this.el.checkoutSubtotal.innerText = this.formatPrice(data.breakdown.subtotal || 0);
                 if (this.el.checkoutShipping) this.el.checkoutShipping.innerText = this.formatPrice(data.breakdown.shipping || 0);
@@ -737,7 +732,6 @@ class HybridApp {
         }
     }
 
-    // ---------- Grid (sticky header + eye-toggle) ----------
     openGrid() {
         this.renderGrid('all');
         this.el.gridOverlay.classList.add('active');
@@ -850,7 +844,6 @@ class HybridApp {
         if (this.el.shareDownloadBtn) this.el.shareDownloadBtn.onclick = () => this.downloadShare();
         if (this.el.shareCloseBtn) this.el.shareCloseBtn.onclick = () => this.closeShare();
 
-        // Dark mode toggle via double-tap on brand
         if (this.el.galleryBrand) {
             let brandTapCount = 0, brandTapTimer;
             this.el.galleryBrand.onclick = () => {
@@ -868,7 +861,6 @@ class HybridApp {
             };
         }
 
-        // Restore dark mode preference
         if (localStorage.getItem('vgallery_dark') === '1') {
             document.body.classList.add('dark-mode');
         }
@@ -891,7 +883,6 @@ class HybridApp {
             filterBtns[i].onclick = () => this.filterGrid(filterBtns[i].dataset.filter);
         }
 
-        // Escape closes any open modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.closeCheckout();
@@ -905,7 +896,6 @@ class HybridApp {
             }
         });
 
-        // CSP-friendly event delegation for all data-action elements
         document.addEventListener('click', (e) => {
             const target = e.target.closest('[data-action]');
             if (!target) return;
@@ -947,15 +937,16 @@ class HybridApp {
     setupSwipe() {
         let startX = 0;
         let startY = 0;
+        // Always track start coordinates so we have them even if a modal closes during the swipe
         document.addEventListener('touchstart', (e) => {
-            if (this.isModalOpen()) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
-        });
+        }, { passive: true });
+        
         document.addEventListener('touchend', (e) => {
             if (this.isModalOpen()) return;
             const diffX = e.changedTouches[0].clientX - startX;
-            const diffY = e.changedTouches[0].clientY;
+            const diffY = e.changedTouches[0].clientY - startY;
             if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
                 if (diffX > 0) {
                     this.prevProduct();
@@ -963,7 +954,7 @@ class HybridApp {
                     this.nextProduct();
                 }
             }
-        });
+        }, { passive: true });
     }
 }
 
