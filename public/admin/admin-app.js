@@ -1,10 +1,7 @@
 (function () {
     'use strict';
 
-    // Guard: bounce to login immediately if there's no token. This is a UX
-    // convenience only — every admin-operations call below still sends the
-    // token to the server, and the server is what actually authorizes each
-    // action. Client-side checks like this one are never sufficient on their own.
+    // Guard: bounce to login immediately if there's no token.
     var token = sessionStorage.getItem('admin_token');
     if (!token) {
         window.location.href = '/admin/index.html';
@@ -244,7 +241,6 @@
         document.getElementById('productModal').classList.remove('active');
     }
 
-    // ---- Design-editor UI helpers (bg half toggle, bg type rows, media kind) ----
     function toggleBgHalf(half) {
         document.querySelectorAll('.bg-half-toggle button').forEach(function (b) {
             b.classList.toggle('active', b.dataset.half === half);
@@ -469,10 +465,6 @@
         showDiscountCodes();
     }
 
-    // ------------------------------------------------------
-    // SETTINGS — store name/logo/WhatsApp/tax rates + shipping rates,
-    // all editable here instead of needing Supabase's Table Editor.
-    // ------------------------------------------------------
     async function showSettings() {
         var settings = await apiCall('get_settings');
         var rates = await apiCall('get_shipping_rates');
@@ -545,12 +537,6 @@
         }
     }
 
-    // ------------------------------------------------------
-    // JSON EXPORT / IMPORT — round-trips the full product catalog.
-    // Import matches on `id`: present -> update_product, absent ->
-    // create_product, so re-importing an exported file is safe to
-    // repeat (it updates in place rather than duplicating).
-    // ------------------------------------------------------
     async function exportJSON() {
         var products = await apiCall('get_products');
         if (products.error) { alert('Error loading products'); return; }
@@ -596,14 +582,6 @@
         reader.readAsText(file);
     }
 
-    // ------------------------------------------------------
-    // PDF CATALOG EXPORT — built directly with jsPDF's text APIs
-    // rather than by screenshotting a live page, since the admin
-    // panel is a separate page from the storefront and has no
-    // product display in its own DOM to capture. Text-only by
-    // design (no embedded images) so it doesn't depend on
-    // third-party image hosts allowing cross-origin fetches.
-    // ------------------------------------------------------
     async function exportPDF() {
         if (!window.jspdf) {
             alert('PDF library failed to load');
@@ -647,8 +625,7 @@
         doc.save('vgallery_catalog_' + new Date().toISOString().slice(0, 10) + '.pdf');
     }
 
-    // CSP-safe event delegation — no inline onclick= anywhere, including in
-    // the HTML generated dynamically above.
+    // CSP-safe event delegation
     document.addEventListener('click', function (e) {
         var target = e.target.closest('[data-action]');
         if (!target) return;
