@@ -30,4 +30,229 @@
     <script src="/js/app.js" defer></script>
 </head>
 <body>
-    <!-- ... rest of the body ... -->
+    <a href="#mainContent" class="skip-link">Skip to content</a>
+
+    <!-- Offline banner -->
+    <div class="offline-banner" id="offlineBanner">You're offline — browsing cached gallery</div>
+
+    <!-- Intro overlay -->
+    <div class="intro-overlay" id="introOverlay">
+        <div class="intro-content">
+            <div class="intro-poem">"Be still, and know that I am God."</div>
+            <div class="intro-signature">V.</div>
+            <button class="enter-gallery" id="enterGalleryBtn">Enter Shop</button>
+        </div>
+    </div>
+
+    <!-- Loading + notifications -->
+    <div class="loading" id="loading"><div class="spinner"></div></div>
+    <div class="notification" id="notification" role="status" aria-live="polite"></div>
+
+    <!-- Install toast (PWA prompt) -->
+    <div class="install-toast" id="installToast" role="dialog" aria-label="Install app">
+        <span>Add V. Gallery to your home screen</span>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button class="dismiss" id="installDismiss" type="button">Not now</button>
+            <button id="installConfirm" type="button">Install</button>
+        </div>
+    </div>
+
+    <!-- Share overlay (preview screenshot before download) -->
+    <div class="share-overlay" id="shareOverlay" role="dialog" aria-modal="true" aria-label="Share preview">
+        <div class="share-container">
+            <img id="shareImage" class="share-image" alt="Share preview">
+            <div class="share-actions">
+                <button class="share-btn" id="shareDownloadBtn" type="button">Download</button>
+                <button class="share-btn" id="shareCloseBtn" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content wrapper: holds chrome-layer + split-container -->
+    <div class="content-wrapper" id="contentWrapper">
+
+        <!-- Chrome layer: logo + grid icon, anchored to content width -->
+        <div class="chrome-layer" id="chromeLayer">
+            <div class="logo-container" id="siteLogo" role="button" tabindex="0" aria-label="Return to intro">
+                <span class="logo-text">V.</span>
+            </div>
+            <button class="grid-icon-top" id="gridIconTop" type="button" aria-label="Open grid view">☷</button>
+        </div>
+
+        <!-- Main split container -->
+        <div class="split-container" id="mainContent">
+            <!-- Top half: product media -->
+            <div class="product-half" id="productHalf">
+                <video class="bg-media-layer" id="bgVideoTop" muted loop playsinline></video>
+                <img class="bg-media-layer" id="bgImageTop" alt="">
+
+                <div class="frame-container">
+                    <div class="product-frame" id="productFrame" role="button" tabindex="0" aria-label="Toggle zoom">
+                        <div class="frame-inner">
+                            <img class="product-image" id="mainImage" alt="">
+                            <video class="product-video" id="mainVideo" playsinline controls></video>
+                            <div class="text-content" id="textContent" style="display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom half: product info -->
+            <div class="info-half" id="infoHalf">
+                <video class="bg-media-layer" id="bgVideoBottom" muted loop playsinline></video>
+                <img class="bg-media-layer" id="bgImageBottom" alt="">
+
+                <div class="info-container" id="infoContainer">
+                    <div class="title-author">
+                        <span id="productTitle">-</span>
+                        <span id="productCreator" class="product-creator">V.</span>
+                    </div>
+                    <div class="description" id="descriptionText">Loading...</div>
+
+                    <div class="action-bar">
+                        <button class="icon-button heart" id="heartButton" type="button" aria-label="Save">♡</button>
+                        <button class="icon-button" id="cartButton" type="button" aria-label="Buy now">𐚱</button>
+                        <button class="icon-button" id="shareButton" type="button" aria-label="Share">↗</button>
+                    </div>
+
+                    <div class="price-row" id="priceRow">
+                        <span class="price-tag" id="priceTag"></span>
+                        <span class="original-price" id="originalPrice"></span>
+                        <span class="stock-badge" id="stockBadge"></span>
+                        <button class="currency-selector" id="currencyDisplay" type="button">USD</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom nav -->
+            <nav class="bottom-nav" aria-label="Gallery navigation">
+                <div class="nav-left">
+                    <span class="gallery-brand" id="galleryBrand">v.gallery.shop</span>
+                </div>
+                <div class="nav-arrows">
+                    <button class="arrow-btn" id="prevBtn" type="button" aria-label="Previous">‹</button>
+                    <div class="page-indicator" id="pageIndicator">1/1</div>
+                    <button class="arrow-btn" id="nextBtn" type="button" aria-label="Next">›</button>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Grid overlay (sticky header + eye-toggle) -->
+    <div class="grid-overlay" id="gridOverlay" role="dialog" aria-modal="true" aria-label="Grid view">
+        <div class="grid-header">
+            <div class="grid-filters">
+                <button class="filter-btn active" data-filter="all" type="button">All</button>
+                <button class="filter-btn" data-filter="original" type="button">Originals</button>
+                <button class="filter-btn" data-filter="print" type="button">Prints</button>
+                <button class="filter-btn" data-filter="merch" type="button">Merch</button>
+                <button class="filter-btn" data-filter="saved" type="button">♡ Saved</button>
+                <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">👁</button>
+            </div>
+            <button class="close-grid-btn" data-action="close-grid" type="button" aria-label="Close grid">×</button>
+        </div>
+        <div class="grid-container" id="gridContainer"></div>
+    </div>
+
+    <!-- Checkout -->
+    <div class="checkout-overlay" id="checkoutOverlay" data-action="close-checkout-overlay"></div>
+    <div class="checkout-panel" id="checkoutPanel" role="dialog" aria-modal="true" aria-label="Checkout">
+        <div class="checkout-header">
+            <h2>Checkout</h2>
+            <button class="close-checkout" data-action="close-checkout" type="button" aria-label="Close checkout">×</button>
+        </div>
+
+        <div class="checkout-layout">
+            <div class="order-summary">
+                <h3 style="margin-bottom: 20px; font-size: 14px; font-weight: 400;">Your Order</h3>
+                <div id="checkoutProductPreview"></div>
+
+                <div class="quantity-selector">
+                    <button class="quantity-btn" data-action="qty-dec" type="button" aria-label="Decrease quantity">−</button>
+                    <span id="checkoutQuantity" style="font-size: 16px; min-width: 40px; text-align: center;">1</span>
+                    <button class="quantity-btn" data-action="qty-inc" type="button" aria-label="Increase quantity">+</button>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div class="summary-row">
+                        <span>Subtotal</span>
+                        <span id="checkoutSubtotal"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Shipping</span>
+                        <span id="checkoutShipping"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax</span>
+                        <span id="checkoutTax"></span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total</span>
+                        <span id="checkoutTotal"></span>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="checkoutShippingSelect">Shipping Method</label>
+                    <select id="checkoutShippingSelect">
+                        <option value="standard">Standard (5-7 days)</option>
+                        <option value="express">Express (2-3 days)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="checkoutDiscountCode">Discount Code</label>
+                    <input type="text" id="checkoutDiscountCode" placeholder="Optional">
+                </div>
+            </div>
+
+            <div class="checkout-form">
+                <div class="form-group">
+                    <label for="checkoutEmail">Email</label>
+                    <input type="email" id="checkoutEmail" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="checkoutName">Full Name</label>
+                    <input type="text" id="checkoutName" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label for="checkoutPhone">Phone</label>
+                    <input type="tel" id="checkoutPhone" placeholder="+1 555 000 0000">
+                </div>
+                <div class="form-group">
+                    <label for="checkoutAddress">Address</label>
+                    <input type="text" id="checkoutAddress" placeholder="Street address">
+                </div>
+
+                <div class="payment-method-options" id="paymentMethodOptions">
+                    <label class="payment-method-option selected">
+                        <input type="radio" name="paymentProvider" value="paystack" checked> Card / Bank via Paystack
+                    </label>
+                    <label class="payment-method-option">
+                        <input type="radio" name="paymentProvider" value="flutterwave"> Card / Bank via Flutterwave
+                    </label>
+                    <label class="payment-method-option">
+                        <input type="radio" name="paymentProvider" value="bank_transfer"> Direct Bank Transfer
+                    </label>
+                </div>
+
+                <button class="place-order-btn" data-action="place-order" type="button">Place Order</button>
+
+                <div class="bank-details-panel" id="bankDetailsPanel">
+                    <h4>Local Bank Account (NGN)</h4>
+                    <div class="bank-block" id="bankLocalDetails"></div>
+                    <h4>Domiciliary Account (USD)</h4>
+                    <div class="bank-block" id="bankDomDetails"></div>
+                    <p style="font-size: 11px; margin: 10px 0;">Use reference <strong id="bankRefNumber"></strong>, then send proof below.</p>
+                    <button class="whatsapp-proof-btn" id="whatsappProofBtn" type="button">Send Proof via WhatsApp</button>
+                </div>
+
+                <div class="checkout-legal">
+                    <a href="/terms.html">Terms</a>
+                    <a href="/privacy.html">Privacy</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
