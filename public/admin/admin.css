@@ -21,11 +21,93 @@
     outline-offset: 2px;
 }
 
+/* ---------- Login page ---------- */
+.admin-login-body {
+    font-family: 'Georgia', serif;
+    background: linear-gradient(135deg, #f8f8f8 0%, #e8e8e8 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.login-container {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.login-container .logo {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.login-container h1 {
+    font-size: 20px;
+    font-weight: 400;
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.login-container input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: monospace;
+}
+
+.login-container button {
+    width: 100%;
+    padding: 14px;
+    background: #000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.3s;
+}
+
+.login-container button:hover {
+    background: #333;
+}
+
+.login-container button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.login-container .error {
+    color: #c62828;
+    margin-bottom: 15px;
+    font-size: 12px;
+    display: none;
+}
+
+.login-container .footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: #888;
+}
+
+.login-container .footer a {
+    color: #888;
+    text-decoration: none;
+}
+
+/* ---------- Dashboard ---------- */
 body.admin-dashboard-body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: #f5f5f5;
-    color: #333;
-    line-height: 1.5;
 }
 
 .container {
@@ -43,27 +125,12 @@ header {
     justify-content: space-between;
     align-items: center;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    gap: 12px;
-    flex-wrap: wrap;
 }
 
 header h1 {
     font-size: 20px;
     font-weight: 600;
 }
-
-.sync-badge {
-    font-size: 9px;
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-family: 'Work Sans', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-left: auto;
-    margin-right: 12px;
-}
-.sync-badge.online { background: #e8f5e9; color: #2e7d32; }
-.sync-badge.offline { background: #fff3e0; color: #ed6c02; }
 
 .logout-btn {
     background: #dc2626;
@@ -75,7 +142,10 @@ header h1 {
     font-size: 14px;
     transition: all 0.2s;
 }
-.logout-btn:hover { background: #b91c1c; }
+
+.logout-btn:hover {
+    background: #b91c1c;
+}
 
 .stats {
     display: grid;
@@ -124,7 +194,6 @@ header h1 {
     gap: 12px;
     margin-bottom: 24px;
     flex-wrap: wrap;
-    align-items: center;
 }
 
 button {
@@ -136,9 +205,11 @@ button {
     border-radius: 6px;
     font-size: 14px;
     transition: all 0.2s;
-    font-family: inherit;
 }
-button:hover { background: #333; }
+
+button:hover {
+    background: #333;
+}
 
 .admin-btn {
     background: none;
@@ -149,42 +220,27 @@ button:hover { background: #333; }
     margin-right: 8px;
     cursor: pointer;
     border-radius: 4px;
-    font-family: 'Roboto Mono', monospace;
-    transition: all 0.2s;
 }
+
 .admin-btn:hover {
     background: #f5f5f5;
     border-color: #000;
 }
+
 .admin-btn.confirm-pay {
     border-color: #16a34a;
     color: #16a34a;
 }
+
 .admin-btn.confirm-pay:hover {
     background: #16a34a;
     color: #fff;
-}
-.admin-btn.danger {
-    border-color: #dc2626;
-    color: #dc2626;
-}
-.admin-btn.danger:hover {
-    background: #dc2626;
-    color: #fff;
-}
-
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-    border: 1px solid #eee;
-    border-radius: 8px;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    min-width: 700px;
 }
 
 th, td {
@@ -199,22 +255,17 @@ th {
     background: #fafafa;
 }
 
-tr:hover td { background: #fafafa; }
-
 .badge {
     display: inline-block;
     padding: 2px 8px;
     border-radius: 10px;
     font-size: 11px;
     text-transform: capitalize;
-    font-family: 'Roboto Mono', monospace;
 }
+
 .badge.paid { background: #dcfce7; color: #16a34a; }
 .badge.pending { background: #fef3c7; color: #b45309; }
 .badge.failed, .badge.refunded { background: #fee2e2; color: #dc2626; }
-.badge.processing { background: #dbeafe; color: #2563eb; }
-.badge.shipped { background: #e0e7ff; color: #4f46e5; }
-.badge.delivered { background: #d1fae5; color: #059669; }
 
 .modal {
     display: none;
@@ -224,15 +275,17 @@ tr:hover td { background: #fafafa; }
     z-index: 1000;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
 }
-.modal.active { display: flex; }
+
+.modal.active {
+    display: flex;
+}
 
 .modal-content {
     background: white;
     padding: 30px;
     border-radius: 12px;
-    max-width: 600px;
+    max-width: 500px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -240,23 +293,18 @@ tr:hover td { background: #fafafa; }
 
 .modal-content h3 {
     margin-bottom: 20px;
-    font-size: 18px;
-    font-weight: 600;
 }
 
-.modal-content input,
-.modal-content textarea,
-.modal-content select {
+.modal-content input, .modal-content textarea, .modal-content select {
     width: 100%;
     padding: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 15px;
     border: 1px solid #ddd;
     border-radius: 6px;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
+    font-size: 14px;
 }
 
-/* ---------- Product design editor sections (polished) ---------- */
+/* ---------- Product design editor sections ---------- */
 .edit-section {
     margin-bottom: 16px;
     border: 1px solid #eee;
@@ -268,7 +316,7 @@ tr:hover td { background: #fafafa; }
     display: block;
     font-size: 11px;
     font-weight: 600;
-    color: #D0A380;
+    color: #666;
     margin-bottom: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -294,57 +342,52 @@ tr:hover td { background: #fafafa; }
 .edit-section label.inline-check input { width: auto; margin: 0; }
 .edit-section input, .edit-section textarea, .edit-section select {
     margin-bottom: 10px;
-    background: white;
 }
-.edit-section textarea { min-height: 70px; resize: vertical; }
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
-}
-.form-group label {
-    font-size: 10px;
-    text-transform: uppercase;
-    color: #888;
-    letter-spacing: 0.4px;
-}
+.edit-section textarea { min-height: 60px; resize: vertical; }
 
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
-.image-upload-area {
-    border: 2px dashed #ddd;
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    margin-bottom: 10px;
-    transition: all 0.2s;
-    border-radius: 6px;
-    font-size: 12px;
-    color: #888;
-}
-.image-upload-area:hover {
-    border-color: #000;
-    background: #f5f5f5;
+.bg-half-toggle { display: flex; gap: 8px; margin-bottom: 10px; }
+.bg-half-toggle button {
+    flex: 1;
+    padding: 8px;
+    font-size: 10px;
+    border: 1px solid #ddd;
+    background: #fff;
     color: #333;
-}
-.image-preview {
-    max-width: 200px;
-    max-height: 200px;
-    margin: 10px auto;
-    display: none;
+    cursor: pointer;
     border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
-.image-preview[src] { display: block; }
+.bg-half-toggle button.active { background: #000; color: #fff; border-color: #000; }
 
-.file-upload-section { display: none; }
-.file-upload-section.visible { display: block; }
+.bg-control-group { display: none; }
+.bg-control-group.active { display: block; }
+.color-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.color-row input[type=color] { width: 44px; height: 32px; padding: 2px; border: 1px solid #ddd; border-radius: 4px; }
+.bg-media-row { display: none; }
+.bg-media-row.visible { display: block; }
+
+.video-controls, .text-controls, .file-upload-section { display: none; }
+.video-controls.visible, .text-controls.visible, .file-upload-section.visible { display: block; }
+.video-controls label.inline-check { text-transform: none; }
+
+.media-kind-hint {
+    font-size: 10px;
+    color: #888;
+    margin: -4px 0 10px;
+}
 
 @media (max-width: 768px) {
-    .stats { grid-template-columns: repeat(2, 1fr); }
-    .container { padding: 12px; }
-    th, td { padding: 8px; }
-    .row-2, .row-3 { grid-template-columns: 1fr; }
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .container {
+        padding: 12px;
+    }
+    th, td {
+        padding: 8px;
+    }
 }
