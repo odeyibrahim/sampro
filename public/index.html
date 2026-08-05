@@ -2,405 +2,108 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#000000">
-    <title>V. Gallery · shop + originals</title>
-    
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="V. Gallery">
-    <meta name="description" content="V. Gallery — original works, prints, and objects.">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <link rel="icon" href="icons/icon-192.png">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
-    
-    <!-- Libraries -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://js.paystack.co/v1/inline.js"></script>
-    
-    <style>
-        /* All styles moved to styles.css */
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · V. Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/admin/admin.css">
 </head>
-<body>
-    <!-- Offline Banner -->
-    <div class="offline-banner" id="offlineBanner">You're offline — browsing cached gallery</div>
+<body class="admin-dashboard-body">
+    <div class="container">
+        <header>
+            <h1>Admin · V. Gallery</h1>
+            <span class="sync-badge" id="syncBadge">Local mode</span>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </header>
 
-    <!-- Intro Overlay -->
-    <div class="intro-overlay" id="introOverlay">
-        <div class="intro-content">
-            <div class="intro-poem" id="introPoem">"Be still, and know that I am God."</div>
-            <div class="intro-signature">V.</div>
-            <button class="enter-gallery" onclick="app.enterGallery()">Enter Shop</button>
-        </div>
-    </div>
+        <div class="stats" id="stats"></div>
 
-    <!-- Loading -->
-    <div class="loading" id="loading"><div class="spinner"></div></div>
-
-    <!-- Notifications -->
-    <div class="notification" id="notification"></div>
-
-    <!-- Install Toast -->
-    <div class="install-toast" id="installToast">
-        <span>Add V. Gallery to your home screen</span>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
-            <button class="dismiss" id="installDismiss">Not now</button>
-            <button id="installConfirm">Install</button>
-        </div>
-    </div>
-
-    <!-- Share Overlay -->
-    <div class="share-overlay" id="shareOverlay">
-        <div class="share-container">
-            <img id="shareImage" class="share-image" alt="Share">
-            <div class="share-actions">
-                <button class="share-btn" onclick="app.downloadShare()">Download</button>
-                <button class="share-btn" onclick="app.closeShare()">Close</button>
+        <div class="section">
+            <h2>Recent Orders</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr>
+                    </thead>
+                    <tbody id="recentOrdersBody"></tbody>
+                </table>
             </div>
         </div>
-    </div>
 
-    <!-- Content Wrapper -->
-    <div class="content-wrapper" id="contentWrapper">
-
-        <!-- Chrome layer: logo + grid icon -->
-        <div class="chrome-layer" id="chromeLayer">
-            <div class="logo-container" id="logoContainer">
-                <span class="logo-text">V.</span>
-                <img id="logoImage" class="logo-image" alt="V. Gallery">
+        <div class="section">
+            <div class="action-buttons">
+                <h2 style="margin:0; flex:1;">Manage Products</h2>
+                <button id="addProductBtn">+ Add Product</button>
             </div>
-            <button class="grid-icon-top" onclick="app.openGrid()">☷</button>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="adminProductsBody"></tbody>
+                </table>
+            </div>
         </div>
 
-        <!-- Main Split Container -->
-        <div class="split-container" id="splitContainer">
-            <!-- Top Half -->
-            <div class="product-half" id="topHalf">
-                <video class="bg-media-layer" id="bgVideoTop" muted loop playsinline></video>
-                <img class="bg-media-layer" id="bgImageTop" alt="">
-
-                <div class="frame-container">
-                    <div class="product-frame" id="productFrame" onclick="app.handleImageTap(event)">
-                        <div class="frame-inner">
-                            <img src="" class="product-image" id="mainImage">
-                            <video class="product-video" id="mainVideo" playsinline controls></video>
-                            <div class="text-content" id="textContent" style="display:none;"></div>
-                        </div>
-                    </div>
-                </div>
+        <div class="section">
+            <h2>All Orders</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr>
+                    </thead>
+                    <tbody id="adminOrdersBody"></tbody>
+                </table>
             </div>
-
-            <!-- Bottom Half -->
-            <div class="info-half" id="bottomHalf">
-                <video class="bg-media-layer" id="bgVideoBottom" muted loop playsinline></video>
-                <img class="bg-media-layer" id="bgImageBottom" alt="">
-
-                <div class="info-container" id="infoContainer">
-                    <div class="description" id="descriptionText">Loading...</div>
-
-                    <div class="title-section">
-                        <div class="product-title" id="productTitle">-</div>
-                        <div class="product-creator" id="productCreator">V.</div>
-                    </div>
-
-                    <div class="action-bar">
-                        <button class="action-btn heart" id="heartButton">♡</button>
-                        <button class="action-btn" id="buyNowBtn" onclick="app.openCheckout()">𐚱</button>
-                        <button class="action-btn share" id="shareButton">↗</button>
-                    </div>
-
-                    <div class="price-row" id="priceRow">
-                        <span class="price-tag" id="priceTag"></span>
-                        <span class="original-price" id="originalPrice"></span>
-                        <span class="stock-badge" id="stockBadge"></span>
-                        <span class="currency-badge" id="currencyDisplay" onclick="app.cycleCurrency()">USD</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom Navigation -->
-            <nav class="bottom-nav">
-                <div class="nav-left">
-                    <span class="gallery-brand" id="galleryBrand">v.gallery.shop</span>
-                    <button class="admin-gear" id="adminGearBtn" title="Admin" onclick="app.openAdmin()">⚙</button>
-                </div>
-
-                <div class="nav-arrows">
-                    <button class="arrow-btn prev-product" onclick="app.prevProduct()" id="prevBtn" disabled>‹</button>
-                    <div class="page-indicator" id="pageIndicator">1/1</div>
-                    <button class="arrow-btn next-product" onclick="app.nextProduct()" id="nextBtn">›</button>
-                </div>
-            </nav>
-        </div>
-    </div>
-
-    <!-- Grid Overlay -->
-    <div class="grid-overlay" id="gridOverlay">
-        <div class="grid-header">
-            <div class="grid-filters">
-                <button class="filter-btn active" data-filter="all" onclick="app.filterGrid('all')">All</button>
-                <button class="filter-btn" data-filter="original" onclick="app.filterGrid('original')">Originals</button>
-                <button class="filter-btn" data-filter="print" onclick="app.filterGrid('print')">Prints</button>
-                <button class="filter-btn" data-filter="merch" onclick="app.filterGrid('merch')">Merch</button>
-                <button class="filter-btn saved" data-filter="saved" onclick="app.filterGrid('saved')">♡ Saved</button>
-                <button class="eye-toggle" onclick="app.toggleGridDetails()" title="Toggle details">👁</button>
-            </div>
-            <div class="breadcrumb" onclick="app.closeGrid()">←</div>
-        </div>
-        <div class="grid-container" id="gridContainer"></div>
-    </div>
-
-    <!-- Checkout Panel -->
-    <div class="checkout-overlay" id="checkoutOverlay" onclick="if(event.target === this) app.closeCheckout()"></div>
-    <div class="checkout-panel" id="checkoutPanel">
-        <div class="checkout-header">
-            <h2>Checkout</h2>
-            <span class="close-checkout" onclick="app.closeCheckout()">←</span>
         </div>
 
-        <div class="checkout-layout">
-            <div class="order-summary">
-                <h3 style="margin-bottom: 20px; font-size: 14px; font-weight: 400;">Your Order</h3>
-                <div id="checkoutProductPreview"></div>
-                
-                <div class="quantity-selector">
-                    <button class="quantity-btn" onclick="app.updateQuantity(-1)" id="decreaseQty" disabled>−</button>
-                    <span id="checkoutQuantity" style="font-size: 16px; min-width: 40px; text-align: center;">1</span>
-                    <button class="quantity-btn" onclick="app.updateQuantity(1)" id="increaseQty">+</button>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <div class="summary-row">
-                        <span>Subtotal</span>
-                        <span id="checkoutSubtotal"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Shipping</span>
-                        <span id="checkoutShipping"></span>
-                    </div>
-                    <div class="summary-row">
-                        <span>Tax</span>
-                        <span id="checkoutTax"></span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>Total</span>
-                        <span id="checkoutTotal"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="checkout-form">
-                <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="checkoutEmail" placeholder="you@example.com">
-                    <div class="error-message" id="emailError"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="checkoutName" placeholder="John Doe">
-                    <div class="error-message" id="nameError"></div>
-                </div>
-
-                <div class="form-group">
-                    <label>Address</label>
-                    <input type="text" id="checkoutAddress" placeholder="Street address">
-                    <div class="error-message" id="addressError"></div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 16px;">
+        <div class="section">
+            <h2>Store Settings</h2>
+            <div style="max-width: 500px;">
+                <div class="edit-section">
+                    <label class="section-label">Branding</label>
                     <div class="form-group">
-                        <label>City</label>
-                        <input type="text" id="checkoutCity" placeholder="City">
+                        <label for="storeName">Store Name</label>
+                        <input type="text" id="storeName" value="V. Gallery">
                     </div>
                     <div class="form-group">
-                        <label>ZIP Code</label>
-                        <input type="text" id="checkoutZip" placeholder="ZIP">
+                        <label>Store Logo</label>
+                        <div class="image-upload-area" id="logoUploadArea">Click to upload logo</div>
+                        <input type="file" id="logoUpload" accept="image/*" style="display:none;">
+                        <img id="logoPreview" class="image-preview">
                     </div>
                 </div>
 
-                <div class="shipping-options">
-                    <label class="shipping-option" onclick="app.selectShipping('standard')">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <input type="radio" name="shipping" value="standard" checked>
-                            <span>Standard (5-7 days)</span>
+                <div class="edit-section">
+                    <label class="section-label">Shipping</label>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label for="standardShipping">Standard ($)</label>
+                            <input type="number" id="standardShipping" value="7" step="0.01">
                         </div>
-                        <span id="shippingStandardPrice"></span>
-                    </label>
-                    <label class="shipping-option" onclick="app.selectShipping('express')">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <input type="radio" name="shipping" value="express">
-                            <span>Express (2-3 days)</span>
+                        <div class="form-group">
+                            <label for="expressShipping">Express ($)</label>
+                            <input type="number" id="expressShipping" value="15" step="0.01">
                         </div>
-                        <span id="shippingExpressPrice"></span>
-                    </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="settingWhatsapp">WhatsApp Number</label>
+                        <input type="text" id="settingWhatsapp" placeholder="2349012345678">
+                    </div>
                 </div>
 
-                <div class="payment-method-options" id="paymentMethodOptions">
-                    <label class="payment-method-option selected">
-                        <input type="radio" name="paymentProvider" value="paystack" checked> Card / Bank via Paystack
-                    </label>
-                    <label class="payment-method-option">
-                        <input type="radio" name="paymentProvider" value="flutterwave"> Card / Bank via Flutterwave
-                    </label>
-                    <label class="payment-method-option">
-                        <input type="radio" name="paymentProvider" value="bank_transfer"> Direct Bank Transfer
-                    </label>
-                </div>
-
-                <button class="place-order-btn" id="placeOrderBtn" onclick="app.processPayment()">Place Order</button>
-
-                <div class="bank-details-panel" id="bankDetailsPanel">
-                    <h4>Local Bank Account (NGN)</h4>
-                    <div class="bank-block" id="bankLocalDetails"></div>
-                    <h4>Domiciliary Account (USD)</h4>
-                    <div class="bank-block" id="bankDomDetails"></div>
-                    <p style="font-size: 11px; margin: 10px 0;">Use reference <strong id="bankRefNumber"></strong>, then send proof below.</p>
-                    <button class="whatsapp-btn" id="whatsappProofBtn">Send Proof via WhatsApp</button>
-                </div>
-
-                <button class="whatsapp-btn" onclick="app.whatsappInquiry()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.5 2 12c0 2.1.6 4.1 1.7 5.9L2 22l4.3-1.6C8.1 21.4 10 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>
-                    Inquire on WhatsApp
-                </button>
-
-                <div class="checkout-legal">
-                    <a href="#" onclick="app.showTerms()">Terms</a>
-                    <a href="#" onclick="app.showPrivacy()">Privacy</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Login -->
-    <div class="admin-login-overlay" id="adminLoginOverlay">
-        <div class="admin-login-panel">
-            <h3>Store Admin</h3>
-            <p class="hint" id="adminLoginHint">Enter your passcode to manage products &amp; orders.</p>
-            <input type="password" id="adminPasscodeInput" placeholder="Passcode" autofocus>
-            <div class="admin-login-error" id="adminLoginError"></div>
-            <div class="admin-login-actions">
-                <button id="adminLoginCancel">Cancel</button>
-                <button class="primary" id="adminLoginSubmit">Enter</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Admin Panel -->
-    <div class="admin-overlay" id="adminOverlay" onclick="if(event.target === this) app.closeAdmin()"></div>
-    <div class="admin-panel" id="adminPanel">
-        <div class="admin-header">
-            <h2>Admin · V. Gallery</h2>
-            <span class="sync-badge offline" id="syncBadge">Local mode</span>
-            <span class="close-admin" onclick="app.closeAdmin()">×</span>
-        </div>
-
-        <div class="admin-tabs">
-            <div class="admin-tab active" data-tab="dashboard" onclick="app.switchAdminTab('dashboard')">Dashboard</div>
-            <div class="admin-tab" data-tab="products" onclick="app.switchAdminTab('products')">Products</div>
-            <div class="admin-tab" data-tab="orders" onclick="app.switchAdminTab('orders')">Orders</div>
-            <div class="admin-tab" data-tab="customers" onclick="app.switchAdminTab('customers')">Customers</div>
-            <div class="admin-tab" data-tab="settings" onclick="app.switchAdminTab('settings')">Settings</div>
-        </div>
-
-        <div class="admin-section active" id="adminDashboard">
-            <div class="admin-stats">
-                <div class="stat-card"><div class="stat-value" id="totalRevenue">$0</div><div class="stat-label">Revenue</div></div>
-                <div class="stat-card"><div class="stat-value" id="totalOrders">0</div><div class="stat-label">Orders</div></div>
-                <div class="stat-card"><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Products</div></div>
-                <div class="stat-card"><div class="stat-value" id="lowStockCount">0</div><div class="stat-label">Low Stock</div></div>
-            </div>
-            <h3 style="margin-bottom: 20px; font-size: 14px;">Recent Orders</h3>
-            <div class="table-container">
-                <table class="admin-table"><thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-                <tbody id="recentOrdersBody"></tbody></table>
-            </div>
-        </div>
-
-        <div class="admin-section" id="adminProducts">
-            <div class="admin-toolbar">
-                <h3 style="font-size: 14px; margin:0;">Manage Products</h3>
-                <button class="admin-btn" onclick="app.openEditModal()">+ Add Product</button>
-            </div>
-            <div class="table-container">
-                <table class="admin-table"><thead><tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
-                <tbody id="adminProductsBody"></tbody></table>
-            </div>
-        </div>
-
-        <div class="admin-section" id="adminOrders">
-            <h3 style="margin-bottom: 20px; font-size: 14px;">All Orders</h3>
-            <div class="table-container">
-                <table class="admin-table"><thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead>
-                <tbody id="adminOrdersBody"></tbody></table>
-            </div>
-        </div>
-
-        <div class="admin-section" id="adminCustomers">
-            <h3 style="margin-bottom: 20px; font-size: 14px;">Customers</h3>
-            <div class="table-container">
-                <table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Last Order</th></tr></thead>
-                <tbody id="adminCustomersBody"></tbody></table>
-            </div>
-        </div>
-
-        <div class="admin-section" id="adminSettings">
-            <h3 style="margin-bottom: 20px; font-size: 14px;">Store Settings</h3>
-            <div style="max-width: 400px;">
-                <div class="form-group"><label>Store Name</label><input type="text" id="storeName" value="V. Gallery"></div>
-                <div class="form-group">
-                    <label>Store Logo</label>
-                    <div class="image-upload-area" onclick="document.getElementById('logoUpload').click()">Click to upload logo</div>
-                    <input type="file" id="logoUpload" accept="image/*" style="display: none;" onchange="app.uploadLogo(this)">
-                    <img id="logoPreview" class="image-preview">
-                </div>
-                <div class="row-2">
-                    <div class="form-group"><label>Standard Shipping ($)</label><input type="number" id="standardShipping" value="7" step="0.01"></div>
-                    <div class="form-group"><label>Express Shipping ($)</label><input type="number" id="expressShipping" value="15" step="0.01"></div>
-                </div>
-                <div class="form-group"><label>WhatsApp Number</label><input type="text" id="settingWhatsapp" placeholder="2349012345678"></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="admin-btn" onclick="app.saveSettings()" style="flex:1;">Save Settings</button>
-                    <button class="admin-btn" onclick="app.changePasscode()" style="flex:1;">Change Passcode</button>
-                </div>
-                <h3 style="margin: 26px 0 16px; font-size: 14px;">Data</h3>
-                <div style="display: flex; gap: 10px;">
-                    <button class="admin-btn" onclick="app.exportData()" style="flex:1;">Export JSON</button>
-                    <button class="admin-btn" onclick="app.importData()" style="flex:1;">Import JSON</button>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button class="admin-btn" onclick="app.exportPdf()" style="flex:1;">Export PDF</button>
-                    <button class="admin-btn admin-btn-danger" onclick="app.logoutAdmin()" style="flex:1;">Logout</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="admin-btn" id="saveSettingsBtn" style="flex:1;">Save Settings</button>
+                    <button class="admin-btn" id="exportDataBtn" style="flex:1;">Export JSON</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Edit Modal -->
-    <div class="edit-modal" id="editModal" onclick="if(event.target === this) app.closeEditModal()">
-        <div class="edit-content">
-            <div class="edit-header">
-                <h3 id="editModalTitle">Add Product</h3>
-                <span class="close-edit" onclick="app.closeEditModal()">×</span>
-            </div>
-            <form id="editProductForm" onsubmit="app.saveProduct(event)">
-                <div class="edit-section">
-                    <label class="section-label">Product Type</label>
-                    <select id="editProductType" onchange="app.toggleProductTypeUI()">
-                        <option value="image">Image</option>
-                        <option value="video">Video</option>
-                        <option value="text">Text / Meditation</option>
-                    </select>
-                </div>
-
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <h3 id="editModalTitle">Add Product</h3>
+            <form id="editProductForm">
                 <div class="edit-section">
                     <label class="section-label">Basic Info</label>
                     <div class="row-2">
@@ -409,46 +112,23 @@
                     </div>
                     <label class="inline-check"><input type="checkbox" id="editShowAuthor" checked> Show author next to title</label>
                     <div class="form-group"><label>Description</label><textarea id="editDescription" rows="4"></textarea></div>
-                    <label>Content Order</label>
-                    <select id="editContentOrder">
-                        <option value="title-first">Title before description</option>
-                        <option value="description-first">Description before title</option>
-                    </select>
                     <div class="row-3">
                         <div class="form-group"><label>Type</label><select id="editType"><option value="original">Original</option><option value="print">Print</option><option value="merch">Merch</option><option value="craft">Craft</option></select></div>
                         <div class="form-group"><label>Orientation</label><select id="editOrientation"><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
                         <div class="form-group"><label>Stock</label><input type="number" id="editStock" min="0" value="1"></div>
                     </div>
-                    <label class="inline-check"><input type="checkbox" id="editShowStock" checked> Show stock badge</label>
                     <div class="form-group"><label>Price (USD)</label><input type="number" id="editPrice" step="0.01"></div>
-                    <label class="inline-check"><input type="checkbox" id="editShowPrice" checked> Show price on page</label>
                 </div>
 
-                <div class="edit-section" id="mediaSection">
+                <div class="edit-section">
                     <label class="section-label">Media</label>
                     <div class="form-group"><label>Image/Video URL</label><input type="text" id="editImageUrl" placeholder="https://..."></div>
-                    
-                    <div class="file-upload-section visible" id="fileUploadSection">
+                    <div class="file-upload-section visible">
                         <label>Or Upload from Device</label>
-                        <div class="image-upload-area" onclick="document.getElementById('deviceFileUpload').click()">
-                            Click to upload from device
-                        </div>
-                        <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display: none;" onchange="app.handleDeviceFileUpload(this)">
+                        <div class="image-upload-area" id="deviceUploadArea">Click to upload from device</div>
+                        <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display:none;">
                         <img id="previewMain" class="image-preview">
-                        <video id="previewVideo" class="image-preview" controls style="display:none;"></video>
-                        <div class="file-size-warning" id="fileSizeWarning">⚠️ File is over 5MB — this may slow down the gallery for other visitors.</div>
                     </div>
-
-                    <div class="video-controls" id="videoControls">
-                        <label><input type="checkbox" id="editVideoAutoplay" checked> Autoplay</label>
-                        <label><input type="checkbox" id="editVideoLoop" checked> Loop</label>
-                        <label><input type="checkbox" id="editVideoMuted" checked> Muted</label>
-                    </div>
-                </div>
-
-                <div class="edit-section text-controls" id="textSection">
-                    <label class="section-label">Text Content</label>
-                    <textarea id="editTextContent" rows="6" placeholder="Enter meditation text, poem, or quote..."></textarea>
                 </div>
 
                 <div class="edit-section">
@@ -457,134 +137,18 @@
                         <div class="form-group"><label>Border Width (px)</label><input type="number" min="0" max="20" id="editBorderWidth" value="0"></div>
                         <div class="form-group"><label>Border Color</label><input type="color" id="editBorderColor" value="#000000"></div>
                     </div>
-                    <div class="form-group"><label>Object Fit</label><select id="editObjectFit"><option value="contain">Contain</option><option value="cover">Cover</option><option value="fill">Fill</option></select></div>
                 </div>
 
-                <div class="edit-section">
-                    <label class="section-label">Backdrop</label>
-                    <div class="bg-half-toggle">
-                        <button type="button" class="active" data-half="top" onclick="app.toggleBgHalf('top')">Product Half</button>
-                        <button type="button" data-half="bottom" onclick="app.toggleBgHalf('bottom')">Info Half</button>
-                    </div>
-                    <div id="bgPanelTop" class="bg-control-group active">
-                        <div class="form-group"><label>Type</label><select class="bg-type-select" data-half="top" onchange="app.updateBgColorRow('top')"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image / GIF</option><option value="video">Video</option></select></div>
-                        <div class="color-row"><span style="font-size:11px;">Color 1</span><input type="color" class="bg-color1" data-half="top" value="#f8f8f8"></div>
-                        <div class="color-row bg-color2-row" data-half="top" style="display:none;"><span style="font-size:11px;">Color 2</span><input type="color" class="bg-color2" data-half="top" value="#e0e0e0"></div>
-                        <div class="form-group bg-media-row" data-half="top"><label>Media URL (image, gif, or video)</label><input type="text" class="bg-media-url" data-half="top" placeholder="https://..."></div>
-                    </div>
-                    <div id="bgPanelBottom" class="bg-control-group">
-                        <div class="form-group"><label>Type</label><select class="bg-type-select" data-half="bottom" onchange="app.updateBgColorRow('bottom')"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image / GIF</option><option value="video">Video</option></select></div>
-                        <div class="color-row"><span style="font-size:11px;">Color 1</span><input type="color" class="bg-color1" data-half="bottom" value="#f8f8f8"></div>
-                        <div class="color-row bg-color2-row" data-half="bottom" style="display:none;"><span style="font-size:11px;">Color 2</span><input type="color" class="bg-color2" data-half="bottom" value="#e0e0e0"></div>
-                        <div class="form-group bg-media-row" data-half="bottom"><label>Media URL (image, gif, or video)</label><input type="text" class="bg-media-url" data-half="bottom" placeholder="https://..."></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Description Typography</label>
-                    <div class="row-2">
-                        <div class="form-group">
-                            <label>Font</label>
-                            <select id="editFontFamily">
-                                <option value="'Copperplate', serif">Copperplate (default)</option>
-                                <option value="'Work Sans', sans-serif">Work Sans</option>
-                                <option value="Georgia, serif">Georgia</option>
-                                <option value="'Roboto Mono', monospace">Roboto Mono</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Weight</label>
-                            <select id="editFontWeight"><option value="300">Light</option><option value="400" selected>Regular</option><option value="600">Semi-bold</option><option value="700">Bold</option></select>
-                        </div>
-                    </div>
-                    <div class="row-2">
-                        <div class="form-group"><label>Size (px)</label><input type="number" id="editFontSize" min="10" max="24" value="11"></div>
-                        <div class="form-group"><label>Transform</label><select id="editTextTransform"><option value="none">None</option><option value="uppercase">UPPERCASE</option><option value="capitalize">Capitalize</option></select></div>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" class="admin-btn" style="flex:2;">Save Product</button>
-                    <button type="button" class="admin-btn" onclick="app.closeEditModal()" style="flex:1;">Cancel</button>
-                    <button type="button" class="admin-btn admin-btn-danger" id="deleteProductBtn" onclick="app.deleteCurrentProduct()" style="flex:1; display:none;">Delete</button>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button type="submit" class="admin-btn confirm-pay" style="flex:2;">Save Product</button>
+                    <button type="button" class="admin-btn" id="cancelEditBtn" style="flex:1;">Cancel</button>
+                    <button type="button" class="admin-btn" id="deleteProductBtn" style="flex:1; display:none;">Delete</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Terms & Privacy Modals -->
-    <div class="edit-modal" id="termsModal" onclick="if(event.target === this) app.closeModal('terms')">
-        <div class="edit-content" style="max-width: 500px;">
-            <h3 style="margin-bottom: 20px;">Terms of Service</h3>
-            <div style="margin-bottom: 20px; line-height: 1.6;">
-                <p>All sales are final. Artworks ($1000+) require special handling and shipping will be quoted individually.</p>
-                <p>For merchandise under $100, shipping costs are calculated at checkout.</p>
-                <p>We guarantee authenticity of all original works.</p>
-                <p>Returns accepted within 14 days for damaged items only.</p>
-            </div>
-            <button class="admin-btn" onclick="app.closeModal('terms')">Close</button>
-        </div>
-    </div>
-
-    <div class="edit-modal" id="privacyModal" onclick="if(event.target === this) app.closeModal('privacy')">
-        <div class="edit-content" style="max-width: 500px;">
-            <h3 style="margin-bottom: 20px;">Privacy Policy</h3>
-            <div style="margin-bottom: 20px; line-height: 1.6;">
-                <p>We collect your name, email, and shipping address only to process orders.</p>
-                <p>Payment information is handled securely by Paystack and never stored on our servers.</p>
-                <p>We never share your data with third parties.</p>
-                <p>You can request deletion of your data at any time.</p>
-            </div>
-            <button class="admin-btn" onclick="app.closeModal('privacy')">Close</button>
-        </div>
-    </div>
-
-    <!-- Seed Products Data -->
-    <script id="initial-products" type="application/json">
-    [{
-        "id":1,"title":"Archive Tee","author":"V.","type":"merch",
-        "description":"Archive Tee — a relic of soft cotton.\nScreen printed by hand in Los Angeles.\nEach piece carries the weight of memory.\n100% cotton, pre-shrunk.\nMade ethically in a small batch.",
-        "image":"https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800",
-        "basePrice":45,"stock":10,"orientation":"square","productType":"image",
-        "frame":{"borderWidth":0,"borderColor":"#000000","objectFit":"contain"},
-        "backgroundTop":{"type":"color","color1":"#f8f8f8"},
-        "backgroundBottom":{"type":"color","color1":"#f8f8f8"},
-        "fontFamily":"'Copperplate', serif","fontSize":11,"fontWeight":400,"textTransform":"none",
-        "showAuthor":true,"showPrice":true,"showStock":true,"contentOrder":"title-first"
-    },{
-        "id":2,"title":"Desert Landscape","author":"V.","type":"print",
-        "description":"Archival photograph from the high desert.\nSigned and numbered on archival paper.\nEdition of 50.\nPrinted with pigment inks for longevity.\nComes with certificate of authenticity.",
-        "image":"https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800",
-        "basePrice":195,"stock":5,"orientation":"landscape","productType":"image",
-        "frame":{"borderWidth":5,"borderColor":"white","objectFit":"contain"},
-        "backgroundTop":{"type":"color","color1":"#f8f8f8"},
-        "backgroundBottom":{"type":"color","color1":"#f8f8f8"},
-        "fontFamily":"'Copperplate', serif","fontSize":11,"fontWeight":400,"textTransform":"none",
-        "showAuthor":true,"showPrice":true,"showStock":true,"contentOrder":"title-first"
-    },{
-        "id":3,"title":"Silent Currents","author":"V.","type":"original",
-        "description":"Original mixed media on canvas, 2024.\nLayers of acrylic, graphite, and cold wax.\nA unique piece, signed and dated on verso.\nReady to hang.",
-        "image":"https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800",
-        "basePrice":8500,"stock":1,"orientation":"landscape","productType":"image",
-        "frame":{"borderWidth":8,"borderColor":"#2c2c2c","objectFit":"contain"},
-        "backgroundTop":{"type":"animated","color1":"#f8f8f8"},
-        "backgroundBottom":{"type":"color","color1":"#f8f8f8"},
-        "fontFamily":"'Copperplate', serif","fontSize":11,"fontWeight":400,"textTransform":"none",
-        "showAuthor":true,"showPrice":true,"showStock":true,"contentOrder":"title-first"
-    },{
-        "id":4,"title":"Handwoven Wall Hanging","author":"V.","type":"craft",
-        "description":"Natural fibers dyed with plants.\nWoven on a wooden loom.\nMeasures 24 x 36 inches.\nOne of a kind.",
-        "image":"https://images.unsplash.com/photo-1513519245088-0e12902e35ca?w=800",
-        "basePrice":380,"stock":2,"orientation":"portrait","productType":"image",
-        "frame":{"borderWidth":0,"borderColor":"#000000","objectFit":"contain"},
-        "backgroundTop":{"type":"color","color1":"#f8f8f8"},
-        "backgroundBottom":{"type":"color","color1":"#f8f8f8"},
-        "fontFamily":"'Copperplate', serif","fontSize":11,"fontWeight":400,"textTransform":"none",
-        "showAuthor":true,"showPrice":true,"showStock":true,"contentOrder":"title-first"
-    }]
-    </script>
-
-    <link rel="stylesheet" href="styles.css">
-    <script src="app.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/admin/admin-app.js"></script>
 </body>
 </html>
