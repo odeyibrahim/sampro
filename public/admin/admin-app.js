@@ -62,16 +62,22 @@
         badge.className = 'sync-badge ' + (online ? 'online' : 'offline');
     }
 
+    function switchTab(tabName) {
+        document.querySelectorAll('.admin-tab').forEach(function(tab) {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+        document.querySelectorAll('.admin-section').forEach(function(section) {
+            section.classList.toggle('active', section.id === 'admin' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+        });
+    }
+
     async function loadStats() {
         var stats = await apiCall('get_stats');
         if (stats.error) return;
-        var html =
-            '<div class="stat-card"><div class="stat-value">$' + esc((stats.totalRevenue || 0).toFixed(2)) + '</div><div class="stat-label">Revenue</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + esc(stats.totalOrders || 0) + '</div><div class="stat-label">Orders</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + esc(stats.totalProducts || 0) + '</div><div class="stat-label">Products</div></div>' +
-            '<div class="stat-card"><div class="stat-value">' + esc(stats.totalCustomers || 0) + '</div><div class="stat-label">Customers</div></div>';
-        var el = document.getElementById('stats');
-        if (el) el.innerHTML = html;
+        document.getElementById('totalRevenue').textContent = '$' + (stats.totalRevenue || 0).toFixed(2);
+        document.getElementById('totalOrders').textContent = stats.totalOrders || 0;
+        document.getElementById('totalProducts').textContent = stats.totalProducts || 0;
+        document.getElementById('totalCustomers').textContent = stats.totalCustomers || 0;
     }
 
     async function loadProducts() {
@@ -93,7 +99,6 @@
             '</tr>';
         }).join('');
 
-        // Wire up edit/delete
         tbody.querySelectorAll('[data-edit-id]').forEach(function (btn) {
             btn.onclick = function () { openEditModal(btn.dataset.editId); };
         });
@@ -110,31 +115,21 @@
         if (result.error || !Array.isArray(result)) return;
         var tbody = document.getElementById('adminOrdersBody');
         var recent = document.getElementById('recentOrdersBody');
-        if (tbody) {
-            tbody.innerHTML = result.map(function (o) {
-                return '<tr>' +
-                    '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
-                    '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
-                    '<td>' + esc(o.product_title || '') + ' × ' + esc(o.quantity || 1) + '</td>' +
-                    '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
-                    '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
-                    '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
-                    '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
-                '</tr>';
-            }).join('');
-        }
-        if (recent) {
-            var recentSix = result.slice(-6).reverse();
-            recent.innerHTML = recentSix.map(function (o) {
-                return '<tr>' +
-                    '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
-                    '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
-                    '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
-                    '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
-                    '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
-                '</tr>';
-            }).join('');
-        }
+        
+        var mapOrder = function(o) {
+            return '<tr>' +
+                '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
+                '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
+                '<td>' + esc(o.product_title || '') + ' × ' + esc(o.quantity || 1) + '</td>' +
+                '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
+                '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
+                '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
+                '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
+            '</tr>';
+        };
+
+        if (tbody) tbody.innerHTML = result.map(mapOrder).join('');
+        if (recent) recent.innerHTML = result.slice(-6).reverse().map(mapOrder).join('');
     }
 
     function openEditModal(productId) {
@@ -144,9 +139,8 @@
         var title = document.getElementById('editModalTitle');
         var deleteBtn = document.getElementById('deleteProductBtn');
         title.textContent = productId ? 'Edit Product' : 'Add Product';
-        if (deleteBtn) deleteBtn.style.display = productId ? 'block' : 'none';
+        if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
-        // Clear fields
         ['editTitle', 'editAuthor', 'editDescription', 'editImageUrl', 'editPrice'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
@@ -252,31 +246,29 @@
         showNotification('Catalog exported');
     }
 
-    function handleLogoUpload(input) {
-        if (!input.files || !input.files[0]) return;
-        var reader = new FileReader();
-        reader.onload = function (e) {
-            var preview = document.getElementById('logoPreview');
-            if (preview) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-            }
-        };
-        reader.readAsDataURL(input.files[0]);
-    }
-
-    function handleDeviceUpload(input) {
+    // Robust file upload handler to prevent "invalid operation" errors
+    function handleFileUpload(input, previewId, callback) {
         if (!input.files || !input.files[0]) return;
         var file = input.files[0];
+        
+        // 5MB limit to prevent database/localStorage issues
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('File is too large. Max 5MB allowed.', 'error');
+            input.value = ''; // reset input
+            return;
+        }
+
         var reader = new FileReader();
         reader.onload = function (e) {
-            uploadedFileData = e.target.result;
-            var preview = document.getElementById('previewMain');
+            var preview = document.getElementById(previewId);
             if (preview) {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
             }
-            document.getElementById('editImageUrl').value = '';
+            if (callback) callback(e.target.result);
+        };
+        reader.onerror = function() {
+            showNotification('Failed to read file.', 'error');
         };
         reader.readAsDataURL(file);
     }
@@ -286,7 +278,6 @@
         window.location.href = '/admin/index.html';
     }
 
-    // ---------- Init ----------
     document.addEventListener('DOMContentLoaded', function () {
         loadStats();
         loadProducts();
@@ -296,44 +287,48 @@
         window.addEventListener('online', updateSyncBadge);
         window.addEventListener('offline', updateSyncBadge);
 
-        var logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) logoutBtn.onclick = logout;
+        document.getElementById('logoutBtn').onclick = logout;
 
-        var addBtn = document.getElementById('addProductBtn');
-        if (addBtn) addBtn.onclick = function () { openEditModal(null); };
+        // Tab switching logic
+        document.querySelectorAll('.admin-tab').forEach(function(tab) {
+            tab.onclick = function() { switchTab(tab.dataset.tab); };
+        });
 
-        var cancelBtn = document.getElementById('cancelEditBtn');
-        if (cancelBtn) cancelBtn.onclick = closeEditModal;
+        document.getElementById('addProductBtn').onclick = function () { openEditModal(null); };
+        document.getElementById('cancelEditBtn').onclick = closeEditModal;
 
-        var deleteBtn = document.getElementById('deleteProductBtn');
-        if (deleteBtn) deleteBtn.onclick = function () {
+        document.getElementById('deleteProductBtn').onclick = function () {
             if (editingId) { closeEditModal(); deleteProduct(editingId); }
         };
 
-        var form = document.getElementById('editProductForm');
-        if (form) form.onsubmit = saveProduct;
-
-        var saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        if (saveSettingsBtn) saveSettingsBtn.onclick = saveSettings;
-
-        var exportBtn = document.getElementById('exportDataBtn');
-        if (exportBtn) exportBtn.onclick = exportData;
+        document.getElementById('editProductForm').onsubmit = saveProduct;
+        document.getElementById('saveSettingsBtn').onclick = saveSettings;
+        document.getElementById('exportDataBtn').onclick = exportData;
 
         var logoUpload = document.getElementById('logoUpload');
         var logoUploadArea = document.getElementById('logoUploadArea');
         if (logoUploadArea && logoUpload) {
             logoUploadArea.onclick = function () { logoUpload.click(); };
-            logoUpload.onchange = function () { handleLogoUpload(this); };
+            logoUpload.onchange = function () { 
+                handleFileUpload(this, 'logoPreview', function(base64) {
+                    // Here you would typically call an API to save the logo
+                    showNotification('Logo ready. Save settings to apply.');
+                }); 
+            };
         }
 
         var deviceUpload = document.getElementById('deviceFileUpload');
         var deviceUploadArea = document.getElementById('deviceUploadArea');
         if (deviceUploadArea && deviceUpload) {
             deviceUploadArea.onclick = function () { deviceUpload.click(); };
-            deviceUpload.onchange = function () { handleDeviceUpload(this); };
+            deviceUpload.onchange = function () { 
+                handleFileUpload(this, 'previewMain', function(base64) {
+                    uploadedFileData = base64;
+                    document.getElementById('editImageUrl').value = ''; // Clear URL if uploading file
+                }); 
+            };
         }
 
-        // Close modal on backdrop click
         var modal = document.getElementById('editModal');
         if (modal) {
             modal.addEventListener('click', function (e) {
@@ -341,7 +336,6 @@
             });
         }
 
-        // Escape closes modal
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeEditModal();
         });
