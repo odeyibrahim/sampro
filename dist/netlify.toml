@@ -1,0 +1,43 @@
+[build]
+publish = "public"
+functions = "netlify/functions"
+
+[build.environment]
+NODE_VERSION = "22"
+
+# --- API functions ---
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat"
+status = 200
+
+# --- Admin panel ---
+[[redirects]]
+from = "/admin/*"
+to = "/admin/index.html"
+status = 200
+
+# --- Payment redirect landing page (must come before the catch-all) ---
+[[redirects]]
+from = "/payment-callback.html"
+to = "/payment-callback.html"
+status = 200
+
+# --- SPA catch-all (must be last) ---
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[[headers]]
+for = "/admin/*"
+[headers.values]
+X-Robots-Tag = "noindex"
+
+[[headers]]
+for = "/*"
+[headers.values]
+X-Frame-Options = "DENY"
+X-Content-Type-Options = "nosniff"
+X-XSS-Protection = "1; mode=block"
+Referrer-Policy = "strict-origin-when-cross-origin"

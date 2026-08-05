@@ -1,0 +1,806 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.skip-link {
+    position: absolute;
+    top: -60px;
+    left: 8px;
+    background: #000;
+    color: #fff;
+    padding: 10px 16px;
+    z-index: 10001;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+    top: 8px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.close-grid-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+
+body.dark-mode :focus-visible {
+    outline-color: #fff;
+}
+
+/* Respect the user's motion preference wherever animation is purely decorative. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+:root {
+    --color-primary: #000;
+    --color-secondary: #D0A380;
+    --color-light: #f8f8f8;
+    --color-gray: #888;
+}
+
+body {
+    font-family: 'Copperplate', 'Georgia', serif;
+    background: #fff;
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+}
+
+body.dark-mode {
+    background: #121212;
+    color: #f0f0f0;
+}
+
+/* Fixed position elements */
+.site-logo {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.grid-icon-top {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+}
+
+.gallery-brand {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    font-size: 11px;
+    color: #888;
+    opacity: 0.7;
+    cursor: pointer;
+    z-index: 100;
+    font-family: monospace;
+}
+
+/* Intro overlay */
+.intro-overlay {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: opacity 0.6s ease;
+}
+
+body.dark-mode .intro-overlay {
+    background: #121212;
+}
+
+.intro-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.intro-poem {
+    font-size: 20px;
+    line-height: 1.6;
+    color: #555;
+    margin-bottom: 40px;
+    font-style: italic;
+}
+
+body.dark-mode .intro-poem {
+    color: #aaa;
+}
+
+.enter-gallery {
+    background: none;
+    border: 1px solid #000;
+    padding: 12px 32px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+body.dark-mode .enter-gallery {
+    border-color: #fff;
+    color: #fff;
+}
+
+.enter-gallery:hover {
+    background: #000;
+    color: #fff;
+}
+
+/* Main split container */
+.split-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100%;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.split-container.active {
+    opacity: 1;
+}
+
+.split-container.zoom-mode .info-half {
+    display: none;
+}
+
+/* Product half */
+.product-half {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8f8f8;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.6s ease;
+}
+
+/* Per-product background media layer (image or video), sits behind the
+   frame-container / info-container content. Off by default; a product's
+   background_top/background_bottom only shows one of these at a time. */
+.bg-media-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    display: none;
+    pointer-events: none;
+}
+.bg-media-layer.visible { display: block; }
+
+.bg-pulse { animation: bgPulse 8s ease infinite; }
+@keyframes bgPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.92; } }
+
+.frame-container, .info-container { position: relative; z-index: 1; }
+
+body.dark-mode .product-half {
+    background: #1a1a1a;
+}
+
+.frame-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.product-frame {
+    position: relative;
+    width: 100%;
+    max-width: min(500px, 70vh);
+    margin: 0 auto;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.product-frame.orientation-square {
+    aspect-ratio: 1 / 1;
+}
+
+.product-frame.orientation-portrait {
+    aspect-ratio: 3 / 4;
+}
+
+.product-frame.orientation-landscape {
+    aspect-ratio: 4 / 3;
+}
+
+.product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.product-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    background: transparent;
+}
+
+.product-frame.has-frame {
+    border-style: solid;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+/* Text/meditation products: no image half at all, full-height text panel */
+.split-container.text-mode {
+    flex-direction: column;
+}
+.split-container.text-mode .product-half {
+    display: none;
+}
+.split-container.text-mode .info-half {
+    flex: 1 1 100%;
+    height: 100%;
+}
+
+.text-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: pre-line;
+    text-align: center;
+    padding: 40px;
+    font-size: clamp(16px, 3.5vh, 28px);
+    line-height: 1.6;
+    font-style: italic;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.original-price {
+    font-size: 12px;
+    color: #888;
+    text-decoration: line-through;
+    font-family: monospace;
+}
+
+/* Info half */
+.info-half {
+    flex: 1;
+    background: #f8f8f8;
+    overflow-y: auto;
+    padding: 30px 20px;
+    position: relative;
+    transition: background 0.6s ease;
+}
+
+body.dark-mode .info-half {
+    background: #1a1a1a;
+}
+
+.info-container {
+    max-width: 500px;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.info-container .title-author { order: 0; }
+.info-container .description { order: 1; }
+.info-container.order-description-first .description { order: 0; }
+.info-container.order-description-first .title-author { order: 1; }
+.info-container .price-row { order: 2; }
+
+.description {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #555;
+    white-space: pre-line;
+    margin: 20px 0;
+}
+
+body.dark-mode .description {
+    color: #aaa;
+}
+
+.title-author {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 15px 0;
+}
+
+.title-author span {
+    font-size: 16px;
+}
+
+.price-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.price-tag {
+    font-size: 18px;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.currency-selector {
+    font-size: 12px;
+    padding: 4px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    background: none;
+}
+
+.stock-badge {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 20px;
+}
+
+.stock-badge.sold-out {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.2s;
+}
+
+.icon-button:hover {
+    transform: scale(1.1);
+}
+
+.heart.saved {
+    color: #e25555;
+}
+
+/* Bottom navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: rgba(248, 248, 248, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+}
+
+body.dark-mode .bottom-nav {
+    background: rgba(26, 26, 26, 0.95);
+    border-top-color: #333;
+}
+
+.nav-arrows {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.arrow-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px 12px;
+    transition: all 0.2s;
+}
+
+.arrow-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Grid overlay */
+.grid-overlay {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 2000;
+    display: none;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+body.dark-mode .grid-overlay {
+    background: #121212;
+}
+
+.grid-overlay.active {
+    display: block;
+}
+
+.grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.grid-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 20px;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: #000;
+    color: #fff;
+}
+
+body.dark-mode .filter-btn.active {
+    background: #fff;
+    color: #000;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.grid-item {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.grid-item:hover {
+    transform: scale(1.02);
+}
+
+.grid-item img, .grid-item video {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.grid-item-text-thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    padding: 12px;
+    font-style: italic;
+}
+body.dark-mode .grid-item-text-thumb {
+    background: #262626;
+    color: #ccc;
+}
+
+.grid-item-info {
+    padding: 8px 0;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Checkout */
+.checkout-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 3000;
+    display: none;
+    backdrop-filter: blur(4px);
+}
+
+.checkout-overlay.active {
+    display: block;
+}
+
+.checkout-panel {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 90%;
+    max-width: 500px;
+    height: 100%;
+    background: #fff;
+    z-index: 3001;
+    overflow-y: auto;
+    padding: 30px;
+    transition: right 0.3s ease;
+}
+
+body.dark-mode .checkout-panel {
+    background: #1a1a1a;
+}
+
+.checkout-panel.active {
+    right: 0;
+}
+
+.payment-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.paystack-btn {
+    flex: 1;
+    padding: 14px;
+    background: #000;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Payment method selector */
+.payment-method-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.payment-method-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.payment-method-option.selected {
+    border-color: #000;
+    background: #f8f8f8;
+}
+
+body.dark-mode .payment-method-option {
+    border-color: #444;
+}
+
+body.dark-mode .payment-method-option.selected {
+    background: #262626;
+    border-color: #fff;
+}
+
+/* Bank transfer details panel */
+.bank-details-panel {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px dashed #999;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.bank-details-panel.active {
+    display: block;
+}
+
+.bank-details-panel h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    color: #888;
+}
+
+.bank-details-panel .bank-block {
+    margin-bottom: 14px;
+}
+
+.whatsapp-proof-btn {
+    width: 100%;
+    padding: 12px;
+    background: #25D366;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+/* Loading */
+.loading {
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.loading.active {
+    display: flex;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #eee;
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Notification */
+.notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: #000;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    z-index: 11000;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    max-width: 320px;
+}
+
+.notification.active {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Variation dots */
+.variation-dots {
+    position: fixed;
+    bottom: 80px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px 16px;
+    border-radius: 40px;
+    width: fit-content;
+    margin: 0 auto;
+    backdrop-filter: blur(8px);
+}
+
+.variation-dots .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.variation-dots .dot.active {
+    background: white;
+    width: 24px;
+}
+
+/* Responsive */
+@media (min-width: 768px) {
+    .split-container {
+        flex-direction: row;
+    }
+
+    .product-half, .info-half {
+        flex: 1;
+    }
+
+    .product-half {
+        padding: 40px;
+    }
+
+    .info-half {
+        padding: 60px 40px;
+    }
+}
+
+@media (max-width: 767px) {
+    .product-half {
+        padding: 60px 20px 20px;
+    }
+
+    .grid-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .title-author {
+        gap: 8px;
+    }
+
+    .price-tag {
+        font-size: 16px;
+    }
+}
