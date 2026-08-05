@@ -1,3 +1,13 @@
+self.addEventListener('fetch', (event) => {
+    // 1. Ignore non-GET requests
+    if (event.request.method !== 'GET') return;
+
+    // 2. IGNORE CHROME EXTENSIONS & NON-HTTP REQUESTS
+    if (!event.request.url.startsWith('http')) {
+        return; 
+    }
+
+
 const CACHE_NAME = 'vgallery-cache-v1';
 const PRECACHE_URLS = [
     '/',
