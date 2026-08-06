@@ -771,10 +771,21 @@ class HybridApp {
                 thumb = '<img src="' + Utils.escapeAttr(p.image_url) + '" loading="lazy" alt="' + Utils.escapeAttr(p.title) + '">';
             }
             const infoClass = this.gridDetailsVisible ? '' : ' hidden';
+            const showPrice = p.show_price !== false;
+            const isSaved = this.savedItems.has(p.product_id);
+            
+            // Restored grid-item-title, grid-item-price, and grid-item-meta (type + saved)
             html += '<div class="grid-item" data-action="view-product" data-id="' + Utils.escapeAttr(p.product_id) + '" tabindex="0" role="button">' +
                 thumb +
-                '<div class="grid-item-info' + infoClass + '">' + Utils.escapeHtml(p.title) + '<br>' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div>' +
-                '</div>';
+                '<div class="grid-item-info' + infoClass + '">' +
+                    '<div class="grid-item-title">' + Utils.escapeHtml(p.title) + '</div>' +
+                    (showPrice ? '<div class="grid-item-price">' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div>' : '') +
+                    '<div class="grid-item-meta">' +
+                        '<span class="grid-item-type">' + Utils.escapeHtml(p.type || '') + '</span>' +
+                        (isSaved ? '<span class="grid-item-saved">♥</span>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         }
         if (this.el.gridContainer) this.el.gridContainer.innerHTML = html;
 
@@ -937,8 +948,8 @@ class HybridApp {
     setupSwipe() {
         let startX = 0;
         let startY = 0;
-        // Always track start coordinates so we have them even if a modal closes during the swipe
         document.addEventListener('touchstart', (e) => {
+            if (this.isModalOpen()) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         }, { passive: true });
