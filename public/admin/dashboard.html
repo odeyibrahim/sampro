@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin · V. Gallery</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../css/admin.css">
+    
+    <!-- Local relative path to prevent MIME errors -->
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-dashboard-body">
     <div class="admin-panel" style="position: relative; left: 0; width: 100%; max-width: 100%; height: 100vh; box-shadow: none;">
@@ -171,7 +173,8 @@
         </div>
     </div>
 
+    <!-- Local relative paths for scripts -->
     <script src="../js/utils.js"></script>
-    <script src="../js/admin-app.js"></script>
+    <script src="admin-app.js"></script>
 </body>
 </html>
