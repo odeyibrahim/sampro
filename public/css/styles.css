@@ -16,6 +16,27 @@
     font-size: 13px;
     transition: top 0.2s ease;
 }
+
+
+/* ---------- Grid Item Details ---------- */
+.grid-item-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+.grid-item-price {
+    color: var(--color-gray-dark);
+    margin-bottom: 4px;
+}
+.grid-item-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--color-gray);
+}
+.grid-item-saved {
+    color: var(--color-heart);
+    font-size: 12px;
+}
 .skip-link:focus { top: 8px; }
 
 .visually-hidden {
