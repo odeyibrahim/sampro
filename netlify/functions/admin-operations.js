@@ -51,6 +51,7 @@ function productFieldsFromData(data) {
         show_author: data.show_author !== false,
         show_price: data.show_price !== false,
         show_stock: data.show_stock !== false,
+        show_share: !!data.show_share,
         content_order: data.content_order === 'description-first' ? 'description-first' : 'title-first',
         video_autoplay: data.video_autoplay !== false,
         video_loop: data.video_loop !== false,
