@@ -5,80 +5,81 @@
 }
 
 body.admin-dashboard-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #f5f5f5;
-    color: #333;
+    font-family: 'Roboto Mono', monospace;
+    background: var(--color-surface, #ffffff);
+    color: var(--color-primary, #000);
     line-height: 1.5;
     transition: background 0.4s ease, color 0.4s ease;
 }
 
-/* ---------- Dark Mode for Admin Dashboard ---------- */
-@media (prefers-color-scheme: dark) {
-    body.admin-dashboard-body {
-        background: #0a0a0a;
-        color: #e0e0e0;
-    }
-    .admin-panel { background: #121212; color: #e0e0e0; }
-    .admin-header { border-bottom-color: #2a2a2a; }
-    .admin-header h2 { color: #fff; }
-    .admin-tabs { border-bottom-color: #2a2a2a; }
-    .admin-tab { color: #888; }
-    .admin-tab.active { color: #fff; }
-    .admin-tab.active::after { background: #fff; }
-    .stat-card { background: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-    .stat-value { color: #fff; }
-    .stat-label { color: #888; }
-    .admin-section-title { color: #e0e0e0; }
-    .table-container { border-color: #2a2a2a; }
-    .admin-table th { color: #888; border-bottom-color: #2a2a2a; }
-    .admin-table td { border-bottom-color: #2a2a2a; color: #ccc; }
-    .admin-table tr:hover td { background: #1a1a1a; }
-    .admin-btn { border-color: #666; color: #ccc; }
-    .admin-btn:hover { background: #fff; color: #000; }
-    .admin-btn.confirm-pay { border-color: #22c55e; color: #22c55e; }
-    .admin-btn.confirm-pay:hover { background: #22c55e; color: #fff; }
-    .admin-btn.danger { border-color: #ef4444; color: #ef4444; }
-    .admin-btn.danger:hover { background: #ef4444; color: #fff; }
-    .edit-section { background: #1a1a1a; border-color: #2a2a2a; }
-    .edit-section > label.section-label { color: #D0A380; }
-    .edit-section label { color: #888; }
-    .edit-section label.inline-check { color: #ccc; }
-    .edit-section input,
-    .edit-section textarea,
-    .edit-section select {
-        background: #0a0a0a;
-        border-color: #333;
-        color: #e0e0e0;
-    }
-    .edit-section input:focus,
-    .edit-section textarea:focus,
-    .edit-section select:focus { border-bottom-color: #D0A380; }
-    .edit-content { background: #1a1a1a; color: #e0e0e0; }
-    .edit-header { border-bottom-color: #2a2a2a; }
-    .edit-header h3 { color: #fff; }
-    .close-edit { color: #888; }
-    .close-edit:hover { color: #fff; }
-    .image-upload-area { border-color: #333; color: #888; background: #121212; }
-    .image-upload-area:hover { border-color: #666; background: #1a1a1a; color: #ccc; }
-    .sync-badge.online { background: #1a2e1a; color: #22c55e; }
-    .sync-badge.offline { background: #2e1f0a; color: #f59e0b; }
-    .badge.paid { background: #1a2e1a; color: #22c55e; }
-    .badge.pending { background: #2e2a1a; color: #f59e0b; }
-    .badge.failed, .badge.refunded { background: #2e1a1a; color: #ef4444; }
-    .badge.processing { background: #1a1a2e; color: #60a5fa; }
-    .badge.shipped { background: #1a1a2e; color: #818cf8; }
-    .badge.delivered { background: #1a2e2e; color: #2dd4bf; }
-    .form-group label { color: #888; }
-    .logout-btn { background: #7f1d1d; color: #fca5a5; }
-    .logout-btn:hover { background: #991b1b; }
-    .additional-images-grid .thumb-item { border-color: #333; }
+/* ---------- Dark Mode (class-based toggle) ---------- */
+body.admin-dashboard-body.dark-mode {
+    background: #0a0a0a;
+    color: #e0e0e0;
 }
+body.admin-dashboard-body.dark-mode .admin-panel { background: #0a0a0a; color: #e0e0e0; }
+body.admin-dashboard-body.dark-mode .admin-header { border-bottom-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .admin-header h2 { color: #fff; }
+body.admin-dashboard-body.dark-mode .admin-tabs { border-bottom-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .admin-tab { color: #888; }
+body.admin-dashboard-body.dark-mode .admin-tab.active { color: #fff; }
+body.admin-dashboard-body.dark-mode .admin-tab.active::after { background: #fff; }
+body.admin-dashboard-body.dark-mode .stat-card { background: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+body.admin-dashboard-body.dark-mode .stat-value { color: #fff; }
+body.admin-dashboard-body.dark-mode .stat-label { color: #888; }
+body.admin-dashboard-body.dark-mode .admin-section-title { color: #e0e0e0; }
+body.admin-dashboard-body.dark-mode .table-container { border-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .admin-table th { color: #888; border-bottom-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .admin-table td { border-bottom-color: #2a2a2a; color: #ccc; }
+body.admin-dashboard-body.dark-mode .admin-table tr:hover td { background: #1a1a1a; }
+body.admin-dashboard-body.dark-mode .admin-btn { border-color: #666; color: #ccc; }
+body.admin-dashboard-body.dark-mode .admin-btn:hover { background: #fff; color: #000; }
+body.admin-dashboard-body.dark-mode .admin-btn.confirm-pay { border-color: #22c55e; color: #22c55e; }
+body.admin-dashboard-body.dark-mode .admin-btn.confirm-pay:hover { background: #22c55e; color: #fff; }
+body.admin-dashboard-body.dark-mode .admin-btn.danger { border-color: #ef4444; color: #ef4444; }
+body.admin-dashboard-body.dark-mode .admin-btn.danger:hover { background: #ef4444; color: #fff; }
+body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .edit-section > label.section-label { color: #D0A380; }
+body.admin-dashboard-body.dark-mode .edit-section label { color: #888; }
+body.admin-dashboard-body.dark-mode .edit-section label.inline-check { color: #ccc; }
+body.admin-dashboard-body.dark-mode .edit-section input,
+body.admin-dashboard-body.dark-mode .edit-section textarea,
+body.admin-dashboard-body.dark-mode .edit-section select {
+    background: #0a0a0a;
+    border-color: #333;
+    color: #e0e0e0;
+}
+body.admin-dashboard-body.dark-mode .edit-section input:focus,
+body.admin-dashboard-body.dark-mode .edit-section textarea:focus,
+body.admin-dashboard-body.dark-mode .edit-section select:focus { border-bottom-color: #D0A380; }
+body.admin-dashboard-body.dark-mode .edit-content { background: #1a1a1a; color: #e0e0e0; }
+body.admin-dashboard-body.dark-mode .edit-header { border-bottom-color: #2a2a2a; }
+body.admin-dashboard-body.dark-mode .edit-header h3 { color: #fff; }
+body.admin-dashboard-body.dark-mode .close-edit { color: #888; }
+body.admin-dashboard-body.dark-mode .close-edit:hover { color: #fff; }
+body.admin-dashboard-body.dark-mode .image-upload-area { border-color: #333; color: #888; background: #121212; }
+body.admin-dashboard-body.dark-mode .image-upload-area:hover { border-color: #666; background: #1a1a1a; color: #ccc; }
+body.admin-dashboard-body.dark-mode .sync-badge.online { background: #1a2e1a; color: #22c55e; }
+body.admin-dashboard-body.dark-mode .sync-badge.offline { background: #2e1f0a; color: #f59e0b; }
+body.admin-dashboard-body.dark-mode .badge.paid { background: #1a2e1a; color: #22c55e; }
+body.admin-dashboard-body.dark-mode .badge.pending { background: #2e2a1a; color: #f59e0b; }
+body.admin-dashboard-body.dark-mode .badge.failed,
+body.admin-dashboard-body.dark-mode .badge.refunded { background: #2e1a1a; color: #ef4444; }
+body.admin-dashboard-body.dark-mode .badge.processing { background: #1a1a2e; color: #60a5fa; }
+body.admin-dashboard-body.dark-mode .badge.shipped { background: #1a1a2e; color: #818cf8; }
+body.admin-dashboard-body.dark-mode .badge.delivered { background: #1a2e2e; color: #2dd4bf; }
+body.admin-dashboard-body.dark-mode .form-group label { color: #888; }
+body.admin-dashboard-body.dark-mode .logout-btn { background: #7f1d1d; color: #fca5a5; }
+body.admin-dashboard-body.dark-mode .logout-btn:hover { background: #991b1b; }
+body.admin-dashboard-body.dark-mode .additional-images-grid .thumb-item { border-color: #333; }
+body.admin-dashboard-body.dark-mode .dark-toggle { background: #333; color: #fff; }
+body.admin-dashboard-body.dark-mode .dark-toggle:hover { background: #555; }
 
 /* ---------- Admin Panel Structure ---------- */
 .admin-panel {
     background: var(--color-surface, #ffffff);
     color: var(--color-primary, #000);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Roboto Mono', monospace;
     display: flex;
     flex-direction: column;
     padding: 30px;
@@ -95,7 +96,12 @@ body.admin-dashboard-body {
     border-bottom: 1px solid #eee;
     padding-bottom: 15px;
 }
-.admin-header h2 { font-size: 18px; font-weight: 500; }
+.admin-header h2 { font-size: 18px; font-weight: 400; }
+.admin-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 .sync-badge {
     font-size: 9px;
     padding: 3px 8px;
@@ -107,17 +113,37 @@ body.admin-dashboard-body {
 .sync-badge.online { background: #e8f5e9; color: #2e7d32; }
 .sync-badge.offline { background: #fff3e0; color: #ed6c02; }
 
-.logout-btn {
-    background: #dc2626;
-    color: white;
-    border: none;
-    padding: 8px 20px;
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dark-toggle {
+    background: none;
+    border: 1px solid #ddd;
     cursor: pointer;
-    border-radius: 6px;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 14px;
     transition: all 0.2s;
+    color: #333;
 }
-.logout-btn:hover { background: #b91c1c; }
+.dark-toggle:hover { background: #f0f0f0; }
+.logout-btn {
+    background: none;
+    color: var(--color-gray, #888);
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'Roboto Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+}
+.logout-btn:hover { color: var(--color-primary, #000); }
 
 .admin-tabs {
     flex-shrink: 0;
@@ -169,12 +195,12 @@ body.admin-dashboard-body {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .stat-value { font-size: 28px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.5px; }
-.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Inter', sans-serif; }
+.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Roboto Mono', monospace; }
 
 .admin-section-title {
     font-size: 14px;
     margin-bottom: 20px;
-    font-family: 'Work Sans', sans-serif;
+    font-weight: 400;
 }
 
 .admin-toolbar {
@@ -219,8 +245,8 @@ body.admin-dashboard-body {
     color: #000;
     cursor: pointer;
     font-size: 11px;
-    font-family: 'Inter', sans-serif;
-    font-weight: 500;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 400;
     margin-right: 4px;
     transition: all 0.2s;
     border-radius: 6px;
@@ -282,7 +308,7 @@ body.admin-dashboard-body {
     border-bottom: 1px solid #eee;
 }
 .edit-header h3 { font-size: 18px; font-weight: 400; }
-.close-edit { font-size: 28px; color: #888; cursor: pointer; background: none; border: none; }
+.close-edit { font-size: 24px; color: #888; cursor: pointer; background: none; border: none; }
 .close-edit:hover { color: #000; }
 
 .edit-section {
@@ -295,7 +321,7 @@ body.admin-dashboard-body {
 .edit-section > label.section-label {
     display: block;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 400;
     color: #D0A380;
     margin-bottom: 10px;
     text-transform: uppercase;
@@ -331,7 +357,7 @@ body.admin-dashboard-body {
     font-size: 13px;
     background: #fff;
     color: #000;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     margin-bottom: 10px;
 }
 .edit-section textarea { min-height: 70px; resize: vertical; }
@@ -372,10 +398,10 @@ body.admin-dashboard-body {
 .image-preview {
     max-width: 200px;
     max-height: 200px;
-    margin: 10px auto; /* Centers it and contains it properly */
+    margin: 10px auto;
     display: none;
     border-radius: 6px;
-    object-fit: contain; /* Prevents stretching */
+    object-fit: contain;
 }
 .image-preview[src] { display: block; }
 
@@ -419,6 +445,27 @@ body.admin-dashboard-body {
     padding: 0;
 }
 .additional-images-grid .thumb-item .remove-thumb:hover { background: #dc2626; }
+
+/* ---------- Range slider ---------- */
+input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    outline: none;
+    border: none;
+    padding: 0;
+    margin: 8px 0;
+}
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #000;
+    cursor: pointer;
+}
 
 @media (max-width: 768px) {
     .admin-panel { padding: 16px; }
