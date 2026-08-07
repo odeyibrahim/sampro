@@ -43,14 +43,18 @@ class HybridApp {
             if (!res.ok) return;
             const settings = await res.json();
             const siteLogo = document.getElementById('siteLogo');
+            const logoSize = parseInt(settings.logo_size) || 36;
             if (siteLogo && settings.logo_url) {
                 siteLogo.innerHTML = '';
                 const img = document.createElement('img');
                 img.src = settings.logo_url;
                 img.alt = settings.store_name || 'Store logo';
-                const logoSize = settings.logo_size || 36;
                 img.style.cssText = 'max-height:' + logoSize + 'px; max-width:' + Math.round(logoSize * 3.3) + 'px; object-fit:contain; display:block;';
                 siteLogo.appendChild(img);
+            } else if (siteLogo && !settings.logo_url) {
+                // Apply logo_size to the default text logo
+                const textEl = siteLogo.querySelector('.logo-text');
+                if (textEl) textEl.style.fontSize = logoSize + 'px';
             }
             if (settings.store_name) {
                 document.title = settings.store_name + ' · Art + Commerce';
