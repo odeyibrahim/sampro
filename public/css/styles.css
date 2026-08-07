@@ -1102,6 +1102,33 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
 }
 .variation-dots .dot.active { background: #fff; width: 24px; }
 
+/* Persistent product variation dots (non-zoom) */
+.product-variation-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 0 4px;
+    pointer-events: auto;
+}
+.product-variation-dots .pv-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    pointer-events: auto;
+}
+.product-variation-dots .pv-dot:hover { background: rgba(0,0,0,0.5); transform: scale(1.4); }
+.product-variation-dots .pv-dot.active { background: #000; width: 24px; border-radius: 4px; }
+body.dark-mode .product-variation-dots .pv-dot { background: rgba(255,255,255,0.3); }
+body.dark-mode .product-variation-dots .pv-dot:hover { background: rgba(255,255,255,0.6); }
+body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
+
+/* Smooth image cross-fade for variation switching */
+.product-image {
+    transition: opacity 0.15s ease;
+}
+
 img { pointer-events: none; user-select: none; }
 .product-image, .grid-item img { pointer-events: auto; }
 
