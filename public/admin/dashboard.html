@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin · V. Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Local relative path to prevent MIME errors -->
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-dashboard-body">
+    <div class="admin-panel" style="position: relative; left: 0; width: 100%; max-width: 100%; height: 100vh; box-shadow: none;">
+        <div class="admin-header">
+            <h2>Admin · V. Gallery</h2>
+            <span class="sync-badge offline" id="syncBadge">Local mode</span>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+
+        <div class="admin-tabs">
+            <div class="admin-tab active" data-tab="dashboard">Dashboard</div>
+            <div class="admin-tab" data-tab="products">Products</div>
+            <div class="admin-tab" data-tab="orders">Orders</div>
+            <div class="admin-tab" data-tab="customers">Customers</div>
+            <div class="admin-tab" data-tab="settings">Settings</div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="admin-section active" id="adminDashboard">
+            <div class="admin-stats">
+                <div class="stat-card"><div class="stat-value" id="totalRevenue">$0</div><div class="stat-label">Revenue</div></div>
+                <div class="stat-card"><div class="stat-value" id="totalOrders">0</div><div class="stat-label">Orders</div></div>
+                <div class="stat-card"><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Products</div></div>
+                <div class="stat-card"><div class="stat-value" id="totalCustomers">0</div><div class="stat-label">Customers</div></div>
+            </div>
+            <h3 class="admin-section-title">Recent Orders</h3>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody id="recentOrdersBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Products Tab -->
+        <div class="admin-section" id="adminProducts">
+            <div class="admin-toolbar">
+                <h3 class="admin-section-title">Manage Products</h3>
+                <button class="admin-btn confirm-pay" id="addProductBtn">+ Add Product</button>
+            </div>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                    <tbody id="adminProductsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="admin-section" id="adminOrders">
+            <h3 class="admin-section-title">All Orders</h3>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Date</th></tr></thead>
+                    <tbody id="adminOrdersBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Customers Tab -->
+        <div class="admin-section" id="adminCustomers">
+            <h3 class="admin-section-title">Customers</h3>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Last Order</th></tr></thead>
+                    <tbody id="adminCustomersBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div class="admin-section" id="adminSettings">
+            <h3 class="admin-section-title">Store Settings</h3>
+            <div style="max-width: 500px;">
+                <div class="edit-section">
+                    <label class="section-label">Branding</label>
+                    <div class="form-group">
+                        <label>Store Name</label>
+                        <input type="text" id="storeName" value="V. Gallery">
+                    </div>
+                    <div class="form-group">
+                        <label>Store Logo</label>
+                        <div class="image-upload-area" id="logoUploadArea">Click to upload logo</div>
+                        <input type="file" id="logoUpload" accept="image/*" style="display:none;">
+                        <img id="logoPreview" class="image-preview">
+                    </div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Shipping</label>
+                    <div class="row-2">
+                        <div class="form-group">
+                            <label>Standard ($)</label>
+                            <input type="number" id="standardShipping" value="7" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Express ($)</label>
+                            <input type="number" id="expressShipping" value="15" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp Number</label>
+                        <input type="text" id="settingWhatsapp" placeholder="2349012345678">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="admin-btn" id="saveSettingsBtn" style="flex:1;">Save Settings</button>
+                    <button class="admin-btn" id="exportDataBtn" style="flex:1;">Export JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="edit-modal" id="editModal">
+        <div class="edit-content">
+            <div class="edit-header">
+                <h3 id="editModalTitle">Add Product</h3>
+                <span class="close-edit" id="cancelEditBtn">×</span>
+            </div>
+            <form id="editProductForm">
+                <div class="edit-section">
+                    <label class="section-label">Basic Info</label>
+                    <div class="row-2">
+                        <div class="form-group"><label>Title *</label><input type="text" id="editTitle" required></div>
+                        <div class="form-group"><label>Author</label><input type="text" id="editAuthor" value="V."></div>
+                    </div>
+                    <label class="inline-check"><input type="checkbox" id="editShowAuthor" checked> Show author next to title</label>
+                    <div class="form-group"><label>Description</label><textarea id="editDescription" rows="4"></textarea></div>
+                    <div class="row-3">
+                        <div class="form-group"><label>Type</label><select id="editType"><option value="original">Original</option><option value="print">Print</option><option value="merch">Merch</option><option value="craft">Craft</option></select></div>
+                        <div class="form-group"><label>Orientation</label><select id="editOrientation"><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
+                        <div class="form-group"><label>Stock</label><input type="number" id="editStock" min="0" value="1"></div>
+                    </div>
+                    <div class="form-group"><label>Price (USD)</label><input type="number" id="editPrice" step="0.01"></div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Media</label>
+                    <div class="form-group"><label>Image/Video URL</label><input type="text" id="editImageUrl" placeholder="https://..."></div>
+                    <div class="file-upload-section visible">
+                        <label>Or Upload from Device</label>
+                        <div class="image-upload-area" id="deviceUploadArea">Click to upload from device</div>
+                        <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display:none;">
+                        <img id="previewMain" class="image-preview">
+                    </div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Frame</label>
+                    <div class="row-2">
+                        <div class="form-group"><label>Border Width (px)</label><input type="number" min="0" max="20" id="editBorderWidth" value="0"></div>
+                        <div class="form-group"><label>Border Color</label><input type="color" id="editBorderColor" value="#000000"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="admin-btn confirm-pay" style="flex:2;">Save Product</button>
+                    <button type="button" class="admin-btn" id="deleteProductBtn" style="flex:1; display:none;">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Utils inlined to avoid ../js/ path crossing admin/ boundary (Netlify SPA redirect MIME risk) -->
+    <script>
+    var Utils = (function () {
+        function escapeHtml(v) { if (v == null) return ''; return String(v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c; }); }
+        function escapeAttr(v) { return escapeHtml(v); }
+        return { escapeHtml: escapeHtml, escapeAttr: escapeAttr };
+    })();
+    </script>
+    <script src="admin-app.js"></script>
+</body>
+</html>
