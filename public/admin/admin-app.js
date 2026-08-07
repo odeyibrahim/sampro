@@ -232,12 +232,19 @@
         if (document.getElementById('editBorderColor')) document.getElementById('editBorderColor').value = '#000000';
         if (document.getElementById('editFramePadding')) document.getElementById('editFramePadding').value = '0';
 
+        // Reset backdrop fields
+        ['editBgTopType','editBgBottomType'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = 'color'; });
+        ['editBgTopColor1','editBgBottomColor1'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = '#f8f8f8'; });
+        ['editBgTopColor2','editBgBottomColor2'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = '#e0e0e0'; });
+        ['editBgTopUrl','editBgBottomUrl'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = ''; });
+
         // Reset checkboxes
         ['editShowAuthor','editShowPrice','editShowStock','editVideoAutoplay','editVideoLoop','editVideoMuted'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.checked = true;
         });
         if (document.getElementById('editIsFeatured')) document.getElementById('editIsFeatured').checked = false;
+        if (document.getElementById('editShowShare')) document.getElementById('editShowShare').checked = false;
 
         // Reset the file input so re-editing the same file triggers onchange
         var deviceFile = document.getElementById('deviceFileUpload');
@@ -294,6 +301,21 @@
                 document.getElementById('editShowPrice').checked = p.show_price !== false;
                 document.getElementById('editShowStock').checked = p.show_stock !== false;
                 document.getElementById('editIsFeatured').checked = !!p.is_featured;
+                document.getElementById('editShowShare').checked = !!p.show_share;
+
+                // Backdrop top
+                var bgTop = p.background_top || {};
+                if (document.getElementById('editBgTopType')) document.getElementById('editBgTopType').value = bgTop.type || 'color';
+                if (document.getElementById('editBgTopColor1')) document.getElementById('editBgTopColor1').value = bgTop.color1 || '#f8f8f8';
+                if (document.getElementById('editBgTopColor2')) document.getElementById('editBgTopColor2').value = bgTop.color2 || '#e0e0e0';
+                if (document.getElementById('editBgTopUrl')) document.getElementById('editBgTopUrl').value = bgTop.mediaUrl || '';
+
+                // Backdrop bottom
+                var bgBottom = p.background_bottom || {};
+                if (document.getElementById('editBgBottomType')) document.getElementById('editBgBottomType').value = bgBottom.type || 'color';
+                if (document.getElementById('editBgBottomColor1')) document.getElementById('editBgBottomColor1').value = bgBottom.color1 || '#f8f8f8';
+                if (document.getElementById('editBgBottomColor2')) document.getElementById('editBgBottomColor2').value = bgBottom.color2 || '#e0e0e0';
+                if (document.getElementById('editBgBottomUrl')) document.getElementById('editBgBottomUrl').value = bgBottom.mediaUrl || '';
 
                 // Video
                 document.getElementById('editVideoAutoplay').checked = p.video_autoplay !== false;
@@ -378,6 +400,7 @@
             show_author: chk('editShowAuthor'),
             show_price: chk('editShowPrice'),
             show_stock: chk('editShowStock'),
+            show_share: chk('editShowShare'),
             is_featured: chk('editIsFeatured'),
             video_autoplay: chk('editVideoAutoplay'),
             video_loop: chk('editVideoLoop'),
@@ -387,6 +410,18 @@
                 borderColor: val('editBorderColor') || '#000000',
                 padding: parseInt(val('editFramePadding'), 10) || 0,
                 objectFit: val('editFrameObjectFit') || 'contain'
+            },
+            background_top: {
+                type: val('editBgTopType'),
+                color1: val('editBgTopColor1'),
+                color2: val('editBgTopColor2'),
+                mediaUrl: val('editBgTopUrl').trim()
+            },
+            background_bottom: {
+                type: val('editBgBottomType'),
+                color1: val('editBgBottomColor1'),
+                color2: val('editBgBottomColor2'),
+                mediaUrl: val('editBgBottomUrl').trim()
             }
         };
 
@@ -420,10 +455,21 @@
     }
 
     async function saveSettings() {
+        var exchangeRates = JSON.stringify({
+            USD: 1,
+            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.92,
+            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.79,
+            NGN: parseFloat(document.getElementById('rateNGN').value) || 1500
+        });
         var data = {
             store_name: document.getElementById('storeName').value.trim() || 'V. Gallery',
-            ship_std: parseFloat(document.getElementById('standardShipping').value) || 0,
-            ship_exp: parseFloat(document.getElementById('expressShipping').value) || 0,
+            exchange_rates: exchangeRates,
+            ship_std: parseFloat(document.getElementById('localStdShipping').value) || 0,
+            ship_exp: parseFloat(document.getElementById('localExpShipping').value) || 0,
+            ship_intl_std: parseFloat(document.getElementById('intlStdShipping').value) || 0,
+            ship_intl_exp: parseFloat(document.getElementById('intlExpShipping').value) || 0,
+            ship_local_ngn_std: parseFloat(document.getElementById('localStdNGN').value) || 0,
+            ship_local_ngn_exp: parseFloat(document.getElementById('localExpNGN').value) || 0,
             whatsapp: document.getElementById('settingWhatsapp').value.trim()
         };
         // Include logo if one was uploaded
@@ -566,9 +612,21 @@
         apiCall('get_settings').then(function(settings) {
             if (settings.error) return;
             if (settings.store_name) document.getElementById('storeName').value = settings.store_name;
-            if (settings.ship_std) document.getElementById('standardShipping').value = settings.ship_std;
-            if (settings.ship_exp) document.getElementById('expressShipping').value = settings.ship_exp;
+            if (settings.ship_std) document.getElementById('localStdShipping').value = settings.ship_std;
+            if (settings.ship_exp) document.getElementById('localExpShipping').value = settings.ship_exp;
+            if (settings.ship_intl_std) document.getElementById('intlStdShipping').value = settings.ship_intl_std;
+            if (settings.ship_intl_exp) document.getElementById('intlExpShipping').value = settings.ship_intl_exp;
+            if (settings.ship_local_ngn_std) document.getElementById('localStdNGN').value = settings.ship_local_ngn_std;
+            if (settings.ship_local_ngn_exp) document.getElementById('localExpNGN').value = settings.ship_local_ngn_exp;
             if (settings.whatsapp_number) document.getElementById('settingWhatsapp').value = settings.whatsapp_number;
+            if (settings.exchange_rates) {
+                try {
+                    var rates = JSON.parse(settings.exchange_rates);
+                    if (rates.EUR) document.getElementById('rateEUR').value = rates.EUR;
+                    if (rates.GBP) document.getElementById('rateGBP').value = rates.GBP;
+                    if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
+                } catch (e) {}
+            }
             if (settings.logo_url) {
                 var logoPreview = document.getElementById('logoPreview');
                 if (logoPreview) { logoPreview.src = settings.logo_url; }
