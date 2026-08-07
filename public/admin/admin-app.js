@@ -9,6 +9,8 @@
 
     var editingId = null;
     var uploadedFileData = null;
+    var uploadedLogoData = null;
+    var additionalImages = []; // array of { type: 'url'|'base64', value: string }
     var esc = Utils.escapeHtml;
     var attr = Utils.escapeAttr;
 
@@ -86,9 +88,12 @@
         var tbody = document.getElementById('adminProductsBody');
         if (!tbody) return;
         tbody.innerHTML = result.map(function (p) {
+            var imgCount = '';
+            var imgs = (Array.isArray(p.variations) ? p.variations.length : 0);
+            if (imgs > 0) imgCount = ' <span style="color:#888;font-size:10px;">(' + (imgs + 1) + ')</span>';
             return '<tr>' +
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
-                '<td>' + esc(p.title || '') + '</td>' +
+                '<td>' + esc(p.title || '') + imgCount + '</td>' +
                 '<td>' + esc(p.type || '') + '</td>' +
                 '<td>$' + esc((p.base_price || 0).toFixed(2)) + '</td>' +
                 '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px;"></td>' +
@@ -120,7 +125,7 @@
             return '<tr>' +
                 '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
                 '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
-                '<td>' + esc(o.product_title || '') + ' × ' + esc(o.quantity || 1) + '</td>' +
+                '<td>' + esc(o.product_title || '') + ' &times; ' + esc(o.quantity || 1) + '</td>' +
                 '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
                 '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
                 '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
@@ -132,23 +137,113 @@
         if (recent) recent.innerHTML = result.slice(-6).reverse().map(mapOrder).join('');
     }
 
+    function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+    function chk(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+
+    // ---- Additional images management ----
+    function renderAdditionalImages() {
+        var container = document.getElementById('additionalImagesPreview');
+        if (!container) return;
+        container.innerHTML = '';
+        additionalImages.forEach(function (img, idx) {
+            var div = document.createElement('div');
+            div.className = 'thumb-item';
+            var imgEl = document.createElement('img');
+            imgEl.src = img.value;
+            imgEl.alt = 'Additional image ' + (idx + 1);
+            div.appendChild(imgEl);
+            var removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-thumb';
+            removeBtn.textContent = '\u00d7';
+            removeBtn.title = 'Remove this image';
+            removeBtn.onclick = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                additionalImages.splice(idx, 1);
+                renderAdditionalImages();
+            };
+            div.appendChild(removeBtn);
+            container.appendChild(div);
+        });
+    }
+
+    // ---- Image URL live preview ----
+    function setupImageUrlPreview() {
+        var urlInput = document.getElementById('editImageUrl');
+        if (!urlInput) return;
+        var debounceTimer = null;
+        urlInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () {
+                var url = urlInput.value.trim();
+                var preview = document.getElementById('previewMain');
+                if (!preview) return;
+                if (url && !uploadedFileData) {
+                    // Test if the URL looks like an image
+                    if (/\.(jpg|jpeg|png|gif|webp|svg|avif)(\?.*)?$/i.test(url) || url.startsWith('data:image')) {
+                        preview.src = url;
+                        preview.style.display = 'block';
+                        preview.onerror = function () { preview.style.display = 'none'; };
+                    } else {
+                        preview.style.display = 'none';
+                    }
+                } else if (!uploadedFileData) {
+                    preview.style.display = 'none';
+                }
+            }, 400);
+        });
+    }
+
     function openEditModal(productId) {
         editingId = productId || null;
         uploadedFileData = null;
+        additionalImages = [];
         var modal = document.getElementById('editModal');
         var title = document.getElementById('editModalTitle');
         var deleteBtn = document.getElementById('deleteProductBtn');
         title.textContent = productId ? 'Edit Product' : 'Add Product';
         if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
-        ['editTitle', 'editAuthor', 'editDescription', 'editImageUrl', 'editPrice'].forEach(function (id) {
+        // Reset all text/number fields
+        ['editTitle','editAuthor','editDescription','editContent','editImageUrl','editPrice','editComparePrice','editVariations','editTags'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
         });
         var stockEl = document.getElementById('editStock');
         if (stockEl) stockEl.value = 1;
         var preview = document.getElementById('previewMain');
-        if (preview) { preview.src = ''; preview.style.display = 'none'; }
+        if (preview) { preview.src = ''; preview.style.display = 'none'; preview.onerror = null; }
+
+        // Clear additional images
+        renderAdditionalImages();
+
+        // Reset selects to defaults
+        if (document.getElementById('editType')) document.getElementById('editType').value = 'original';
+        if (document.getElementById('editMediaKind')) document.getElementById('editMediaKind').value = 'image';
+        if (document.getElementById('editOrientation')) document.getElementById('editOrientation').value = 'square';
+        if (document.getElementById('editFontFamily')) document.getElementById('editFontFamily').value = "'Copperplate', serif";
+        if (document.getElementById('editContentOrder')) document.getElementById('editContentOrder').value = 'title-first';
+        if (document.getElementById('editFontWeight')) document.getElementById('editFontWeight').value = '400';
+        if (document.getElementById('editTextTransform')) document.getElementById('editTextTransform').value = 'none';
+        if (document.getElementById('editFrameObjectFit')) document.getElementById('editFrameObjectFit').value = 'contain';
+        if (document.getElementById('editFontSize')) document.getElementById('editFontSize').value = '11';
+        if (document.getElementById('editBorderWidth')) document.getElementById('editBorderWidth').value = '0';
+        if (document.getElementById('editBorderColor')) document.getElementById('editBorderColor').value = '#000000';
+        if (document.getElementById('editFramePadding')) document.getElementById('editFramePadding').value = '0';
+
+        // Reset checkboxes
+        ['editShowAuthor','editShowPrice','editShowStock','editVideoAutoplay','editVideoLoop','editVideoMuted'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.checked = true;
+        });
+        if (document.getElementById('editIsFeatured')) document.getElementById('editIsFeatured').checked = false;
+
+        // Reset the file input so re-editing the same file triggers onchange
+        var deviceFile = document.getElementById('deviceFileUpload');
+        if (deviceFile) deviceFile.value = '';
+        var addlFile = document.getElementById('additionalFileUpload');
+        if (addlFile) addlFile.value = '';
 
         if (productId) {
             apiCall('get_products').then(function (result) {
@@ -158,16 +253,59 @@
                 document.getElementById('editTitle').value = p.title || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
+                document.getElementById('editContent').value = p.content || '';
                 document.getElementById('editType').value = p.type || 'original';
+                document.getElementById('editMediaKind').value = p.media_kind || 'image';
                 document.getElementById('editOrientation').value = p.orientation || 'square';
                 document.getElementById('editStock').value = p.stock || 1;
                 document.getElementById('editPrice').value = p.base_price || '';
+                document.getElementById('editComparePrice').value = p.compare_price || '';
                 document.getElementById('editImageUrl').value = p.image_url || '';
+                document.getElementById('editTags').value = Array.isArray(p.tags) ? p.tags.join(', ') : '';
+
+                // Show main image preview when editing
+                if (p.image_url) {
+                    var preview = document.getElementById('previewMain');
+                    if (preview) {
+                        preview.src = p.image_url;
+                        preview.style.display = 'block';
+                    }
+                }
+
+                // Load existing variations into additional images grid
+                if (Array.isArray(p.variations) && p.variations.length > 0) {
+                    additionalImages = p.variations.map(function (url) {
+                        return { type: 'url', value: url };
+                    });
+                    renderAdditionalImages();
+                    // Also populate the textarea so admin can see/edit the URLs
+                    document.getElementById('editVariations').value = p.variations.join('\n');
+                }
+
+                // Typography
+                if (p.font_family) document.getElementById('editFontFamily').value = p.font_family;
+                if (p.font_size) document.getElementById('editFontSize').value = p.font_size;
+                if (p.font_weight) document.getElementById('editFontWeight').value = String(p.font_weight);
+                if (p.text_transform) document.getElementById('editTextTransform').value = p.text_transform;
+                if (p.content_order) document.getElementById('editContentOrder').value = p.content_order;
+
+                // Toggles
+                document.getElementById('editShowAuthor').checked = p.show_author !== false;
+                document.getElementById('editShowPrice').checked = p.show_price !== false;
+                document.getElementById('editShowStock').checked = p.show_stock !== false;
+                document.getElementById('editIsFeatured').checked = !!p.is_featured;
+
+                // Video
+                document.getElementById('editVideoAutoplay').checked = p.video_autoplay !== false;
+                document.getElementById('editVideoLoop').checked = p.video_loop !== false;
+                document.getElementById('editVideoMuted').checked = p.video_muted !== false;
+
+                // Frame
                 var frame = p.frame_style || {};
-                var bw = document.getElementById('editBorderWidth');
-                var bc = document.getElementById('editBorderColor');
-                if (bw) bw.value = frame.borderWidth || 0;
-                if (bc) bc.value = frame.borderColor || '#000000';
+                if (document.getElementById('editBorderWidth')) document.getElementById('editBorderWidth').value = frame.borderWidth || 0;
+                if (document.getElementById('editBorderColor')) document.getElementById('editBorderColor').value = frame.borderColor || '#000000';
+                if (document.getElementById('editFramePadding')) document.getElementById('editFramePadding').value = frame.padding || 0;
+                if (document.getElementById('editFrameObjectFit')) document.getElementById('editFrameObjectFit').value = frame.objectFit || 'contain';
             });
         }
 
@@ -181,24 +319,84 @@
 
     async function saveProduct(e) {
         if (e) e.preventDefault();
+
+        var titleVal = val('editTitle').trim();
+        if (!titleVal) {
+            showNotification('Title is required', 'error');
+            document.getElementById('editTitle').focus();
+            return;
+        }
+
+        var priceVal = parseFloat(val('editPrice'));
+        if (isNaN(priceVal) || priceVal < 0) {
+            showNotification('Please enter a valid price', 'error');
+            document.getElementById('editPrice').focus();
+            return;
+        }
+
+        // Parse variations: split by newline, filter empty
+        var variationsRaw = val('editVariations');
+        var urlVariations = variationsRaw ? variationsRaw.split(/[\n\r]+/).map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+        // Merge: uploaded additional images (base64) + URL variations from textarea
+        // Additional images take priority, then URL variations that aren't duplicates
+        var allVariations = additionalImages.map(function (img) { return img.value; });
+        urlVariations.forEach(function (url) {
+            if (allVariations.indexOf(url) === -1) {
+                allVariations.push(url);
+            }
+        });
+
+        // Parse tags: split by comma
+        var tagsRaw = val('editTags');
+        var tags = tagsRaw ? tagsRaw.split(',').map(function(s) { return s.trim(); }).filter(Boolean) : [];
+
+        // Disable save button to prevent double-submit
+        var submitBtn = document.querySelector('#editProductForm button[type="submit"]');
+        var originalBtnText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
+
         var data = {
-            title: document.getElementById('editTitle').value.trim(),
-            author: document.getElementById('editAuthor').value.trim() || 'V.',
-            description: document.getElementById('editDescription').value.trim(),
-            type: document.getElementById('editType').value,
-            orientation: document.getElementById('editOrientation').value,
-            stock: parseInt(document.getElementById('editStock').value, 10) || 0,
-            base_price: parseFloat(document.getElementById('editPrice').value) || 0,
-            image_url: uploadedFileData || document.getElementById('editImageUrl').value.trim(),
+            title: titleVal,
+            author: val('editAuthor').trim() || 'V.',
+            description: val('editDescription').trim(),
+            content: val('editContent').trim(),
+            type: val('editType'),
+            media_kind: val('editMediaKind'),
+            orientation: val('editOrientation'),
+            stock: parseInt(val('editStock'), 10) || 0,
+            base_price: priceVal,
+            compare_price: parseFloat(val('editComparePrice')) || null,
+            image_url: uploadedFileData || val('editImageUrl').trim(),
+            variations: allVariations,
+            tags: tags,
+            font_family: val('editFontFamily'),
+            font_size: parseInt(val('editFontSize'), 10) || 11,
+            font_weight: parseInt(val('editFontWeight'), 10) || 400,
+            text_transform: val('editTextTransform'),
+            content_order: val('editContentOrder'),
+            show_author: chk('editShowAuthor'),
+            show_price: chk('editShowPrice'),
+            show_stock: chk('editShowStock'),
+            is_featured: chk('editIsFeatured'),
+            video_autoplay: chk('editVideoAutoplay'),
+            video_loop: chk('editVideoLoop'),
+            video_muted: chk('editVideoMuted'),
             frame_style: {
-                borderWidth: parseInt(document.getElementById('editBorderWidth').value, 10) || 0,
-                borderColor: document.getElementById('editBorderColor').value || '#000000'
+                borderWidth: parseInt(val('editBorderWidth'), 10) || 0,
+                borderColor: val('editBorderColor') || '#000000',
+                padding: parseInt(val('editFramePadding'), 10) || 0,
+                objectFit: val('editFrameObjectFit') || 'contain'
             }
         };
-        if (!data.title) { showNotification('Title is required', 'error'); return; }
+
         var op = editingId ? 'update_product' : 'create_product';
         if (editingId) data.product_id = editingId;
         var result = await apiCall(op, data);
+
+        // Re-enable save button
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalBtnText; }
+
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification(editingId ? 'Product updated' : 'Product added');
         closeEditModal();
@@ -207,7 +405,7 @@
     }
 
     async function deleteProduct(productId) {
-        if (!confirm('Delete this product?')) return;
+        if (!confirm('Delete this product? This cannot be undone.')) return;
         var result = await apiCall('delete_product', { product_id: productId });
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Product deleted');
@@ -228,9 +426,15 @@
             ship_exp: parseFloat(document.getElementById('expressShipping').value) || 0,
             whatsapp: document.getElementById('settingWhatsapp').value.trim()
         };
+        // Include logo if one was uploaded
+        if (uploadedLogoData) {
+            data.logo_url = uploadedLogoData;
+        }
         var result = await apiCall('update_settings', data);
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Settings saved');
+        // Clear the uploaded logo data after successful save so it's not re-sent
+        uploadedLogoData = null;
     }
 
     async function exportData() {
@@ -246,7 +450,7 @@
         showNotification('Catalog exported');
     }
 
-    // Robust file upload handler to prevent "invalid operation" errors
+    // Robust file upload handler
     function handleFileUpload(input, previewId, callback) {
         if (!input.files || !input.files[0]) return;
         var file = input.files[0];
@@ -254,7 +458,7 @@
         // 5MB limit to prevent database/localStorage issues
         if (file.size > 5 * 1024 * 1024) {
             showNotification('File is too large. Max 5MB allowed.', 'error');
-            input.value = ''; // reset input
+            input.value = '';
             return;
         }
 
@@ -271,6 +475,46 @@
             showNotification('Failed to read file.', 'error');
         };
         reader.readAsDataURL(file);
+    }
+
+    // Multi-file upload handler for additional images
+    function handleMultipleFileUpload(input) {
+        if (!input.files || input.files.length === 0) return;
+        var files = Array.prototype.slice.call(input.files);
+        var processed = 0;
+        var totalSize = 0;
+
+        // Check total size (all files combined, max 10MB)
+        files.forEach(function (f) { totalSize += f.size; });
+        if (totalSize > 10 * 1024 * 1024) {
+            showNotification('Total file size exceeds 10MB limit.', 'error');
+            input.value = '';
+            return;
+        }
+
+        files.forEach(function (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                showNotification(file.name + ' is too large (max 5MB per file).', 'error');
+                processed++;
+                if (processed === files.length) input.value = '';
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                additionalImages.push({ type: 'base64', value: e.target.result });
+                processed++;
+                if (processed === files.length) {
+                    input.value = '';
+                    renderAdditionalImages();
+                }
+            };
+            reader.onerror = function () {
+                showNotification('Failed to read ' + file.name, 'error');
+                processed++;
+                if (processed === files.length) input.value = '';
+            };
+            reader.readAsDataURL(file);
+        });
     }
 
     function logout() {
@@ -305,18 +549,33 @@
         document.getElementById('saveSettingsBtn').onclick = saveSettings;
         document.getElementById('exportDataBtn').onclick = exportData;
 
+        // ---- Logo upload ----
         var logoUpload = document.getElementById('logoUpload');
         var logoUploadArea = document.getElementById('logoUploadArea');
         if (logoUploadArea && logoUpload) {
             logoUploadArea.onclick = function () { logoUpload.click(); };
-            logoUpload.onchange = function () { 
+            logoUpload.onchange = function () {
                 handleFileUpload(this, 'logoPreview', function(base64) {
-                    // Here you would typically call an API to save the logo
+                    uploadedLogoData = base64;
                     showNotification('Logo ready. Save settings to apply.');
-                }); 
+                });
             };
         }
 
+        // Load current settings into form (including existing logo preview)
+        apiCall('get_settings').then(function(settings) {
+            if (settings.error) return;
+            if (settings.store_name) document.getElementById('storeName').value = settings.store_name;
+            if (settings.ship_std) document.getElementById('standardShipping').value = settings.ship_std;
+            if (settings.ship_exp) document.getElementById('expressShipping').value = settings.ship_exp;
+            if (settings.whatsapp_number) document.getElementById('settingWhatsapp').value = settings.whatsapp_number;
+            if (settings.logo_url) {
+                var logoPreview = document.getElementById('logoPreview');
+                if (logoPreview) { logoPreview.src = settings.logo_url; }
+            }
+        });
+
+        // ---- Main product image upload ----
         var deviceUpload = document.getElementById('deviceFileUpload');
         var deviceUploadArea = document.getElementById('deviceUploadArea');
         if (deviceUploadArea && deviceUpload) {
@@ -329,6 +588,20 @@
             };
         }
 
+        // ---- Additional images upload ----
+        var additionalUpload = document.getElementById('additionalFileUpload');
+        var additionalUploadArea = document.getElementById('additionalUploadArea');
+        if (additionalUploadArea && additionalUpload) {
+            additionalUploadArea.onclick = function () { additionalUpload.click(); };
+            additionalUpload.onchange = function () {
+                handleMultipleFileUpload(this);
+            };
+        }
+
+        // ---- Image URL live preview ----
+        setupImageUrlPreview();
+
+        // ---- Modal backdrop + Escape ----
         var modal = document.getElementById('editModal');
         if (modal) {
             modal.addEventListener('click', function (e) {
