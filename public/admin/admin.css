@@ -254,7 +254,7 @@ body.admin-dashboard-body {
     text-transform: none;
     color: #333;
     cursor: pointer;
-    margin: 6px 0;
+    margin: 6px 4px;
 }
 .edit-section label.inline-check input { width: auto; margin: 0; }
 
@@ -318,6 +318,44 @@ body.admin-dashboard-body {
 
 .file-upload-section { display: none; }
 .file-upload-section.visible { display: block; }
+
+/* ---------- Additional Images Grid ---------- */
+.additional-images-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+.additional-images-grid .thumb-item {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #eee;
+}
+.additional-images-grid .thumb-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.additional-images-grid .thumb-item .remove-thumb {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 18px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+}
+.additional-images-grid .thumb-item .remove-thumb:hover { background: #dc2626; }
 
 @media (max-width: 768px) {
     .admin-panel { padding: 16px; }
