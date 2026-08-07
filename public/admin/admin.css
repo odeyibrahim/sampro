@@ -9,6 +9,69 @@ body.admin-dashboard-body {
     background: #f5f5f5;
     color: #333;
     line-height: 1.5;
+    transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ---------- Dark Mode for Admin Dashboard ---------- */
+@media (prefers-color-scheme: dark) {
+    body.admin-dashboard-body {
+        background: #0a0a0a;
+        color: #e0e0e0;
+    }
+    .admin-panel { background: #121212; color: #e0e0e0; }
+    .admin-header { border-bottom-color: #2a2a2a; }
+    .admin-header h2 { color: #fff; }
+    .admin-tabs { border-bottom-color: #2a2a2a; }
+    .admin-tab { color: #888; }
+    .admin-tab.active { color: #fff; }
+    .admin-tab.active::after { background: #fff; }
+    .stat-card { background: #1a1a1a; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .stat-value { color: #fff; }
+    .stat-label { color: #888; }
+    .admin-section-title { color: #e0e0e0; }
+    .table-container { border-color: #2a2a2a; }
+    .admin-table th { color: #888; border-bottom-color: #2a2a2a; }
+    .admin-table td { border-bottom-color: #2a2a2a; color: #ccc; }
+    .admin-table tr:hover td { background: #1a1a1a; }
+    .admin-btn { border-color: #666; color: #ccc; }
+    .admin-btn:hover { background: #fff; color: #000; }
+    .admin-btn.confirm-pay { border-color: #22c55e; color: #22c55e; }
+    .admin-btn.confirm-pay:hover { background: #22c55e; color: #fff; }
+    .admin-btn.danger { border-color: #ef4444; color: #ef4444; }
+    .admin-btn.danger:hover { background: #ef4444; color: #fff; }
+    .edit-section { background: #1a1a1a; border-color: #2a2a2a; }
+    .edit-section > label.section-label { color: #D0A380; }
+    .edit-section label { color: #888; }
+    .edit-section label.inline-check { color: #ccc; }
+    .edit-section input,
+    .edit-section textarea,
+    .edit-section select {
+        background: #0a0a0a;
+        border-color: #333;
+        color: #e0e0e0;
+    }
+    .edit-section input:focus,
+    .edit-section textarea:focus,
+    .edit-section select:focus { border-bottom-color: #D0A380; }
+    .edit-content { background: #1a1a1a; color: #e0e0e0; }
+    .edit-header { border-bottom-color: #2a2a2a; }
+    .edit-header h3 { color: #fff; }
+    .close-edit { color: #888; }
+    .close-edit:hover { color: #fff; }
+    .image-upload-area { border-color: #333; color: #888; background: #121212; }
+    .image-upload-area:hover { border-color: #666; background: #1a1a1a; color: #ccc; }
+    .sync-badge.online { background: #1a2e1a; color: #22c55e; }
+    .sync-badge.offline { background: #2e1f0a; color: #f59e0b; }
+    .badge.paid { background: #1a2e1a; color: #22c55e; }
+    .badge.pending { background: #2e2a1a; color: #f59e0b; }
+    .badge.failed, .badge.refunded { background: #2e1a1a; color: #ef4444; }
+    .badge.processing { background: #1a1a2e; color: #60a5fa; }
+    .badge.shipped { background: #1a1a2e; color: #818cf8; }
+    .badge.delivered { background: #1a2e2e; color: #2dd4bf; }
+    .form-group label { color: #888; }
+    .logout-btn { background: #7f1d1d; color: #fca5a5; }
+    .logout-btn:hover { background: #991b1b; }
+    .additional-images-grid .thumb-item { border-color: #333; }
 }
 
 /* ---------- Admin Panel Structure ---------- */
