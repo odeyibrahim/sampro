@@ -54,6 +54,19 @@ class HybridApp {
             if (settings.store_name) {
                 document.title = settings.store_name + ' · Art + Commerce';
             }
+            // Load admin-configured exchange rates
+            if (settings.exchange_rates) {
+                try {
+                    const rates = JSON.parse(settings.exchange_rates);
+                    if (rates && typeof rates === 'object') {
+                        Object.keys(rates).forEach(function (c) {
+                            if (typeof rates[c] === 'number' && rates[c] > 0) {
+                                this.exchangeRates[c] = rates[c];
+                            }
+                        }.bind(this));
+                    }
+                } catch (e) {}
+            }
         } catch (e) {
             // intentionally silent
         }
@@ -206,33 +219,12 @@ class HybridApp {
         // Cancel any pending transition timer to prevent stale callbacks
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
 
-        if (this.el.infoContainer) {
-            this.el.infoContainer.classList.add('transitioning');
-            this._displayTimer = setTimeout(() => {
-                this._displayTimer = null;
-                this.renderMedia(p);
-                this.renderText(p);
-                this.renderFrame(p);
-                this.renderBackgrounds(p);
-                this.renderVariationDots();
-                // Use double-rAF to guarantee the browser has painted the
-                // opacity:0 state before we remove the class and trigger
-                // the fade-in transition.
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        if (this.el.infoContainer) {
-                            this.el.infoContainer.classList.remove('transitioning');
-                        }
-                    });
-                });
-            }, 160);
-        } else {
-            this.renderMedia(p);
-            this.renderText(p);
-            this.renderFrame(p);
-            this.renderBackgrounds(p);
-            this.renderVariationDots();
-        }
+        // Render immediately — no opacity transition to prevent text-disappearing glitch
+        this.renderMedia(p);
+        this.renderText(p);
+        this.renderFrame(p);
+        this.renderBackgrounds(p);
+        this.renderVariationDots();
 
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
@@ -335,6 +327,10 @@ class HybridApp {
         if (this.el.priceRow) {
             const showPrice = p.show_price !== false;
             this.el.priceRow.style.display = showPrice ? '' : 'none';
+        }
+        // Share button: hidden by default, shown only if product has show_share=true
+        if (this.el.shareButton) {
+            this.el.shareButton.style.display = p.show_share ? '' : 'none';
         }
         if (this.el.priceTag) this.el.priceTag.textContent = this.formatPrice(p.base_price);
         if (this.el.originalPrice) {
