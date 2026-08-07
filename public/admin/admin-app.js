@@ -73,21 +73,23 @@
         });
     }
 
-    async function loadStats() {
-        var stats = await apiCall('get_stats');
-        if (stats.error) return;
+    function applyStats(stats) {
         document.getElementById('totalRevenue').textContent = '$' + (stats.totalRevenue || 0).toFixed(2);
         document.getElementById('totalOrders').textContent = stats.totalOrders || 0;
         document.getElementById('totalProducts').textContent = stats.totalProducts || 0;
         document.getElementById('totalCustomers').textContent = stats.totalCustomers || 0;
     }
 
-    async function loadProducts() {
-        var result = await apiCall('get_products');
-        if (result.error || !Array.isArray(result)) return;
+    async function loadStats() {
+        var result = await apiCall('get_stats');
+        if (result.error) return;
+        applyStats(result);
+    }
+
+    function renderProductsTable(products) {
         var tbody = document.getElementById('adminProductsBody');
         if (!tbody) return;
-        tbody.innerHTML = result.map(function (p) {
+        tbody.innerHTML = products.map(function (p) {
             var imgCount = '';
             var imgs = (Array.isArray(p.variations) ? p.variations.length : 0);
             if (imgs > 0) imgCount = ' <span style="color:#888;font-size:10px;">(' + (imgs + 1) + ')</span>';
@@ -115,26 +117,62 @@
         });
     }
 
+    async function loadProducts() {
+        var result = await apiCall('get_products');
+        if (result.error || !Array.isArray(result)) return;
+        renderProductsTable(result);
+    }
+
+    var mapOrder = function(o) {
+        return '<tr>' +
+            '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
+            '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
+            '<td>' + esc(o.product_title || '') + ' &times; ' + esc(o.quantity || 1) + '</td>' +
+            '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
+            '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
+            '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
+            '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
+        '</tr>';
+    };
+
+    function renderOrdersTables(orders) {
+        var tbody = document.getElementById('adminOrdersBody');
+        var recent = document.getElementById('recentOrdersBody');
+        if (tbody) tbody.innerHTML = orders.map(mapOrder).join('');
+        if (recent) recent.innerHTML = orders.slice(-6).reverse().map(mapOrder).join('');
+    }
+
     async function loadOrders() {
         var result = await apiCall('get_orders');
         if (result.error || !Array.isArray(result)) return;
-        var tbody = document.getElementById('adminOrdersBody');
-        var recent = document.getElementById('recentOrdersBody');
-        
-        var mapOrder = function(o) {
-            return '<tr>' +
-                '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
-                '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
-                '<td>' + esc(o.product_title || '') + ' &times; ' + esc(o.quantity || 1) + '</td>' +
-                '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
-                '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
-                '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
-                '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
-            '</tr>';
-        };
+        renderOrdersTables(result);
+    }
 
-        if (tbody) tbody.innerHTML = result.map(mapOrder).join('');
-        if (recent) recent.innerHTML = result.slice(-6).reverse().map(mapOrder).join('');
+    function applySettingsForm(settings) {
+        if (settings.store_name) document.getElementById('storeName').value = settings.store_name;
+        if (settings.ship_std) document.getElementById('localStdShipping').value = settings.ship_std;
+        if (settings.ship_exp) document.getElementById('localExpShipping').value = settings.ship_exp;
+        if (settings.ship_intl_std) document.getElementById('intlStdShipping').value = settings.ship_intl_std;
+        if (settings.ship_intl_exp) document.getElementById('intlExpShipping').value = settings.ship_intl_exp;
+        if (settings.ship_local_ngn_std) document.getElementById('localStdNGN').value = settings.ship_local_ngn_std;
+        if (settings.ship_local_ngn_exp) document.getElementById('localExpNGN').value = settings.ship_local_ngn_exp;
+        if (settings.whatsapp_number) document.getElementById('settingWhatsapp').value = settings.whatsapp_number;
+        if (settings.exchange_rates) {
+            try {
+                var rates = JSON.parse(settings.exchange_rates);
+                if (rates.EUR) document.getElementById('rateEUR').value = rates.EUR;
+                if (rates.GBP) document.getElementById('rateGBP').value = rates.GBP;
+                if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
+            } catch (e) {}
+        }
+        if (settings.logo_url) {
+            var logoPreview = document.getElementById('logoPreview');
+            if (logoPreview) { logoPreview.src = settings.logo_url; }
+        }
+        if (settings.logo_size) {
+            document.getElementById('logoSizeRange').value = settings.logo_size;
+            document.getElementById('logoSizeValue').textContent = settings.logo_size;
+        }
     }
 
     function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
@@ -435,8 +473,7 @@
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification(editingId ? 'Product updated' : 'Product added');
         closeEditModal();
-        loadProducts();
-        loadStats();
+        Promise.all([loadProducts(), loadStats()]);
     }
 
     async function deleteProduct(productId) {
@@ -444,8 +481,7 @@
         var result = await apiCall('delete_product', { product_id: productId });
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Product deleted');
-        loadProducts();
-        loadStats();
+        Promise.all([loadProducts(), loadStats()]);
     }
 
     async function updateStock(productId, newStock) {
@@ -566,16 +602,126 @@
         });
     }
 
+    // ---- CSV Import ----
+    function parseCsvLine(line) {
+        var fields = [];
+        var current = '';
+        var inQuotes = false;
+        for (var i = 0; i < line.length; i++) {
+            var ch = line[i];
+            if (inQuotes) {
+                if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+                else if (ch === '"') { inQuotes = false; }
+                else { current += ch; }
+            } else {
+                if (ch === '"') { inQuotes = true; }
+                else if (ch === ',') { fields.push(current.trim()); current = ''; }
+                else { current += ch; }
+            }
+        }
+        fields.push(current.trim());
+        return fields;
+    }
+
+    function parseCsv(text) {
+        var lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+        if (lines.length < 2) return { headers: [], rows: [] };
+        var headers = parseCsvLine(lines[0]).map(function (h) { return h.toLowerCase().replace(/[^a-z0-9_]/g, '_'); });
+        var rows = [];
+        for (var i = 1; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            var values = parseCsvLine(line);
+            var row = {};
+            headers.forEach(function (h, idx) {
+                if (values[idx] !== undefined) row[h] = values[idx];
+            });
+            rows.push(row);
+        }
+        return { headers: headers, rows: rows };
+    }
+
+    function csvRowToProduct(row) {
+        return {
+            title: row.title || '',
+            author: row.author || 'V.',
+            description: row.description || '',
+            content: row.content || '',
+            type: row.type || 'merch',
+            media_kind: ['image', 'video', 'text'].includes(row.media_kind) ? row.media_kind : 'image',
+            orientation: ['square', 'portrait', 'landscape'].includes(row.orientation) ? row.orientation : 'square',
+            base_price: parseFloat(row.base_price) || 0,
+            compare_price: parseFloat(row.compare_price) || null,
+            stock: parseInt(row.stock, 10) || 0,
+            image_url: row.image_url || '',
+            variations: row.variations ? row.variations.split('|').filter(Boolean) : [],
+            tags: row.tags ? row.tags.split('|').filter(Boolean) : [],
+            font_family: row.font_family || '',
+            font_size: parseInt(row.font_size, 10) || null,
+            font_weight: parseInt(row.font_weight, 10) || null,
+            text_transform: row.text_transform || '',
+            content_order: row.content_order || '',
+            show_author: row.show_author === 'true' || row.show_author === '1',
+            show_price: row.show_price !== 'false' && row.show_price !== '0',
+            show_stock: row.show_stock !== 'false' && row.show_stock !== '0',
+            show_share: row.show_share === 'true' || row.show_share === '1',
+            is_featured: row.is_featured === 'true' || row.is_featured === '1',
+            video_autoplay: row.video_autoplay !== 'false',
+            video_loop: row.video_loop !== 'false',
+            video_muted: row.video_muted !== 'false'
+        };
+    }
+
+    function downloadCsvTemplate() {
+        var headers = [
+            'title', 'author', 'description', 'content', 'type', 'media_kind',
+            'orientation', 'base_price', 'compare_price', 'stock', 'image_url',
+            'variations', 'tags', 'font_family', 'font_size', 'font_weight',
+            'text_transform', 'content_order', 'show_author', 'show_price',
+            'show_stock', 'show_share', 'is_featured', 'video_autoplay',
+            'video_loop', 'video_muted'
+        ];
+        var example = [
+            'Sunset Canvas', 'V.', 'A vibrant sunset over the ocean', '', 'original',
+            'image', 'landscape', '450', '500', '1',
+            'https://example.com/sunset.jpg', '', 'landscape,original',
+            "'Copperplate', serif", '11', '400', 'none', 'title-first',
+            'true', 'true', 'true', 'false', 'false',
+            'true', 'true', 'true'
+        ];
+        var csv = headers.join(',') + '\n' + example.join(',');
+        var blob = new Blob([csv], { type: 'text/csv' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'vgallery_product_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     function logout() {
         sessionStorage.removeItem('admin_token');
         window.location.href = '/admin/index.html';
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        loadStats();
-        loadProducts();
-        loadOrders();
-        updateSyncBadge();
+        // Single batched call for initial data — avoids 4 separate cold starts
+        apiCall('dashboard_init').then(function (initData) {
+            if (initData.error) {
+                // Fallback to individual calls if batch fails
+                Promise.all([loadStats(), loadProducts(), loadOrders()]);
+            } else {
+                // Apply stats
+                if (initData.stats) applyStats(initData.stats);
+                // Apply products table
+                if (Array.isArray(initData.products)) renderProductsTable(initData.products);
+                // Apply orders tables
+                if (Array.isArray(initData.orders)) renderOrdersTables(initData.orders);
+                // Apply settings form
+                if (initData.settings) applySettingsForm(initData.settings);
+            }
+            updateSyncBadge();
+        });
 
         window.addEventListener('online', updateSyncBadge);
         window.addEventListener('offline', updateSyncBadge);
@@ -623,6 +769,47 @@
         document.getElementById('saveSettingsBtn').onclick = saveSettings;
         document.getElementById('exportDataBtn').onclick = exportData;
 
+        // ---- CSV Import ----
+        var csvFileInput = document.getElementById('csvFileInput');
+        var importCsvBtn = document.getElementById('importCsvBtn');
+        var downloadCsvTemplateBtn = document.getElementById('downloadCsvTemplateBtn');
+        if (importCsvBtn && csvFileInput) {
+            importCsvBtn.onclick = function () { csvFileInput.click(); };
+            csvFileInput.onchange = async function () {
+                var file = this.files && this.files[0];
+                if (!file) return;
+                if (file.size > 5 * 1024 * 1024) {
+                    showNotification('CSV file too large (max 5MB)', 'error');
+                    this.value = '';
+                    return;
+                }
+                importCsvBtn.disabled = true;
+                importCsvBtn.textContent = 'Importing...';
+                try {
+                    var text = await file.text();
+                    var parsed = parseCsv(text);
+                    if (parsed.rows.length === 0) {
+                        showNotification('CSV has no data rows', 'error');
+                        return;
+                    }
+                    var products = parsed.rows.map(csvRowToProduct);
+                    var result = await apiCall('import_csv', { products: products });
+                    if (result.error) { showNotification(result.error, 'error'); return; }
+                    showNotification('Imported ' + result.imported + ' of ' + result.total + ' products');
+                    Promise.all([loadProducts(), loadStats()]);
+                } catch (err) {
+                    showNotification('Failed to read CSV: ' + err.message, 'error');
+                } finally {
+                    importCsvBtn.disabled = false;
+                    importCsvBtn.textContent = 'Import CSV';
+                    csvFileInput.value = '';
+                }
+            };
+        }
+        if (downloadCsvTemplateBtn) {
+            downloadCsvTemplateBtn.onclick = downloadCsvTemplate;
+        }
+
         // ---- Logo upload ----
         var logoUpload = document.getElementById('logoUpload');
         var logoUploadArea = document.getElementById('logoUploadArea');
@@ -636,34 +823,9 @@
             };
         }
 
-        // Load current settings into form (including existing logo preview)
-        apiCall('get_settings').then(function(settings) {
-            if (settings.error) return;
-            if (settings.store_name) document.getElementById('storeName').value = settings.store_name;
-            if (settings.ship_std) document.getElementById('localStdShipping').value = settings.ship_std;
-            if (settings.ship_exp) document.getElementById('localExpShipping').value = settings.ship_exp;
-            if (settings.ship_intl_std) document.getElementById('intlStdShipping').value = settings.ship_intl_std;
-            if (settings.ship_intl_exp) document.getElementById('intlExpShipping').value = settings.ship_intl_exp;
-            if (settings.ship_local_ngn_std) document.getElementById('localStdNGN').value = settings.ship_local_ngn_std;
-            if (settings.ship_local_ngn_exp) document.getElementById('localExpNGN').value = settings.ship_local_ngn_exp;
-            if (settings.whatsapp_number) document.getElementById('settingWhatsapp').value = settings.whatsapp_number;
-            if (settings.exchange_rates) {
-                try {
-                    var rates = JSON.parse(settings.exchange_rates);
-                    if (rates.EUR) document.getElementById('rateEUR').value = rates.EUR;
-                    if (rates.GBP) document.getElementById('rateGBP').value = rates.GBP;
-                    if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
-                } catch (e) {}
-            }
-            if (settings.logo_url) {
-                var logoPreview = document.getElementById('logoPreview');
-                if (logoPreview) { logoPreview.src = settings.logo_url; }
-            }
-            if (settings.logo_size) {
-                document.getElementById('logoSizeRange').value = settings.logo_size;
-                document.getElementById('logoSizeValue').textContent = settings.logo_size;
-            }
-        });
+        // Settings are now loaded via dashboard_init batch call above.
+        // If batch failed and fell back to individual calls, settings
+        // will be loaded when user clicks the Settings tab.
 
         // ---- Main product image upload ----
         var deviceUpload = document.getElementById('deviceFileUpload');
