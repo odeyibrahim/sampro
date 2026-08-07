@@ -470,7 +470,8 @@
             ship_intl_exp: parseFloat(document.getElementById('intlExpShipping').value) || 0,
             ship_local_ngn_std: parseFloat(document.getElementById('localStdNGN').value) || 0,
             ship_local_ngn_exp: parseFloat(document.getElementById('localExpNGN').value) || 0,
-            whatsapp: document.getElementById('settingWhatsapp').value.trim()
+            whatsapp: document.getElementById('settingWhatsapp').value.trim(),
+            logo_size: parseInt(document.getElementById('logoSizeRange').value) || 36
         };
         // Include logo if one was uploaded
         if (uploadedLogoData) {
@@ -479,8 +480,10 @@
         var result = await apiCall('update_settings', data);
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Settings saved');
-        // Clear the uploaded logo data after successful save so it's not re-sent
         uploadedLogoData = null;
+        // Persist dark mode preference
+        var isDark = document.body.classList.contains('dark-mode');
+        try { localStorage.setItem('admin_dark_mode', isDark ? '1' : '0'); } catch(e) {}
     }
 
     async function exportData() {
@@ -579,6 +582,31 @@
 
         document.getElementById('logoutBtn').onclick = logout;
 
+        // Dark mode toggle
+        var darkBtn = document.getElementById('darkToggleBtn');
+        if (darkBtn) {
+            // Restore saved preference
+            try {
+                if (localStorage.getItem('admin_dark_mode') === '1') {
+                    document.body.classList.add('dark-mode');
+                    darkBtn.textContent = '◑';
+                }
+            } catch(e) {}
+            darkBtn.onclick = function() {
+                document.body.classList.toggle('dark-mode');
+                var isNowDark = document.body.classList.contains('dark-mode');
+                darkBtn.textContent = isNowDark ? '◑' : '◐';
+                try { localStorage.setItem('admin_dark_mode', isNowDark ? '1' : '0'); } catch(e) {}
+            };
+        }
+
+        // Logo size range slider
+        var logoSizeRange = document.getElementById('logoSizeRange');
+        var logoSizeValue = document.getElementById('logoSizeValue');
+        if (logoSizeRange && logoSizeValue) {
+            logoSizeRange.oninput = function() { logoSizeValue.textContent = this.value; };
+        }
+
         // Tab switching logic
         document.querySelectorAll('.admin-tab').forEach(function(tab) {
             tab.onclick = function() { switchTab(tab.dataset.tab); };
@@ -630,6 +658,10 @@
             if (settings.logo_url) {
                 var logoPreview = document.getElementById('logoPreview');
                 if (logoPreview) { logoPreview.src = settings.logo_url; }
+            }
+            if (settings.logo_size) {
+                document.getElementById('logoSizeRange').value = settings.logo_size;
+                document.getElementById('logoSizeValue').textContent = settings.logo_size;
             }
         });
 
