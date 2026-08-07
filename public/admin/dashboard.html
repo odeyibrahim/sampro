@@ -51,8 +51,13 @@
         <div class="admin-section" id="adminProducts">
             <div class="admin-toolbar">
                 <h3 class="admin-section-title">Manage Products</h3>
-                <button class="admin-btn confirm-pay" id="addProductBtn">+ Add Product</button>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="admin-btn confirm-pay" id="addProductBtn">+ Add Product</button>
+                    <button class="admin-btn" id="importCsvBtn">Import CSV</button>
+                    <button class="admin-btn" id="downloadCsvTemplateBtn">CSV Template</button>
+                </div>
             </div>
+            <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
             <div class="table-container">
                 <table class="admin-table">
                     <thead><tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
