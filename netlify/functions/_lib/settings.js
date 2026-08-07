@@ -7,6 +7,7 @@
 const DEFAULTS = {
     store_name: 'V. Gallery',
     logo_url: '',
+    logo_size: 36,
     whatsapp_number: '',
     tax_rate_ngn: '0',
     tax_rate_usd: '0'
