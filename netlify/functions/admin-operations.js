@@ -238,6 +238,21 @@ export const handler = async (event) => {
                 break;
             }
 
+            case 'update_stock': {
+                const { data: updatedStock, error: stockError } = await supabase
+                    .from('products')
+                    .update({ stock: parseInt(data.stock, 10) || 0, updated_at: new Date().toISOString() })
+                    .eq('product_id', data.product_id)
+                    .select()
+                    .single();
+
+                if (stockError) {
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: stockError.message }) };
+                }
+                result = updatedStock;
+                break;
+            }
+
             case 'get_orders': {
                 const { data: orders } = await supabase
                     .from('orders')
