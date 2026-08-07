@@ -1,14 +1,4 @@
-self.addEventListener('fetch', (event) => {
-    // 1. Ignore non-GET requests
-    if (event.request.method !== 'GET') return;
-
-    // 2. IGNORE CHROME EXTENSIONS & NON-HTTP REQUESTS
-    if (!event.request.url.startsWith('http')) {
-        return; 
-    }
-
-
-const CACHE_NAME = 'vgallery-cache-v1';
+const CACHE_NAME = 'vgallery-cache-v2';
 const PRECACHE_URLS = [
     '/',
     '/css/styles.css',
@@ -33,18 +23,22 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
+// Single fetch listener with all guards
 self.addEventListener('fetch', (event) => {
+    // Guard 1: Only cache GET requests
+    if (event.request.method !== 'GET') return;
+
+    // Guard 2: Skip non-http schemes (chrome-extension, data, blob, etc.)
+    if (!event.request.url.startsWith('http')) return;
+
     const url = new URL(event.request.url);
 
-    // Never cache admin pages, API calls, or payment flows — these must
-    // always hit the network so auth/session state stays correct.
+    // Guard 3: Never cache admin, API, or payment flows
     if (url.pathname.startsWith('/admin/') ||
         url.pathname.startsWith('/.netlify/') ||
         url.pathname.startsWith('/payment-callback')) {
         return;
     }
-
-    if (event.request.method !== 'GET') return;
 
     event.respondWith(
         caches.match(event.request).then((cached) => {
