@@ -468,6 +468,38 @@ export const handler = async (event) => {
                 break;
             }
 
+            // ------------------------------------------------------
+            // DASHBOARD INIT — returns stats, products (summary),
+            // recent orders, and settings in one round-trip so the
+            // admin doesn't fire 4 separate cold-start invocations.
+            // ------------------------------------------------------
+            case 'dashboard_init': {
+                const [ordersResult, revenueResult, productsResult, customersResult, ordersFull, settingsResult] = await Promise.all([
+                    supabase.from('orders').select('*', { count: 'exact', head: true }),
+                    supabase.from('orders').select('total_amount').eq('payment_status', 'paid'),
+                    supabase.from('products').select('*', { count: 'exact', head: true }),
+                    supabase.from('customers').select('*', { count: 'exact', head: true }),
+                    supabase.from('orders').select('*').order('created_at', { ascending: false }),
+                    getSettings(supabase)
+                ]);
+
+                const revenue = revenueResult.data || [];
+                const totalRevenue = revenue.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+
+                result = {
+                    stats: {
+                        totalRevenue,
+                        totalOrders: ordersResult.count || 0,
+                        totalProducts: productsResult.count || 0,
+                        totalCustomers: customersResult.count || 0
+                    },
+                    products: (await supabase.from('products').select('*').order('created_at', { ascending: false })).data || [],
+                    orders: ordersFull.data || [],
+                    settings: settingsResult
+                };
+                break;
+            }
+
             case 'update_settings': {
                 const updates = data && typeof data === 'object' ? data : {};
                 const rows = Object.keys(updates).map((key) => ({
@@ -517,6 +549,43 @@ export const handler = async (event) => {
                     return { statusCode: 500, headers, body: JSON.stringify({ error: rateError.message }) };
                 }
                 result = updatedRate;
+                break;
+            }
+
+            // ------------------------------------------------------
+            // CSV IMPORT — bulk-create products from CSV rows.
+            // Each row maps to the same schema as create_product.
+            // Column headers must match the field names below.
+            // ------------------------------------------------------
+            case 'import_csv': {
+                if (!Array.isArray(data.products) || data.products.length === 0) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'No products in CSV data' }) };
+                }
+
+                const MAX_CSV = 200;
+                if (data.products.length > MAX_CSV) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'Maximum ' + MAX_CSV + ' products per import' }) };
+                }
+
+                const rows = data.products.map(function (p) {
+                    const productId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+                    return {
+                        product_id: productId,
+                        ...productFieldsFromData(p),
+                        is_active: true
+                    };
+                });
+
+                const { data: inserted, error: csvError } = await supabase
+                    .from('products')
+                    .insert(rows)
+                    .select();
+
+                if (csvError) {
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: csvError.message }) };
+                }
+
+                result = { imported: (inserted || []).length, total: data.products.length };
                 break;
             }
 
