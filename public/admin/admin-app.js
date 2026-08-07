@@ -228,7 +228,7 @@
             ship_exp: parseFloat(document.getElementById('expressShipping').value) || 0,
             whatsapp: document.getElementById('settingWhatsapp').value.trim()
         };
-        var result = await apiCall('save_settings', data);
+        var result = await apiCall('update_settings', data);
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Settings saved');
     }
