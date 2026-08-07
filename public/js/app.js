@@ -10,6 +10,8 @@ class HybridApp {
         this.expandedActive = false;
         this.variationIndex = 0;
         this.currentVariations = [];
+        this._displayTimer = null;
+        this._variationDots = null;
         this.selectedPaymentProvider = 'paystack';
         this.lastBankOrder = null;
         this.gridDetailsVisible = true;
@@ -201,15 +203,27 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (!p) return;
 
+        // Cancel any pending transition timer to prevent stale callbacks
+        if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+
         if (this.el.infoContainer) {
             this.el.infoContainer.classList.add('transitioning');
-            setTimeout(() => {
+            this._displayTimer = setTimeout(() => {
+                this._displayTimer = null;
                 this.renderMedia(p);
                 this.renderText(p);
                 this.renderFrame(p);
                 this.renderBackgrounds(p);
+                this.renderVariationDots();
+                // Use double-rAF to guarantee the browser has painted the
+                // opacity:0 state before we remove the class and trigger
+                // the fade-in transition.
                 requestAnimationFrame(() => {
-                    this.el.infoContainer.classList.remove('transitioning');
+                    requestAnimationFrame(() => {
+                        if (this.el.infoContainer) {
+                            this.el.infoContainer.classList.remove('transitioning');
+                        }
+                    });
                 });
             }, 160);
         } else {
@@ -217,6 +231,7 @@ class HybridApp {
             this.renderText(p);
             this.renderFrame(p);
             this.renderBackgrounds(p);
+            this.renderVariationDots();
         }
 
         if (this.el.heartButton) {
@@ -417,7 +432,14 @@ class HybridApp {
         }
         this.doubleTapTimer = setTimeout(() => {
             this.doubleTapTimer = null;
-            this.toggleZoom();
+            // If the product has variations, cycle to the next image instead of zooming
+            const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+            if (allImages.length > 1) {
+                const next = (this.variationIndex + 1) % allImages.length;
+                this.showVariation(next);
+            } else {
+                this.toggleZoom();
+            }
         }, 280);
     }
 
@@ -445,49 +467,74 @@ class HybridApp {
         }
     }
 
-    toggleZoomLegacy() {
-        if (this.zoomActive) {
-            this.removeZoom();
-        } else {
-            this.el.splitContainer.classList.add('zoom-mode');
-            this.zoomActive = true;
-            this.variationIndex = 0;
-            const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations];
-
-            const dots = document.createElement('div');
-            dots.className = 'variation-dots';
-            for (let i = 0; i < allImages.length; i++) {
-                const d = document.createElement('div');
-                d.className = 'dot' + (i === 0 ? ' active' : '');
-                d.onclick = ((idx) => () => {
-                    this.variationIndex = idx;
-                    this.el.mainImage.src = allImages[idx];
-                    const allDots = document.querySelectorAll('.variation-dots .dot');
-                    for (let j = 0; j < allDots.length; j++) {
-                        allDots[j].classList.toggle('active', j === idx);
-                    }
-                })(i);
-                dots.appendChild(d);
-            }
-            document.body.appendChild(dots);
-
-            this.el.productFrame.onclick = () => {
-                const all = [this.products[this.currentIndex].image_url, ...this.currentVariations];
-                this.variationIndex = (this.variationIndex + 1) % all.length;
-                this.el.mainImage.src = all[this.variationIndex];
-                const dotElements = document.querySelectorAll('.variation-dots .dot');
-                for (let i = 0; i < dotElements.length; i++) {
-                    dotElements[i].classList.toggle('active', i === this.variationIndex);
-                }
-            };
+    // Renders persistent variation indicator dots below the product frame.
+    // Unlike zoom-mode dots, these are always visible when variations exist,
+    // allowing image navigation without entering zoom.
+    renderVariationDots() {
+        // Remove previous dots
+        if (this._variationDots) {
+            this._variationDots.remove();
+            this._variationDots = null;
         }
+
+        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        if (allImages.length <= 1) return;
+
+        const dots = document.createElement('div');
+        dots.className = 'product-variation-dots';
+        for (let i = 0; i < allImages.length; i++) {
+            const d = document.createElement('div');
+            d.className = 'pv-dot' + (i === this.variationIndex ? ' active' : '');
+            d.setAttribute('role', 'button');
+            d.setAttribute('aria-label', 'Image ' + (i + 1));
+            d.tabIndex = 0;
+            const idx = i;
+            d.onclick = () => this.showVariation(idx);
+            d.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.showVariation(idx); } };
+            dots.appendChild(d);
+        }
+
+        // Insert after the frame-container
+        const frameContainer = document.querySelector('.frame-container');
+        if (frameContainer) {
+            frameContainer.appendChild(dots);
+        } else if (this.el.productHalf) {
+            this.el.productHalf.appendChild(dots);
+        }
+        this._variationDots = dots;
+    }
+
+    showVariation(idx) {
+        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        if (idx < 0 || idx >= allImages.length) return;
+        this.variationIndex = idx;
+
+        // Cross-fade the image
+        const img = this.el.mainImage;
+        if (img) {
+            img.style.opacity = '0';
+            setTimeout(() => {
+                img.src = allImages[idx];
+                img.onload = () => { img.style.opacity = ''; };
+                img.onerror = () => { img.style.opacity = ''; };
+            }, 150);
+        }
+
+        // Update dots (both persistent and zoom)
+        const updateDots = (selector) => {
+            const dots = document.querySelectorAll(selector);
+            for (let j = 0; j < dots.length; j++) {
+                dots[j].classList.toggle('active', j === idx);
+            }
+        };
+        updateDots('.pv-dot');
+        updateDots('.variation-dots .dot');
     }
 
     removeZoom() {
-        this.el.splitContainer.classList.remove('zoom-mode');
         this.zoomActive = false;
-        const dots = document.querySelector('.variation-dots');
-        if (dots) dots.remove();
+        if (this.el.productFrame) this.el.productFrame.classList.remove('zoom-active');
+        if (this._variationDots) this._variationDots.style.display = '';
         this.el.productFrame.onclick = () => this.handleImageTap();
         this.updateDisplay();
     }
@@ -799,9 +846,49 @@ class HybridApp {
         const idx = this.products.findIndex(p => p.product_id === productId);
         if (idx !== -1) {
             this.currentIndex = idx;
-            this.updateDisplay();
             this.closeGrid();
+            // Bypass the fade transition when coming from the grid — the grid
+            // was covering everything so there's nothing to cross-fade, and the
+            // double-rAF trick can fail when display changes in the same frame.
+            this.renderImmediate();
         }
+    }
+
+    renderImmediate() {
+        if (!this.products.length) return;
+        const p = this.products[this.currentIndex];
+        if (!p) return;
+        if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+        // Remove transitioning class immediately (no fade)
+        if (this.el.infoContainer) this.el.infoContainer.classList.remove('transitioning');
+        this.renderMedia(p);
+        this.renderText(p);
+        this.renderFrame(p);
+        this.renderBackgrounds(p);
+        this.renderVariationDots();
+        // Update chrome
+        if (this.el.heartButton) {
+            const isSaved = this.savedItems.has(p.product_id);
+            this.el.heartButton.classList.toggle('saved', isSaved);
+            this.el.heartButton.innerHTML = isSaved ? '\u2665' : '\u2661';
+        }
+        if (this.el.pageIndicator) {
+            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + this.products.length;
+        }
+        if (this.el.prevBtn) this.el.prevBtn.disabled = this.currentIndex === 0;
+        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === this.products.length - 1;
+        if (this.el.stockBadge) {
+            const showStock = p.show_stock !== false;
+            this.el.stockBadge.style.display = showStock ? '' : 'none';
+            this.el.stockBadge.className = 'stock-badge';
+            if (showStock) {
+                if (p.stock <= 0) { this.el.stockBadge.textContent = 'Sold Out'; this.el.stockBadge.classList.add('sold-out'); }
+                else if (p.stock <= 2) { this.el.stockBadge.textContent = 'Low Stock (' + p.stock + ')'; this.el.stockBadge.classList.add('low-stock'); }
+                else { this.el.stockBadge.textContent = ''; }
+            }
+        }
+        this.currentVariations = p.variations || [];
+        if (this.zoomActive) this.removeZoom();
     }
 
     filterGrid(filter) {
