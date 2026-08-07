@@ -48,7 +48,8 @@ class HybridApp {
                 const img = document.createElement('img');
                 img.src = settings.logo_url;
                 img.alt = settings.store_name || 'Store logo';
-                img.style.cssText = 'max-height:36px; max-width:120px; object-fit:contain; display:block;';
+                const logoSize = settings.logo_size || 36;
+                img.style.cssText = 'max-height:' + logoSize + 'px; max-width:' + Math.round(logoSize * 3.3) + 'px; object-fit:contain; display:block;';
                 siteLogo.appendChild(img);
             }
             if (settings.store_name) {
@@ -151,7 +152,6 @@ class HybridApp {
             bgImageBottom: document.getElementById('bgImageBottom'),
             heartButton: document.getElementById('heartButton'),
             cartButton: document.getElementById('cartButton'),
-            shareButton: document.getElementById('shareButton'),
             prevBtn: document.getElementById('prevBtn'),
             nextBtn: document.getElementById('nextBtn'),
             pageIndicator: document.getElementById('pageIndicator'),
@@ -327,10 +327,6 @@ class HybridApp {
         if (this.el.priceRow) {
             const showPrice = p.show_price !== false;
             this.el.priceRow.style.display = showPrice ? '' : 'none';
-        }
-        // Share button: hidden by default, shown only if product has show_share=true
-        if (this.el.shareButton) {
-            this.el.shareButton.style.display = p.show_share ? '' : 'none';
         }
         if (this.el.priceTag) this.el.priceTag.textContent = this.formatPrice(p.base_price);
         if (this.el.originalPrice) {
@@ -931,8 +927,15 @@ class HybridApp {
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
         if (this.el.cartButton) this.el.cartButton.onclick = () => this.openCheckout();
-        if (this.el.shareButton) this.el.shareButton.onclick = () => this.shareProduct();
         if (this.el.currencyDisplay) this.el.currencyDisplay.onclick = () => this.cycleCurrency();
+        document.querySelectorAll('[data-action="close-grid"]').forEach(function(el) {
+            el.onclick = function() { app.closeGrid(); };
+            el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeGrid(); } };
+        });
+        document.querySelectorAll('[data-action="close-checkout"]').forEach(function(el) {
+            el.onclick = function() { app.closeCheckout(); };
+            el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeCheckout(); } };
+        });
         if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
         if (this.el.shareDownloadBtn) this.el.shareDownloadBtn.onclick = () => this.downloadShare();
