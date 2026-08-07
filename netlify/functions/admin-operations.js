@@ -7,6 +7,15 @@ import { getSettings } from './_lib/settings.js';
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_WINDOW_MINUTES = 15;
 
+// Helper: resolve the correct match key/value for a lookup by id or product_id.
+// Prevents 'invalid input syntax for type uuid: "undefined"' when
+// the client sends product_id (text) but the query used id (uuid).
+function resolveId(data) {
+    if (data.id) return { key: 'id', val: data.id };
+    if (data.product_id) return { key: 'product_id', val: data.product_id };
+    return null;
+}
+
 function getClientIp(event) {
     const fwd = event.headers['x-forwarded-for'] || event.headers['X-Forwarded-For'];
     return fwd ? fwd.split(',')[0].trim() : 'unknown';
@@ -215,13 +224,15 @@ export const handler = async (event) => {
             }
 
             case 'update_product': {
+                const prodMatch = resolveId(data);
+                if (!prodMatch) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Product id required' }) };
                 const { data: updatedProduct, error: updateError } = await supabase
                     .from('products')
                     .update({
                         ...productFieldsFromData(data),
                         updated_at: new Date().toISOString()
                     })
-                    .eq('id', data.id)
+                    .eq(prodMatch.key, prodMatch.val)
                     .select()
                     .single();
 
@@ -233,7 +244,9 @@ export const handler = async (event) => {
             }
 
             case 'delete_product': {
-                await supabase.from('products').update({ is_active: false }).eq('id', data.id);
+                const delMatch = resolveId(data);
+                if (!delMatch) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Product id required' }) };
+                await supabase.from('products').update({ is_active: false }).eq(delMatch.key, delMatch.val);
                 result = { success: true };
                 break;
             }
@@ -263,6 +276,7 @@ export const handler = async (event) => {
             }
 
             case 'update_order_status': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order id required' }) };
                 await supabase
                     .from('orders')
                     .update({ order_status: data.status, updated_at: new Date().toISOString() })
@@ -280,6 +294,7 @@ export const handler = async (event) => {
             // matter which payment path was used.
             // ------------------------------------------------------
             case 'confirm_bank_payment': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order id required' }) };
                 const { data: order } = await supabase
                     .from('orders')
                     .select('payment_reference, payment_provider, order_id, customer_email, customer_name, total_amount, currency')
@@ -324,6 +339,7 @@ export const handler = async (event) => {
             // mark_order_paid() is the single choke point on the way in.
             // ------------------------------------------------------
             case 'refund_order': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order id required' }) };
                 const { data: order } = await supabase
                     .from('orders')
                     .select('*')
@@ -410,6 +426,7 @@ export const handler = async (event) => {
             }
 
             case 'toggle_discount_code': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Discount code id required' }) };
                 const { data: updated, error: toggleError } = await supabase
                     .from('discount_codes')
                     .update({ is_active: !!data.is_active })
@@ -425,6 +442,7 @@ export const handler = async (event) => {
             }
 
             case 'delete_discount_code': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Discount code id required' }) };
                 await supabase.from('discount_codes').delete().eq('id', data.id);
                 result = { success: true };
                 break;
@@ -486,6 +504,7 @@ export const handler = async (event) => {
             }
 
             case 'update_shipping_rate': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Shipping rate id required' }) };
                 const { data: updatedRate, error: rateError } = await supabase
                     .from('shipping_rates')
                     .update({ cost: parseFloat(data.cost) || 0 })
