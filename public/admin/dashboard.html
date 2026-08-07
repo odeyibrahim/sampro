@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin · V. Gallery</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Local relative path to prevent MIME errors -->
     <link rel="stylesheet" href="admin.css">
@@ -12,9 +12,14 @@
 <body class="admin-dashboard-body">
     <div class="admin-panel" style="position: relative; left: 0; width: 100%; max-width: 100%; height: 100vh; box-shadow: none;">
         <div class="admin-header">
-            <h2>Admin · V. Gallery</h2>
-            <span class="sync-badge offline" id="syncBadge">Local mode</span>
-            <button class="logout-btn" id="logoutBtn">Logout</button>
+            <div class="admin-header-left">
+                <h2>Admin · V. Gallery</h2>
+                <span class="sync-badge offline" id="syncBadge">Local mode</span>
+            </div>
+            <div class="header-actions">
+                <button class="dark-toggle" id="darkToggleBtn" type="button" title="Toggle dark mode">◐</button>
+                <button class="logout-btn" id="logoutBtn" type="button">Logout</button>
+            </div>
         </div>
 
         <div class="admin-tabs">
@@ -93,6 +98,10 @@
                         <div class="image-upload-area" id="logoUploadArea">Click to upload logo</div>
                         <input type="file" id="logoUpload" accept="image/*" style="display:none;">
                         <img id="logoPreview" class="image-preview">
+                    </div>
+                    <div class="form-group">
+                        <label>Logo Size: <span id="logoSizeValue">36</span>px</label>
+                        <input type="range" id="logoSizeRange" min="16" max="80" value="36">
                     </div>
                 </div>
 
