@@ -110,8 +110,9 @@ class HybridApp {
             return '';
         }
 
-        var topBg = applyTop ? buildBg(color1, color2, (applyTop ? bgImage : '')) : '';
-        var bottomBg = applyBottom ? buildBg(color1, color2, (applyBottom ? bgImage : '')) : '';
+        // Tier 3c: image only once (product half), colors for everything else
+        var topBg = applyTop ? buildBg(color1, color2, bgImage) : '';
+        var bottomBg = applyBottom ? buildBg(color1, color2, '') : ''; // colors only, no image repeat
 
         // Apply to product half (top)
         if (productHalf && topBg) {
@@ -131,6 +132,46 @@ class HybridApp {
             bottomNav.style.background = bottomBg;
             bottomNav.style.backdropFilter = 'none';
         }
+
+        // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
+        this._applyNavContrast(color1, color2, bottomNav);
+    }
+
+    // Determine whether a background colour is "dark" (perceived luminance < 0.4)
+    _isDarkColor(hex) {
+        if (!hex || hex.charAt(0) !== '#') return false;
+        var c = hex.replace('#', '');
+        if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+        if (c.length !== 6) return false;
+        var r = parseInt(c.substr(0,2),16)/255;
+        var g = parseInt(c.substr(2,2),16)/255;
+        var b = parseInt(c.substr(4,2),16)/255;
+        var lum = 0.2126*r + 0.7152*g + 0.0722*b;
+        return lum < 0.4;
+    }
+
+    _applyNavContrast(c1, c2, navEl) {
+        // Sample the first colour (or second if first is missing)
+        var sample = c1 || c2;
+        if (!sample) return; // nothing custom applied, keep defaults
+
+        var dark = this._isDarkColor(sample);
+        var navColor = dark ? '#ffffff' : '';
+        var arrowColor = dark ? 'rgba(255,255,255,0.7)' : '';
+        var pageColor = dark ? 'rgba(255,255,255,0.6)' : '';
+
+        // Brand text
+        var brand = document.getElementById('galleryBrand');
+        if (brand) brand.style.color = navColor;
+
+        // Arrow buttons and page indicator
+        var arrows = document.querySelectorAll('.arrow-btn');
+        arrows.forEach(function(btn) { btn.style.color = arrowColor; });
+        var pageInd = document.getElementById('pageIndicator');
+        if (pageInd) pageInd.style.color = pageColor;
+
+        // Nav container
+        if (navEl) navEl.style.color = navColor;
     }
 
     registerServiceWorker() {
