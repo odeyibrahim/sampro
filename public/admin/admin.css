@@ -75,6 +75,9 @@ body.admin-dashboard-body.dark-mode .logout-btn:hover { background: #991b1b; }
 body.admin-dashboard-body.dark-mode .additional-images-grid .thumb-item { border-color: #333; }
 body.admin-dashboard-body.dark-mode .dark-toggle { background: #333; color: #fff; }
 body.admin-dashboard-body.dark-mode .dark-toggle:hover { background: #555; }
+/* Dark mode: mobile-specific overrides */
+body.admin-dashboard-body.dark-mode .edit-content { background: #1a1a1a; }
+body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-color: #2a2a2a; }
 
 /* ---------- Admin Panel Structure ---------- */
 .admin-panel {
