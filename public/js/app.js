@@ -34,6 +34,7 @@ class HybridApp {
         this.loadStoreSettings();
         const enterBtn = document.getElementById('enterGalleryBtn');
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
+        this.setRandomVerse();
         this.showIntro();
     }
 
@@ -52,12 +53,14 @@ class HybridApp {
                 img.style.cssText = 'max-height:' + logoSize + 'px; max-width:' + Math.round(logoSize * 3.3) + 'px; object-fit:contain; display:block;';
                 siteLogo.appendChild(img);
             } else if (siteLogo && !settings.logo_url) {
-                // Apply logo_size to the default text logo
                 const textEl = siteLogo.querySelector('.logo-text');
                 if (textEl) textEl.style.fontSize = logoSize + 'px';
             }
             if (settings.store_name) {
-                document.title = settings.store_name + ' · Art + Commerce';
+                document.title = settings.store_name + ' \u00b7 Art + Commerce';
+                // Update visible brand element in bottom nav
+                var brandEl = document.getElementById('galleryBrand');
+                if (brandEl) brandEl.textContent = settings.store_name.toLowerCase().replace(/\s+/g, '.');
             }
             // Load admin-configured exchange rates
             if (settings.exchange_rates) {
@@ -72,8 +75,61 @@ class HybridApp {
                     }
                 } catch (e) {}
             }
+            // Apply backdrop / background customisation from admin settings
+            this.applyBackdropSettings(settings);
         } catch (e) {
             // intentionally silent
+        }
+    }
+
+    applyBackdropSettings(settings) {
+        const root = document.documentElement;
+        const productHalf = document.getElementById('productHalf');
+        const infoHalf = document.getElementById('infoHalf');
+        const contentWrapper = document.getElementById('contentWrapper');
+        const bottomNav = document.querySelector('.bottom-nav');
+
+        var color1 = settings.bg_color1 || '';
+        var color2 = settings.bg_color2 || '';
+        var bgImage = settings.bg_image || '';
+        var bgHalf = settings.bg_half || ''; // 'top', 'bottom', or 'both'
+
+        // Determine which halves get custom backgrounds
+        var applyTop = !bgHalf || bgHalf === 'top' || bgHalf === 'both';
+        var applyBottom = !bgHalf || bgHalf === 'bottom' || bgHalf === 'both';
+
+        // Build background CSS value
+        function buildBg(c1, c2, img) {
+            if (img) {
+                return 'url(' + img + ') center/cover no-repeat';
+            }
+            if (c1 && c2 && c1 !== c2) {
+                return 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
+            }
+            if (c1) return c1;
+            return '';
+        }
+
+        var topBg = applyTop ? buildBg(color1, color2, (applyTop ? bgImage : '')) : '';
+        var bottomBg = applyBottom ? buildBg(color1, color2, (applyBottom ? bgImage : '')) : '';
+
+        // Apply to product half (top)
+        if (productHalf && topBg) {
+            productHalf.style.background = topBg;
+        }
+        // Apply to info half (bottom)
+        if (infoHalf && bottomBg) {
+            infoHalf.style.background = bottomBg;
+        }
+        // Sync CSS variables so dark-mode toggle and other components stay consistent
+        if (color1) {
+            root.style.setProperty('--bg-top', color1);
+            root.style.setProperty('--bg-bottom', color1);
+        }
+        // Keep bottom-nav background in sync with the info half
+        if (bottomNav && bottomBg) {
+            bottomNav.style.background = bottomBg;
+            bottomNav.style.backdropFilter = 'none';
         }
     }
 
@@ -889,6 +945,28 @@ class HybridApp {
 
     filterGrid(filter) {
         this.renderGrid(filter);
+    }
+
+    setRandomVerse() {
+        var verses = [
+            '"Be still, and know that I am God."',
+            '"The Lord is my shepherd; I shall not want."',
+            '"I can do all things through Christ who strengthens me."',
+            '"For God so loved the world that he gave his only begotten Son."',
+            '"The earth is the Lord\'s and the fullness thereof."',
+            '"He has made everything beautiful in its time."',
+            '"Trust in the Lord with all your heart."',
+            '"The Lord is my light and my salvation."',
+            '"Be strong and courageous. Do not be afraid."',
+            '"This is the day the Lord has made; let us rejoice and be glad."',
+            '"The Lord is near to the brokenhearted."',
+            '"Your word is a lamp to my feet and a light to my path."',
+            '"Cast all your anxiety on him because he cares for you."',
+            '"The Lord bless you and keep you; the Lord make his face shine upon you."',
+            '"Create in me a clean heart, O God, and renew a right spirit within me."'
+        ];
+        var el = document.getElementById('introPoem');
+        if (el) el.textContent = verses[Math.floor(Math.random() * verses.length)];
     }
 
     showIntro() {
