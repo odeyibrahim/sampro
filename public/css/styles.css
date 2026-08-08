@@ -1171,3 +1171,19 @@ img { pointer-events: none; user-select: none; }
     .product-half { padding: 60px 20px 20px; }
     .grid-overlay { padding: 0 16px 16px; }
 }
+
+/* Ultra-narrow screens: compact action row */
+@media (max-width: 360px) {
+    .action-row {
+        gap: 6px;
+    }
+    .action-row .icon-button {
+        width: 28px; height: 28px; font-size: 13px;
+    }
+    .action-row .currency-selector {
+        font-size: 9px; padding: 2px 5px;
+        max-width: 36px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .action-row .price-tag { font-size: 12px; }
+    .action-row .stock-badge { font-size: 9px; padding: 1px 5px; }
+}
