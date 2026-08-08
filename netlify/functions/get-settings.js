@@ -27,21 +27,32 @@ export const handler = async (event) => {
 
         const settings = await getSettings(supabase);
 
+        // Safe public fields — exchange_rates and logo_size are needed
+        // for price display and branding; backdrop fields let the storefront
+        // reflect admin customisation.
+        const publicFields = {
+            store_name: settings.store_name,
+            logo_url: settings.logo_url,
+            logo_size: settings.logo_size,
+            whatsapp_number: settings.whatsapp_number,
+            exchange_rates: settings.exchange_rates,
+            bg_color1: settings.bg_color1,
+            bg_color2: settings.bg_color2,
+            bg_image: settings.bg_image,
+            bg_half: settings.bg_half
+        };
+
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({
-                store_name: settings.store_name,
-                logo_url: settings.logo_url,
-                whatsapp_number: settings.whatsapp_number
-            })
+            body: JSON.stringify(publicFields)
         };
     } catch (error) {
         console.error('Get settings error:', error);
         return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ store_name: 'V. Gallery', logo_url: '', whatsapp_number: '' })
+            body: JSON.stringify({ store_name: 'V. Gallery', logo_url: '', logo_size: '36', whatsapp_number: '' })
         };
     }
 };
