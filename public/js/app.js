@@ -122,10 +122,13 @@ class HybridApp {
         if (infoHalf && bottomBg) {
             infoHalf.style.background = bottomBg;
         }
-        // Sync CSS variables so dark-mode toggle and other components stay consistent
+        // Sync CSS variables — set on BOTH :root and body so they
+        // override the body.dark-mode stylesheet rule (inline > stylesheet).
         if (color1) {
             root.style.setProperty('--bg-top', color1);
             root.style.setProperty('--bg-bottom', color1);
+            document.body.style.setProperty('--bg-top', color1);
+            document.body.style.setProperty('--bg-bottom', color1);
         }
         // Keep bottom-nav background in sync with the info half
         if (bottomNav && bottomBg) {
