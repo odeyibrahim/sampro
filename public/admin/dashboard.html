@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Admin · V. Gallery</title>
+    <title>Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Local relative path to prevent MIME errors -->
@@ -13,7 +13,7 @@
     <div class="admin-panel">
         <div class="admin-header">
             <div class="admin-header-left">
-                <h2>Admin · V. Gallery</h2>
+                <h2>Rayman Admin/h2>
                 <span class="sync-badge offline" id="syncBadge">Local mode</span>
             </div>
             <div class="header-actions">
@@ -27,6 +27,7 @@
             <div class="admin-tab" data-tab="products">Products</div>
             <div class="admin-tab" data-tab="orders">Orders</div>
             <div class="admin-tab" data-tab="customers">Customers</div>
+            <div class="admin-tab" data-tab="shipping">Shipping</div>
             <div class="admin-tab" data-tab="settings">Settings</div>
         </div>
 
@@ -85,6 +86,34 @@
                     <thead><tr><th>Name</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Last Order</th></tr></thead>
                     <tbody id="adminCustomersBody"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- Shipping Zones Tab -->
+        <div class="admin-section" id="adminShipping">
+            <div class="admin-toolbar">
+                <h3 class="admin-section-title">Shipping Zones</h3>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="admin-btn confirm-pay" id="addShippingZoneBtn">+ Add Zone</button>
+                </div>
+            </div>
+            <p style="font-size:11px; color:#888; margin-bottom:12px;">Country-based shipping costs. 'ROW' = Rest of World (fallback for unmapped countries). The server looks up: exact country match, then ROW, then legacy shipping_rates table.</p>
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead><tr><th>Country</th><th>Method</th><th>Currency</th><th>Cost</th><th>Days</th><th>Active</th><th>Actions</th></tr></thead>
+                    <tbody id="shippingZonesBody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:20px; padding:12px; border:1px solid var(--border-color, #ddd); border-radius:6px;">
+                <label class="section-label">Live Currency Rates</label>
+                <p style="font-size:11px; color:#888; margin-bottom:10px;">When enabled, the storefront fetches live exchange rates from the ECB (via frankfurter.app). Rates are cached for 4 hours. Admin-set rates above always override.</p>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <label style="font-size:13px;">Live rates</label>
+                    <input type="checkbox" id="liveRatesToggle" checked style="width:16px; height:16px;">
+                    <span id="liveRatesStatus" style="font-size:11px; color:#888;">Checking...</span>
+                </div>
+                <button class="admin-btn" id="refreshRatesBtn">Force Refresh Rates</button>
+                <div id="liveRatesPreview" style="margin-top:10px; font-size:11px; color:#666;"></div>
             </div>
         </div>
 
