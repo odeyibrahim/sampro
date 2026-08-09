@@ -29,13 +29,15 @@ export const handler = async (event) => {
 
         // Safe public fields — exchange_rates and logo_size are needed
         // for price display and branding; backdrop fields let the storefront
-        // reflect admin customisation.
+        // reflect admin customisation. live_rates_enabled tells the storefront
+        // whether to fetch live rates from the API or use admin-set rates.
         const publicFields = {
             store_name: settings.store_name,
             logo_url: settings.logo_url,
             logo_size: settings.logo_size,
             whatsapp_number: settings.whatsapp_number,
             exchange_rates: settings.exchange_rates,
+            live_rates_enabled: settings.live_rates_enabled !== 'false',
             bg_color1: settings.bg_color1,
             bg_color2: settings.bg_color2,
             bg_image: settings.bg_image,
