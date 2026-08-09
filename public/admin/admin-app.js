@@ -706,6 +706,157 @@
         window.location.href = '/admin/index.html';
     }
 
+    // ---- Shipping Zones ----
+    function renderShippingZones(zones) {
+        var tbody = document.getElementById('shippingZonesBody');
+        if (!tbody) return;
+        if (!zones || zones.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">No shipping zones yet. Click "+ Add Zone" to create one.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = zones.map(function(z) {
+            var activeLabel = z.is_active !== false
+                ? '<span style="color:#4caf50;">Active</span>'
+                : '<span style="color:#999;">Inactive</span>';
+            return '<tr>' +
+                '<td>' + esc(z.country_name || z.country_code) + ' <span style="color:#888;font-size:10px;">(' + esc(z.country_code) + ')</span></td>' +
+                '<td>' + esc(z.method) + '</td>' +
+                '<td>' + esc(z.currency) + '</td>' +
+                '<td>' + z.currency + ' ' + parseFloat(z.cost || 0).toFixed(2) + '</td>' +
+                '<td>' + esc(z.estimated_days || '-') + '</td>' +
+                '<td>' + activeLabel + '</td>' +
+                '<td>' +
+                    '<button class="admin-btn" data-toggle-zone="' + attr(z.id) + '">Toggle</button> ' +
+                    '<button class="admin-btn danger" data-delete-zone="' + attr(z.id) + '">Delete</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        tbody.querySelectorAll('[data-toggle-zone]').forEach(function(btn) {
+            btn.onclick = function() { toggleShippingZone(btn.dataset.toggleZone); };
+        });
+        tbody.querySelectorAll('[data-delete-zone]').forEach(function(btn) {
+            btn.onclick = function() {
+                if (confirm('Delete this shipping zone?')) deleteShippingZone(btn.dataset.deleteZone);
+            };
+        });
+    }
+
+    async function loadShippingZones() {
+        var result = await apiCall('get_shipping_zones');
+        if (result.error) return;
+        renderShippingZones(result);
+    }
+
+    async function addShippingZone() {
+        var code = prompt('Country code (ISO 3166-1 alpha-2, e.g. NG, US, GB, EU, ROW):');
+        if (!code) return;
+        var name = prompt('Display name (e.g. Nigeria, United States):') || code;
+        var method = prompt('Method (standard or express):', 'standard');
+        if (!method) return;
+        var currency = prompt('Currency (NGN, USD, GBP, EUR):', 'USD');
+        if (!currency) return;
+        var cost = prompt('Shipping cost (' + currency + '):', '15');
+        if (cost === null) return;
+        var days = prompt('Estimated delivery days (e.g. 3-5, 7-14):', '') || '';
+
+        var result = await apiCall('create_shipping_zone', {
+            country_code: code,
+            country_name: name,
+            method: method,
+            currency: currency,
+            cost: cost,
+            estimated_days: days
+        });
+        if (result.error) { showNotification(result.error, 'error'); return; }
+        showNotification('Shipping zone added');
+        loadShippingZones();
+    }
+
+    async function toggleShippingZone(id) {
+        // We need to get current state first. Simplest: load all, find it, toggle.
+        var result = await apiCall('get_shipping_zones');
+        if (result.error) return;
+        var zone = result.find(function(z) { return z.id === id; });
+        if (!zone) return;
+        var newActive = zone.is_active === false;
+        var upd = await apiCall('update_shipping_zone', { id: id, is_active: newActive });
+        if (upd.error) { showNotification(upd.error, 'error'); return; }
+        showNotification(newActive ? 'Zone activated' : 'Zone deactivated');
+        loadShippingZones();
+    }
+
+    async function deleteShippingZone(id) {
+        var result = await apiCall('delete_shipping_zone', { id: id });
+        if (result.error) { showNotification(result.error, 'error'); return; }
+        showNotification('Zone deleted');
+        loadShippingZones();
+    }
+
+    // ---- Live Currency Rates ----
+    async function loadLiveRatesStatus() {
+        var toggle = document.getElementById('liveRatesToggle');
+        var statusEl = document.getElementById('liveRatesStatus');
+        var previewEl = document.getElementById('liveRatesPreview');
+        if (!toggle) return;
+
+        // Read current setting
+        var settings = await apiCall('get_settings');
+        if (settings.error) return;
+
+        var enabled = settings.live_rates_enabled !== 'false';
+        toggle.checked = enabled;
+        if (statusEl) statusEl.textContent = enabled ? 'Enabled' : 'Disabled (using manual rates)';
+
+        // Show cached rates preview
+        if (settings.live_rates_data) {
+            try {
+                var rates = JSON.parse(settings.live_rates_data);
+                var preview = Object.keys(rates).slice(0, 8).map(function(c) {
+                    return c + ': ' + (typeof rates[c] === 'number' ? rates[c].toFixed(c === 'NGN' ? 0 : 4) : rates[c]);
+                }).join(' | ');
+                if (previewEl) previewEl.innerHTML = '<strong>Cached rates:</strong> ' + esc(preview);
+                if (settings.live_rates_last_fetched && statusEl) {
+                    statusEl.textContent += ' (fetched ' + new Date(settings.live_rates_last_fetched).toLocaleString() + ')';
+                }
+            } catch(e) {}
+        }
+    }
+
+    async function toggleLiveRates() {
+        var toggle = document.getElementById('liveRatesToggle');
+        if (!toggle) return;
+        var enabled = toggle.checked;
+        var result = await apiCall('update_settings', { live_rates_enabled: enabled ? 'true' : 'false' });
+        if (result.error) { showNotification(result.error, 'error'); toggle.checked = !enabled; return; }
+        showNotification(enabled ? 'Live rates enabled' : 'Using manual rates');
+        var statusEl = document.getElementById('liveRatesStatus');
+        if (statusEl) statusEl.textContent = enabled ? 'Enabled' : 'Disabled (using manual rates)';
+    }
+
+    async function refreshRates() {
+        var btn = document.getElementById('refreshRatesBtn');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Refreshing...';
+        var result = await apiCall('refresh_currency_rates');
+        if (result.error || !result.success) {
+            showNotification('Failed to refresh: ' + (result.error || 'unknown'), 'error');
+        } else {
+            showNotification('Rates refreshed from ECB');
+            // Update preview
+            var previewEl = document.getElementById('liveRatesPreview');
+            if (previewEl && result.rates) {
+                var preview = Object.keys(result.rates).slice(0, 8).map(function(c) {
+                    return c + ': ' + (typeof result.rates[c] === 'number' ? result.rates[c].toFixed(c === 'NGN' ? 0 : 4) : result.rates[c]);
+                }).join(' | ');
+                previewEl.innerHTML = '<strong>Live rates:</strong> ' + esc(preview);
+            }
+        }
+        btn.disabled = false;
+        btn.textContent = 'Force Refresh Rates';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         // Single batched call for initial data — avoids 4 separate cold starts
         apiCall('dashboard_init').then(function (initData) {
@@ -770,6 +921,25 @@
         document.getElementById('editProductForm').onsubmit = saveProduct;
         document.getElementById('saveSettingsBtn').onclick = saveSettings;
         document.getElementById('exportDataBtn').onclick = exportData;
+
+        // ---- Shipping Zones ----
+        var addZoneBtn = document.getElementById('addShippingZoneBtn');
+        if (addZoneBtn) addZoneBtn.onclick = addShippingZone;
+        // Load shipping zones on tab click (lazy)
+        var shippingTab = document.querySelector('.admin-tab[data-tab="shipping"]');
+        if (shippingTab) {
+            shippingTab.onclick = function() {
+                switchTab('shipping');
+                loadShippingZones();
+                loadLiveRatesStatus();
+            };
+        }
+
+        // ---- Live Rates ----
+        var liveToggle = document.getElementById('liveRatesToggle');
+        if (liveToggle) liveToggle.onchange = toggleLiveRates;
+        var refreshBtn = document.getElementById('refreshRatesBtn');
+        if (refreshBtn) refreshBtn.onclick = refreshRates;
 
         // ---- CSV Import ----
         var csvFileInput = document.getElementById('csvFileInput');
