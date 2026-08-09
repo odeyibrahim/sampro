@@ -244,7 +244,7 @@
         if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
         // Reset all text/number fields
-        ['editTitle','editAuthor','editDescription','editContent','editImageUrl','editPrice','editComparePrice','editVariations','editTags'].forEach(function (id) {
+        ['editTitle','editAuthor','editDescription','editContent','editImageUrl','editPrice','editComparePrice','editVariations','editTags','editSlug'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -296,6 +296,7 @@
                 var p = result.find(function (x) { return String(x.product_id) === String(productId); });
                 if (!p) return;
                 document.getElementById('editTitle').value = p.title || '';
+                document.getElementById('editSlug').value = p.slug || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
                 document.getElementById('editContent').value = p.content || '';
@@ -418,6 +419,7 @@
 
         var data = {
             title: titleVal,
+            slug: val('editSlug').trim() || undefined, // empty = auto-generate from title
             author: val('editAuthor').trim() || 'V.',
             description: val('editDescription').trim(),
             content: val('editContent').trim(),
@@ -861,8 +863,38 @@
             });
         }
 
+        // Auto-generate slug from title when slug field is empty/unmodified
+        var titleInput = document.getElementById('editTitle');
+        var slugInput = document.getElementById('editSlug');
+        var slugManuallyEdited = false;
+        if (titleInput && slugInput) {
+            titleInput.addEventListener('input', function () {
+                if (slugManuallyEdited) return;
+                var raw = titleInput.value.toLowerCase().trim()
+                    .replace(/[\s\u00A0]+/g, '-')
+                    .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+                    .replace(/-+/g, '-')
+                    .replace(/^-|-$/g, '');
+                slugInput.value = raw;
+            });
+            slugInput.addEventListener('input', function () {
+                slugManuallyEdited = true;
+            });
+        }
+
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeEditModal();
         });
+
+        // Reset slugManuallyEdited each time the edit modal opens
+        var editModal = document.getElementById('editModal');
+        if (editModal) {
+            var observer = new MutationObserver(function () {
+                if (editModal.classList.contains('active')) {
+                    slugManuallyEdited = false;
+                }
+            });
+            observer.observe(editModal, { attributes: true, attributeFilter: ['class'] });
+        }
     });
 })();
