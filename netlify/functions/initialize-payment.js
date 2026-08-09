@@ -30,7 +30,8 @@ export const handler = async (event) => {
         const {
             email, name, phone, productId, quantity,
             shippingMethod, address, city, zip,
-            paymentProvider, currency, discountCode
+            paymentProvider, currency, discountCode,
+            country
         } = body;
 
         // --- Validation. Note: no "price" field is ever read from the
@@ -59,7 +60,8 @@ export const handler = async (event) => {
             p_shipping_method: shippingMethod || 'standard',
             p_customer_address: { street: address || '', city: city || '', zip: zip || '' },
             p_payment_provider: provider,
-            p_currency: orderCurrency
+            p_currency: orderCurrency,
+            p_country: country || ''
         });
 
         if (orderError || !orderData || !orderData.success) {
