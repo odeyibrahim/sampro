@@ -21,15 +21,29 @@ function getClientIp(event) {
     return fwd ? fwd.split(',')[0].trim() : 'unknown';
 }
 
+// Helper: generate a URL-safe slug from a title.
+function slugify(text) {
+    if (!text) return '';
+    return text
+        .toLowerCase()
+        .trim()
+        .replace(/[\s\u00A0]+/g, '-')          // spaces → hyphens
+        .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '') // remove non-alphanumeric (keep accented latin)
+        .replace(/-+/g, '-')                       // collapse multiple hyphens
+        .replace(/^-|-$/g, '');                     // trim leading/trailing hyphens
+}
+
 // Shared by create_product/update_product. Builds the full set of
 // writable product columns — including frame_style/background_top/
 // background_bottom/content/tags/compare_price/is_featured, which
 // existed in the schema but were never wired up until now, plus the
 // design-system columns added in migration 003 (media_kind,
-// typography, visibility toggles, content order, video settings).
-function productFieldsFromData(data, { excludeShare } = {}) {
+// typography, visibility toggles, content order, video settings),
+// and the SEO slug from migration 005.
+function productFieldsFromData(data, { excludeShare, excludeSlug } = {}) {
     const fields = {
         title: data.title,
+        slug: excludeSlug ? undefined : (data.slug || slugify(data.title)),
         author: data.author || 'V.',
         description: data.description || '',
         type: data.type || 'merch',
@@ -219,13 +233,31 @@ export const handler = async (event) => {
                     .select()
                     .single();
 
-                // Fallback: retry without show_share if the column doesn't exist yet
-                if (createError && (createError.message || '').includes('show_share')) {
+                // Fallback: retry without columns that may not exist yet
+                if (createError && ((createError.message || '').includes('show_share') || (createError.message || '').includes('slug'))) {
+                    const opts = {};
+                    if ((createError.message || '').includes('show_share')) opts.excludeShare = true;
+                    if ((createError.message || '').includes('slug')) opts.excludeSlug = true;
                     const retry = await supabase
                         .from('products')
                         .insert({
                             product_id: newProductId,
-                            ...productFieldsFromData(data, { excludeShare: true }),
+                            ...productFieldsFromData(data, opts),
+                            is_active: true
+                        })
+                        .select()
+                        .single();
+                    if (retry.error) return { statusCode: 500, headers, body: JSON.stringify({ error: retry.error.message }) };
+                    result = retry.data;
+                } else if (createError && (createError.message || '').includes('unique') && (createError.message || '').includes('slug')) {
+                    // Slug collision — append random suffix
+                    const baseSlug = data.slug || slugify(data.title);
+                    const uniqueSlug = baseSlug + '-' + Math.random().toString(36).substr(2, 4);
+                    const retry = await supabase
+                        .from('products')
+                        .insert({
+                            product_id: newProductId,
+                            ...productFieldsFromData({ ...data, slug: uniqueSlug }),
                             is_active: true
                         })
                         .select()
@@ -253,12 +285,15 @@ export const handler = async (event) => {
                     .select()
                     .single();
 
-                // Fallback: retry without show_share if the column doesn't exist yet
-                if (updateError && (updateError.message || '').includes('show_share')) {
+                // Fallback: retry without columns that may not exist yet
+                if (updateError && ((updateError.message || '').includes('show_share') || (updateError.message || '').includes('slug'))) {
+                    const opts = {};
+                    if ((updateError.message || '').includes('show_share')) opts.excludeShare = true;
+                    if ((updateError.message || '').includes('slug')) opts.excludeSlug = true;
                     const retry = await supabase
                         .from('products')
                         .update({
-                            ...productFieldsFromData(data, { excludeShare: true }),
+                            ...productFieldsFromData(data, opts),
                             updated_at: new Date().toISOString()
                         })
                         .eq(prodMatch.key, prodMatch.val)
@@ -601,7 +636,7 @@ export const handler = async (event) => {
                     const productId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
                     return {
                         product_id: productId,
-                        ...productFieldsFromData(p, { excludeShare: true }),
+                        ...productFieldsFromData(p, { excludeShare: true, excludeSlug: true }),
                         is_active: true
                     };
                 });
