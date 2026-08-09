@@ -654,6 +654,107 @@ export const handler = async (event) => {
                 break;
             }
 
+            // ------------------------------------------------------
+            // SHIPPING ZONES — country-based shipping CRUD
+            // ------------------------------------------------------
+            case 'get_shipping_zones': {
+                const { data: zones } = await supabase
+                    .from('shipping_zones')
+                    .select('*')
+                    .order('country_code', { ascending: true })
+                    .order('method', { ascending: true });
+                result = zones || [];
+                break;
+            }
+
+            case 'create_shipping_zone': {
+                if (!data.country_code || !data.method || !data.currency) {
+                    return { statusCode: 400, headers, body: JSON.stringify({ error: 'country_code, method, and currency are required' }) };
+                }
+                const { data: created, error: zError } = await supabase
+                    .from('shipping_zones')
+                    .insert({
+                        country_code: data.country_code.toUpperCase().trim(),
+                        country_name: data.country_name || data.country_code,
+                        method: data.method,
+                        currency: data.currency.toUpperCase().trim(),
+                        cost: parseFloat(data.cost) || 0,
+                        estimated_days: data.estimated_days || '',
+                        is_active: data.is_active !== false
+                    })
+                    .select()
+                    .single();
+                if (zError) {
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: zError.message }) };
+                }
+                result = created;
+                break;
+            }
+
+            case 'update_shipping_zone': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Shipping zone id required' }) };
+                const updates = {};
+                if (data.country_code !== undefined) updates.country_code = data.country_code.toUpperCase().trim();
+                if (data.country_name !== undefined) updates.country_name = data.country_name;
+                if (data.method !== undefined) updates.method = data.method;
+                if (data.currency !== undefined) updates.currency = data.currency.toUpperCase().trim();
+                if (data.cost !== undefined) updates.cost = parseFloat(data.cost) || 0;
+                if (data.estimated_days !== undefined) updates.estimated_days = data.estimated_days;
+                if (data.is_active !== undefined) updates.is_active = !!data.is_active;
+                updates.updated_at = new Date().toISOString();
+                const { data: updated, error: zError } = await supabase
+                    .from('shipping_zones')
+                    .update(updates)
+                    .eq('id', data.id)
+                    .select()
+                    .single();
+                if (zError) {
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: zError.message }) };
+                }
+                result = updated;
+                break;
+            }
+
+            case 'delete_shipping_zone': {
+                if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Shipping zone id required' }) };
+                await supabase.from('shipping_zones').delete().eq('id', data.id);
+                result = { success: true };
+                break;
+            }
+
+            // ------------------------------------------------------
+            // LIVE CURRENCY RATES — force-refresh or toggle
+            // ------------------------------------------------------
+            case 'refresh_currency_rates': {
+                // Trigger a live fetch by calling the public endpoint
+                // (or inline the same logic). We inline to avoid
+                // a serverless-to-serverless cold start.
+                try {
+                    const resp = await fetch('https://api.frankfurter.app/latest?from=USD', {
+                        signal: AbortSignal.timeout(5000)
+                    });
+                    if (resp.ok) {
+                        const fdata = await resp.json();
+                        if (fdata && fdata.rates) {
+                            const liveRates = JSON.stringify({ USD: 1, ...fdata.rates });
+                            const now = new Date().toISOString();
+                            await supabase.from('settings').upsert([
+                                { key: 'live_rates_data', value: liveRates, updated_at: now },
+                                { key: 'live_rates_last_fetched', value: now, updated_at: now }
+                            ], { onConflict: 'key' });
+                            result = { success: true, rates: JSON.parse(liveRates), updated_at: now };
+                        } else {
+                            result = { success: false, error: 'API returned unexpected data' };
+                        }
+                    } else {
+                        result = { success: false, error: 'API returned status ' + resp.status };
+                    }
+                } catch (e) {
+                    result = { success: false, error: 'Fetch failed: ' + e.message };
+                }
+                break;
+            }
+
             default:
                 return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid operation: ' + operation }) };
         }
