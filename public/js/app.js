@@ -177,6 +177,61 @@ class HybridApp {
         if (navEl) navEl.style.color = navColor;
     }
 
+    // ---- SEO URL routing ----
+    // Reads /product/:slug from the URL bar, finds the matching
+    // product, and navigates to it.  Falls back to index 0.
+    _routeFromUrl() {
+        const match = window.location.pathname.match(/^\/product\/([\w\-]+)$/);
+        if (!match) return;
+        const slug = decodeURIComponent(match[1]);
+        const idx = this.products.findIndex(p => p.slug === slug);
+        if (idx !== -1) {
+            this.currentIndex = idx;
+        }
+    }
+
+    // Push a SEO URL into the browser history without reload.
+    // Called after every product navigation (next/prev/grid click).
+    _pushProductUrl() {
+        const p = this.products[this.currentIndex];
+        if (!p) return;
+        const slug = p.slug;
+        const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
+        const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
+        if (window.location.pathname !== url) {
+            history.pushState({ index: this.currentIndex }, title, url);
+        }
+        document.title = title;
+        this._updateOgTags(p);
+    }
+
+    // Update Open Graph meta tags for social sharing previews.
+    _updateOgTags(p) {
+        if (!p) return;
+        const storeName = document.getElementById('galleryBrand');
+        const brand = storeName ? storeName.textContent : 'V. Gallery';
+        const setMeta = (prop, content) => {
+            let el = document.querySelector('meta[property="' + prop + '"]');
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el); }
+            el.setAttribute('content', content || '');
+        };
+        setMeta('og:title', p.title + ' — ' + brand);
+        setMeta('og:description', (p.description || '').substring(0, 160));
+        setMeta('og:image', p.image_url || '');
+        setMeta('og:type', 'product');
+        setMeta('og:url', window.location.href);
+    }
+
+    // Handle back/forward button
+    _onPopState(e) {
+        if (e.state && typeof e.state.index === 'number') {
+            this.currentIndex = e.state.index;
+        } else {
+            this._routeFromUrl();
+        }
+        this.renderImmediate();
+    }
+
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -304,6 +359,7 @@ class HybridApp {
                 { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
             ];
         }
+        this._routeFromUrl();
         this.updateDisplay();
         this.showLoading(false);
     }
@@ -660,6 +716,7 @@ class HybridApp {
         if (this.currentIndex < this.products.length - 1) {
             this.currentIndex++;
             this.updateDisplay();
+            this._pushProductUrl();
         }
     }
 
@@ -667,6 +724,7 @@ class HybridApp {
         if (this.currentIndex > 0) {
             this.currentIndex--;
             this.updateDisplay();
+            this._pushProductUrl();
         }
     }
 
@@ -943,10 +1001,8 @@ class HybridApp {
         if (idx !== -1) {
             this.currentIndex = idx;
             this.closeGrid();
-            // Bypass the fade transition when coming from the grid — the grid
-            // was covering everything so there's nothing to cross-fade, and the
-            // double-rAF trick can fail when display changes in the same frame.
             this.renderImmediate();
+            this._pushProductUrl();
         }
     }
 
@@ -1023,6 +1079,7 @@ class HybridApp {
         setTimeout(() => {
             if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
             this.updateDisplay();
+            this._pushProductUrl();
         }, 300);
     }
 
@@ -1049,6 +1106,9 @@ class HybridApp {
     }
 
     setupEvents() {
+        // SEO URL: handle browser back/forward
+        window.addEventListener('popstate', (e) => this._onPopState(e));
+
         if (this.el.prevBtn) this.el.prevBtn.onclick = () => this.prevProduct();
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
