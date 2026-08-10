@@ -106,15 +106,17 @@
             if (imgs > 0) imgCount = ' <span style="color:#888;font-size:10px;">(' + (imgs + 1) + ')</span>';
             var typeLabels = { original: 'Original', print: 'Print', merch: 'Product', craft: 'Handmade' };
             var typeDisplay = typeLabels[p.type] || '';
+            var featured = p.is_featured ? ' <span style="color:#D0A380;font-size:10px;">\u2605</span>' : '';
             return '<tr>' +
-                '<td><img src="' + attr(p.image_url || '') + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
-                '<td>' + esc(p.title || '') + imgCount + '</td>' +
+                '<td><img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>' +
+                '<td>' + esc(p.title || '') + imgCount + featured + '</td>' +
                 '<td>' + esc(typeDisplay) + '</td>' +
                 '<td>$' + esc((p.base_price || 0).toFixed(2)) + '</td>' +
-                '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px;"></td>' +
-                '<td>' +
-                    '<button class="admin-btn" data-edit-id="' + attr(p.product_id) + '">Edit</button>' +
-                    '<button class="admin-btn danger" data-delete-id="' + attr(p.product_id) + '">Delete</button>' +
+                '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:54px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;"></td>' +
+                '<td style="white-space:nowrap;">' +
+                    '<button class="admin-btn" data-edit-id="' + attr(p.product_id) + '" title="Edit">Edit</button> ' +
+                    '<button class="admin-btn" data-dup-id="' + attr(p.product_id) + '" title="Duplicate">Dup</button> ' +
+                    '<button class="admin-btn danger" data-delete-id="' + attr(p.product_id) + '" title="Delete">\u00d7</button>' +
                 '</td>' +
             '</tr>';
         }).join('');
@@ -124,6 +126,9 @@
         });
         tbody.querySelectorAll('[data-delete-id]').forEach(function (btn) {
             btn.onclick = function () { deleteProduct(btn.dataset.deleteId); };
+        });
+        tbody.querySelectorAll('[data-dup-id]').forEach(function (btn) {
+            btn.onclick = function () { duplicateProduct(btn.dataset.dupId); };
         });
         tbody.querySelectorAll('.stock-input').forEach(function (input) {
             input.onchange = function () { updateStock(input.dataset.productId, input.value); };
@@ -292,7 +297,7 @@
         editingId = productId || null;
         uploadedFileData = null;
         additionalImages = [];
-        var modal = document.getElementById('editModal');
+        var panel = document.getElementById('catalogPanel');
         var title = document.getElementById('editModalTitle');
         var deleteBtn = document.getElementById('deleteProductBtn');
         title.textContent = productId ? 'Edit Product' : 'Add Product';
@@ -312,7 +317,7 @@
         renderAdditionalImages();
 
         // Reset selects to defaults
-        if (document.getElementById('editType')) document.getElementById('editType').value = 'original';
+        if (document.getElementById('editType')) document.getElementById('editType').value = '';
         if (document.getElementById('editMediaKind')) document.getElementById('editMediaKind').value = 'image';
         if (document.getElementById('editOrientation')) document.getElementById('editOrientation').value = 'square';
         if (document.getElementById('editFontFamily')) document.getElementById('editFontFamily').value = "'Copperplate', serif";
@@ -355,7 +360,7 @@
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
                 // editContent removed from UI — content field not used
-                document.getElementById('editType').value = p.type || 'original';
+                document.getElementById('editType').value = p.type || '';
                 document.getElementById('editMediaKind').value = p.media_kind || 'image';
                 document.getElementById('editOrientation').value = p.orientation || 'square';
                 document.getElementById('editStock').value = p.stock || 1;
@@ -425,12 +430,13 @@
             });
         }
 
-        if (modal) modal.classList.add('active');
+        if (panel) panel.classList.add('active');
     }
 
     function closeEditModal() {
-        var modal = document.getElementById('editModal');
-        if (modal) modal.classList.remove('active');
+        var panel = document.getElementById('catalogPanel');
+        if (panel) panel.classList.remove('active');
+        editingId = null;
     }
 
     async function saveProduct(e) {
@@ -538,7 +544,37 @@
         var result = await apiCall('delete_product', { product_id: productId });
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Product deleted');
+        closeEditModal();
         Promise.all([loadProducts(), loadStats()]);
+    }
+
+    async function duplicateProduct(productId) {
+        var result = await apiCall('get_products');
+        if (result.error || !Array.isArray(result)) return;
+        var p = result.find(function (x) { return String(x.product_id) === String(productId); });
+        if (!p) return;
+        var clone = JSON.parse(JSON.stringify(p));
+        delete clone.product_id;
+        delete clone.created_at;
+        delete clone.updated_at;
+        clone.title = (clone.title || 'Untitled') + ' (copy)';
+        clone.slug = ''; // auto-generate
+        var res = await apiCall('create_product', clone);
+        if (res.error) { showNotification(res.error, 'error'); return; }
+        showNotification('Product duplicated');
+        Promise.all([loadProducts(), loadStats()]);
+    }
+
+    async function toggleFeatured(productId) {
+        var result = await apiCall('get_products');
+        if (result.error || !Array.isArray(result)) return;
+        var p = result.find(function (x) { return String(x.product_id) === String(productId); });
+        if (!p) return;
+        var newVal = !p.is_featured;
+        var res = await apiCall('update_product', { product_id: productId, is_featured: newVal });
+        if (res.error) { showNotification(res.error, 'error'); return; }
+        showNotification(newVal ? 'Marked as featured' : 'Removed from featured');
+        loadProducts();
     }
 
     async function updateStock(productId, newStock) {
@@ -1076,14 +1112,6 @@
         // ---- Image URL live preview ----
         setupImageUrlPreview();
 
-        // ---- Modal backdrop + Escape ----
-        var modal = document.getElementById('editModal');
-        if (modal) {
-            modal.addEventListener('click', function (e) {
-                if (e.target === modal) closeEditModal();
-            });
-        }
-
         // Auto-generate slug from title when slug field is empty/unmodified
         var titleInput = document.getElementById('editTitle');
         var slugInput = document.getElementById('editSlug');
@@ -1107,15 +1135,15 @@
             if (e.key === 'Escape') closeEditModal();
         });
 
-        // Reset slugManuallyEdited each time the edit modal opens
-        var editModal = document.getElementById('editModal');
-        if (editModal) {
+        // Reset slugManuallyEdited each time the edit panel opens
+        var catPanel = document.getElementById('catalogPanel');
+        if (catPanel) {
             var observer = new MutationObserver(function () {
-                if (editModal.classList.contains('active')) {
+                if (catPanel.classList.contains('active')) {
                     slugManuallyEdited = false;
                 }
             });
-            observer.observe(editModal, { attributes: true, attributeFilter: ['class'] });
+            observer.observe(catPanel, { attributes: true, attributeFilter: ['class'] });
         }
     });
 })();
