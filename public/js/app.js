@@ -10,6 +10,16 @@ class HybridApp {
         this.shippingCountries = [];  // [{ code, name }]
         this.selectedCountry = '';
         this.ratesSource = 'fallback';  // 'live' | 'cached' | 'manual' | 'fallback'
+        // Display labels for internal type values.
+        // Used in grid items and anywhere type is shown to visitors.
+        // 'text' is omitted — text products are identified by media_kind,
+        // not type, so they never show a type badge.
+        this.TYPE_LABELS = {
+            original: 'Original',
+            print: 'Print',
+            merch: 'Product',
+            craft: 'Handmade'
+        };
         this.zoomActive = false;
         this.expandedActive = false;
         this.variationIndex = 0;
@@ -550,26 +560,61 @@ class HybridApp {
     }
 
     renderText(p) {
+        const kind = p.media_kind || (p.type === 'text' ? 'text' : 'image');
+        const isTextProduct = kind === 'text';
+
         if (this.el.productTitle) this.el.productTitle.textContent = p.title || '';
 
-        if (this.el.productCreator) {
+        // For text products, description becomes a subtitle under the title
+        // when content exists as the body text.
+        if (this.el.productCreator && isTextProduct && p.content && p.description) {
+            this.el.productCreator.textContent = p.description;
+            this.el.productCreator.style.fontStyle = 'normal';
+            this.el.productCreator.style.fontSize = '12px';
+            this.el.productCreator.style.opacity = '0.6';
+        } else if (this.el.productCreator) {
             const showAuthor = p.show_author !== false;
             this.el.productCreator.style.display = showAuthor ? '' : 'none';
             this.el.productCreator.textContent = p.author || 'V.';
+            this.el.productCreator.style.fontStyle = '';
+            this.el.productCreator.style.fontSize = '';
+            this.el.productCreator.style.opacity = '';
         }
 
         if (this.el.infoContainer) {
-            const order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
+            // For text products with body content, always show body first (content-first)
+            // unless explicitly set to title-first.
+            let order;
+            if (isTextProduct && p.content) {
+                order = p.content_order === 'title-first' ? 'title-first' : 'description-first';
+            } else {
+                order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
+            }
             this.el.infoContainer.classList.toggle('order-description-first', order === 'description-first');
             this.el.infoContainer.classList.toggle('order-title-first', order === 'title-first');
         }
 
         if (this.el.descriptionText) {
-            this.el.descriptionText.textContent = p.description || 'No description available.';
+            // In text-mode, content_order controls layout.
+            // When kind is 'text', the description div shows the dedicated
+            // content field (poems, prose, long text). Description is a
+            // short caption shown as subtitle if content_order puts it first.
+            const kind = p.media_kind || (p.type === 'text' ? 'text' : 'image');
+            const bodyText = kind === 'text'
+                ? (p.content || p.description || '')
+                : (p.description || 'No description available.');
+            this.el.descriptionText.textContent = bodyText;
             this.el.descriptionText.style.fontFamily = p.font_family || "'Copperplate', serif";
-            this.el.descriptionText.style.fontSize = (p.font_size || 11) + 'px';
-            this.el.descriptionText.style.fontWeight = p.font_weight || 400;
+            // In text-mode, use the product's larger font for body text;
+            // in image mode, keep the smaller info-panel font.
+            const isTextMode = kind === 'text';
+            this.el.descriptionText.style.fontSize = isTextMode
+                ? (p.font_size || 16) + 'px'
+                : (p.font_size || 11) + 'px';
+            this.el.descriptionText.style.fontWeight = p.font_weight || (isTextMode ? 400 : 400);
             this.el.descriptionText.style.textTransform = p.text_transform || 'none';
+            // In text-mode, use italic style for literary content
+            this.el.descriptionText.style.fontStyle = isTextMode ? 'italic' : 'normal';
         }
 
         if (this.el.priceRow) {
@@ -1070,13 +1115,14 @@ class HybridApp {
             const isSaved = this.savedItems.has(p.product_id);
             
             // Restored grid-item-title, grid-item-price, and grid-item-meta (type + saved)
+            const typeLabel = this.TYPE_LABELS[p.type] || '';
             html += '<div class="grid-item" data-action="view-product" data-id="' + Utils.escapeAttr(p.product_id) + '" tabindex="0" role="button">' +
                 thumb +
                 '<div class="grid-item-info' + infoClass + '">' +
                     '<div class="grid-item-title">' + Utils.escapeHtml(p.title) + '</div>' +
                     (showPrice ? '<div class="grid-item-price">' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div>' : '') +
                     '<div class="grid-item-meta">' +
-                        '<span class="grid-item-type">' + Utils.escapeHtml(p.type || '') + '</span>' +
+                        (typeLabel ? '<span class="grid-item-type">' + Utils.escapeHtml(typeLabel) + '</span>' : '') +
                         (isSaved ? '<span class="grid-item-saved">♥</span>' : '') +
                     '</div>' +
                 '</div>' +
