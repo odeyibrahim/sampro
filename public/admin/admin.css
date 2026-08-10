@@ -209,6 +209,18 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
     font-weight: 400;
 }
 
+.overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+    align-items: start;
+}
+.overview-col {}
+
+@media (max-width: 860px) {
+    .overview-grid { grid-template-columns: 1fr; }
+}
+
 .admin-toolbar {
     display: flex;
     justify-content: space-between;
