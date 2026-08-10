@@ -282,7 +282,11 @@ class HybridApp {
         const match = window.location.pathname.match(/^\/product\/([\w\-]+)$/);
         if (!match) return;
         const slug = decodeURIComponent(match[1]);
-        const idx = this.products.findIndex(p => p.slug === slug);
+        // Match against DB slug first, then fall back to title-derived slug
+        let idx = this.products.findIndex(p => p.slug === slug);
+        if (idx === -1) {
+            idx = this.products.findIndex(p => this._slugify(p.title) === slug);
+        }
         if (idx !== -1) {
             this.currentIndex = idx;
         }
@@ -290,10 +294,20 @@ class HybridApp {
 
     // Push a SEO URL into the browser history without reload.
     // Called after every product navigation (next/prev/grid click).
+    _slugify(text) {
+        if (!text) return '';
+        return text.toLowerCase().trim()
+            .replace(/[\s\u00A0]+/g, '-')
+            .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+
     _pushProductUrl() {
         const p = this.products[this.currentIndex];
         if (!p) return;
-        const slug = p.slug;
+        // Use DB slug if available, otherwise generate one from title
+        const slug = p.slug || this._slugify(p.title);
         const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
         const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
         if (window.location.pathname !== url) {
