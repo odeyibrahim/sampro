@@ -46,7 +46,7 @@ function productFieldsFromData(data, { excludeShare, excludeSlug } = {}) {
         slug: excludeSlug ? undefined : (data.slug || slugify(data.title)),
         author: data.author || 'V.',
         description: data.description || '',
-        type: data.type || 'merch',
+        type: ['original', 'print', 'merch', 'craft', 'text'].includes(data.type) ? data.type : null,
         media_kind: ['image', 'video', 'text'].includes(data.media_kind) ? data.media_kind : 'image',
         base_price: parseFloat(data.base_price) || 0,
         compare_price: data.compare_price ? parseFloat(data.compare_price) : null,
