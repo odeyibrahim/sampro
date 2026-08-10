@@ -93,10 +93,12 @@
             var imgCount = '';
             var imgs = (Array.isArray(p.variations) ? p.variations.length : 0);
             if (imgs > 0) imgCount = ' <span style="color:#888;font-size:10px;">(' + (imgs + 1) + ')</span>';
+            var typeLabels = { original: 'Original', print: 'Print', merch: 'Product', craft: 'Handmade' };
+            var typeDisplay = typeLabels[p.type] || '';
             return '<tr>' +
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td>' + esc(p.title || '') + imgCount + '</td>' +
-                '<td>' + esc(p.type || '') + '</td>' +
+                '<td>' + esc(typeDisplay) + '</td>' +
                 '<td>$' + esc((p.base_price || 0).toFixed(2)) + '</td>' +
                 '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:60px;padding:4px;border:1px solid #ddd;border-radius:4px;"></td>' +
                 '<td>' +
@@ -244,7 +246,7 @@
         if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
         // Reset all text/number fields
-        ['editTitle','editAuthor','editDescription','editContent','editImageUrl','editPrice','editComparePrice','editVariations','editTags','editSlug'].forEach(function (id) {
+        ['editTitle','editAuthor','editDescription','editImageUrl','editPrice','editComparePrice','editVariations','editTags','editSlug'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -299,7 +301,7 @@
                 document.getElementById('editSlug').value = p.slug || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
-                document.getElementById('editContent').value = p.content || '';
+                // editContent removed from UI — content field not used
                 document.getElementById('editType').value = p.type || 'original';
                 document.getElementById('editMediaKind').value = p.media_kind || 'image';
                 document.getElementById('editOrientation').value = p.orientation || 'square';
@@ -422,7 +424,7 @@
             slug: val('editSlug').trim() || undefined, // empty = auto-generate from title
             author: val('editAuthor').trim() || 'V.',
             description: val('editDescription').trim(),
-            content: val('editContent').trim(),
+            content: '', // text_content field removed from admin UI
             type: val('editType'),
             media_kind: val('editMediaKind'),
             orientation: val('editOrientation'),
