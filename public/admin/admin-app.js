@@ -64,13 +64,24 @@
         badge.className = 'sync-badge ' + (online ? 'online' : 'offline');
     }
 
+    var configLazyLoaded = false;
+
     function switchTab(tabName) {
         document.querySelectorAll('.admin-tab').forEach(function(tab) {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
+        // Map tab names to section IDs: overview→adminOverview, catalog→adminCatalog, orders→adminOrders, config→adminConfig
+        var idMap = { overview: 'adminOverview', catalog: 'adminCatalog', orders: 'adminOrders', config: 'adminConfig' };
+        var targetId = idMap[tabName] || ('admin' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
         document.querySelectorAll('.admin-section').forEach(function(section) {
-            section.classList.toggle('active', section.id === 'admin' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+            section.classList.toggle('active', section.id === targetId);
         });
+        // Lazy-load config tab children (shipping zones + live rates)
+        if (tabName === 'config' && !configLazyLoaded) {
+            configLazyLoaded = true;
+            loadShippingZones();
+            loadLiveRatesStatus();
+        }
     }
 
     function applyStats(stats) {
@@ -123,6 +134,7 @@
         var result = await apiCall('get_products');
         if (result.error || !Array.isArray(result)) return;
         renderProductsTable(result);
+        renderLowStock(result);
     }
 
     var mapOrder = function(o) {
@@ -142,6 +154,47 @@
         var recent = document.getElementById('recentOrdersBody');
         if (tbody) tbody.innerHTML = orders.map(mapOrder).join('');
         if (recent) recent.innerHTML = orders.slice(-6).reverse().map(mapOrder).join('');
+    }
+
+    function renderLowStock(products) {
+        var el = document.getElementById('lowStockList');
+        if (!el) return;
+        var low = products.filter(function(p) { return (p.stock || 0) <= 3; });
+        if (low.length === 0) {
+            el.innerHTML = '<p style="color:#aaa; padding:8px 0;">All items well stocked.</p>';
+            return;
+        }
+        el.innerHTML = low.map(function(p) {
+            var urgent = (p.stock || 0) === 0;
+            var color = urgent ? '#e53935' : '#f9a825';
+            var label = urgent ? 'Out of stock' : p.stock + ' left';
+            return '<div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border-color, #eee);">' +
+                '<img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;flex-shrink:0;">' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(p.title || 'Untitled') + '</div>' +
+                    '<div style="color:' + color + ';font-size:11px;font-weight:500;">' + label + '</div>' +
+                '</div>' +
+                '<div style="font-size:11px;color:#888;">$' + (p.base_price || 0).toFixed(2) + '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function renderCustomersTable(customers) {
+        var tbody = document.getElementById('adminCustomersBody');
+        if (!tbody) return;
+        if (!customers || customers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No customers yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = customers.map(function(c) {
+            return '<tr>' +
+                '<td>' + esc(c.name || 'N/A') + '</td>' +
+                '<td>' + esc(c.email || '') + '</td>' +
+                '<td>' + (c.order_count || 0) + '</td>' +
+                '<td>$' + (c.total_spent || 0).toFixed(2) + '</td>' +
+                '<td>' + esc(c.last_order ? new Date(c.last_order).toLocaleDateString() : '-') + '</td>' +
+            '</tr>';
+        }).join('');
     }
 
     async function loadOrders() {
@@ -868,10 +921,15 @@
             } else {
                 // Apply stats
                 if (initData.stats) applyStats(initData.stats);
-                // Apply products table
-                if (Array.isArray(initData.products)) renderProductsTable(initData.products);
+                // Apply products table + low stock
+                if (Array.isArray(initData.products)) {
+                    renderProductsTable(initData.products);
+                    renderLowStock(initData.products);
+                }
                 // Apply orders tables
                 if (Array.isArray(initData.orders)) renderOrdersTables(initData.orders);
+                // Apply customers table (now in Overview)
+                if (Array.isArray(initData.customers)) renderCustomersTable(initData.customers);
                 // Apply settings form
                 if (initData.settings) applySettingsForm(initData.settings);
             }
@@ -927,15 +985,6 @@
         // ---- Shipping Zones ----
         var addZoneBtn = document.getElementById('addShippingZoneBtn');
         if (addZoneBtn) addZoneBtn.onclick = addShippingZone;
-        // Load shipping zones on tab click (lazy)
-        var shippingTab = document.querySelector('.admin-tab[data-tab="shipping"]');
-        if (shippingTab) {
-            shippingTab.onclick = function() {
-                switchTab('shipping');
-                loadShippingZones();
-                loadLiveRatesStatus();
-            };
-        }
 
         // ---- Live Rates ----
         var liveToggle = document.getElementById('liveRatesToggle');
