@@ -1169,7 +1169,7 @@
         var ptProductLabel = document.getElementById('previewTweakProduct');
         var ptProducts = []; // loaded products list
         var ptIndex = 0;    // current product in preview
-        var ptDirty = false; // unsaved changes?
+        var ptFrameReady = false;
 
         function ptLoadProducts() {
             return apiCall('get_products').then(function (list) {
@@ -1180,10 +1180,15 @@
         function ptShow() {
             ptContainer.style.display = 'block';
             document.getElementById('catalogLayout').style.display = 'none';
-            ptDirty = false;
             ptLoadProducts().then(function () {
                 ptIndex = 0;
-                ptNavigate();
+                if (!ptFrameReady) {
+                    ptFrame.src = '/?pt=1';
+                    ptFrame.onload = function () { ptFrameReady = true; ptSendNavigate(); };
+                } else {
+                    ptSendNavigate();
+                }
+                ptUpdateLabel();
             });
         }
 
@@ -1192,25 +1197,27 @@
             ptEditPanel.style.display = 'none';
             document.getElementById('catalogLayout').style.display = '';
             ptFrame.src = 'about:blank';
-            // Refresh product list to reflect any saves
+            ptFrameReady = false;
             loadProducts();
         }
 
-        function ptNavigate() {
-            var p = ptProducts[ptIndex];
-            if (!p) return;
-            if (ptProductLabel) ptProductLabel.textContent = (ptIndex + 1) + '/' + ptProducts.length + ' — ' + (p.title || 'Untitled');
-            // Build a URL with ?pt=1 query param so the storefront knows it's in preview mode
-            var slug = p.slug || p.title.toLowerCase().trim().replace(/[\s\u00A0]+/g, '-').replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '');
-            ptFrame.src = '/product/' + encodeURIComponent(slug) + '?pt=1';
-            ptEditPanel.style.display = 'none';
+        function ptSendNavigate() {
+            if (!ptFrameReady || !ptFrame.contentWindow) return;
+            ptFrame.contentWindow.postMessage({ type: 'pt-navigate', index: ptIndex }, window.location.origin);
         }
 
-        // Called from within the iframe via postMessage when admin taps an editable zone
+        function ptUpdateLabel() {
+            var p = ptProducts[ptIndex];
+            if (ptProductLabel) ptProductLabel.textContent = (ptIndex + 1) + '/' + ptProducts.length + ' — ' + (p && p.title ? p.title : 'Untitled');
+        }
+
+        // Called from within the iframe via postMessage
         window.addEventListener('message', function (e) {
             if (e.origin !== window.location.origin) return;
-            if (!e.data || e.data.type !== 'pt-edit') return;
-            ptShowEditPanel(e.data.zone, e.data.productId);
+            if (!e.data) return;
+            if (e.data.type === 'pt-edit') {
+                ptShowEditPanel(e.data.zone, e.data.productId);
+            }
         });
 
         function ptShowEditPanel(zone, productId) {
@@ -1293,16 +1300,13 @@
 
             apiCall('update_product', data).then(function (result) {
                 if (result.error) { showNotification(result.error, 'error'); return; }
-                ptDirty = true;
-                showNotification('Applied — click Save to persist');
-                // Refresh the preview
-                ptLoadProducts().then(function () { ptNavigate(); });
+                showNotification('Saved');
+                // Refresh product list and re-render
+                ptLoadProducts().then(function () { ptUpdateLabel(); ptSendNavigate(); });
             });
         }
 
         function ptSaveAll() {
-            showNotification('Changes already saved per-field');
-            ptDirty = false;
             ptHide();
         }
 
@@ -1311,8 +1315,8 @@
         if (ptTweakBtn) ptTweakBtn.onclick = ptShow;
         if (ptBackBtn) ptBackBtn.onclick = ptHide;
         if (ptSaveBtn) ptSaveBtn.onclick = ptSaveAll;
-        if (ptPrevBtn) ptPrevBtn.onclick = function () { if (ptIndex > 0) { ptIndex--; ptNavigate(); } };
-        if (ptNextBtn) ptNextBtn.onclick = function () { if (ptIndex < ptProducts.length - 1) { ptIndex++; ptNavigate(); } };
+        if (ptPrevBtn) ptPrevBtn.onclick = function () { if (ptIndex > 0) { ptIndex--; ptUpdateLabel(); ptSendNavigate(); } };
+        if (ptNextBtn) ptNextBtn.onclick = function () { if (ptIndex < ptProducts.length - 1) { ptIndex++; ptUpdateLabel(); ptSendNavigate(); } };
         if (ptEditClose) ptEditClose.onclick = function () { ptEditPanel.style.display = 'none'; };
     });
 })();
