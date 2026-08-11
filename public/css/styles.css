@@ -112,7 +112,7 @@ html, body {
     --color-border: #eee;
     --bg-top: #f8f8f8;
     --bg-bottom: #f8f8f8;
-    --nav-height: 60px;
+    --nav-height: 40px;
     --content-max-width: 100vw; /* Prevent side gaps on desktop */
 }
 
@@ -610,11 +610,10 @@ body {
     position: absolute; /* Anchored to wrapper */
     bottom: 0; left: 0;
     width: 100%;
-    height: var(--nav-height);
     background: var(--bg-bottom);
     border: none;
     z-index: 1000;
-    padding: 4px 20px;
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -631,12 +630,13 @@ body {
 .arrow-btn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 11px;
     color: var(--color-gray-dark);
     cursor: pointer;
-    padding: 8px;
+    padding: 4px;
     width: 32px; height: 32px;
     transition: all 0.2s;
+    touch-action: manipulation;
 }
 .arrow-btn:hover { color: var(--color-primary); }
 .arrow-btn:disabled { color: #ccc; cursor: not-allowed; }
