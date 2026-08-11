@@ -382,29 +382,71 @@ class HybridApp {
         if (params.get('pt') !== '1') return;
         if (window.parent === window) return; // not in iframe
 
-        const style = document.createElement('style');
-        style.textContent = `
-            .pt-overlay { position: absolute; z-index: 500; cursor: pointer;
-                border: 2px dashed rgba(76,175,80,0.7); background: rgba(76,175,80,0.08);
-                display: flex; align-items: center; justify-content: center;
-                transition: background 0.2s; pointer-events: auto; }
-            .pt-overlay:hover { background: rgba(76,175,80,0.18); }
-            .pt-overlay-label { font-size: 10px; color: rgba(76,175,80,0.9); font-weight: 600;
-                text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;
-                font-family: 'Work Sans', sans-serif; }
-            .pt-overlay-image { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
-            .pt-overlay-desc { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
-            .pt-overlay-actions { top: 4px; left: 8px; right: 8px; bottom: 4px; border-radius: 4px; }
-            .pt-overlay-bg { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
-        `;
-        document.head.appendChild(style);
+        this._ptMode = true;
+
+        // Skip intro in preview mode — go straight to gallery
+        this.showIntro = function() {};
+        this.enterGallery = function() {
+            if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
+            this.updateDisplay();
+        };
+        // Enter immediately once products are loaded
+        const origLoad = this.loadProducts.bind(this);
+        this.loadProducts = async function() {
+            await origLoad();
+            this.enterGallery();
+            this._ptCreateOverlays();
+        };
+
+        // Listen for navigation commands from parent admin
+        window.addEventListener('message', (e) => {
+            if (e.origin !== window.location.origin) return;
+            if (!e.data || e.data.type !== 'pt-navigate') return;
+            const idx = parseInt(e.data.index, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < this.products.length) {
+                this.currentIndex = idx;
+                this.updateDisplay();
+                this._ptRefreshOverlays();
+                window.parent.postMessage({ type: 'pt-navigated', index: idx }, window.location.origin);
+            }
+        });
+    }
+
+    _ptCreateOverlays() {
+        if (!this._ptMode) return;
+        // Inject styles once
+        if (!document.getElementById('ptStyles')) {
+            const style = document.createElement('style');
+            style.id = 'ptStyles';
+            style.textContent = `
+                .pt-overlay { position: absolute; z-index: 500; cursor: pointer;
+                    border: 2px dashed rgba(76,175,80,0.7); background: rgba(76,175,80,0.08);
+                    display: flex; align-items: center; justify-content: center;
+                    transition: background 0.2s; pointer-events: auto; }
+                .pt-overlay:hover { background: rgba(76,175,80,0.18); }
+                .pt-overlay-label { font-size: 10px; color: rgba(76,175,80,0.9); font-weight: 600;
+                    text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;
+                    font-family: 'Work Sans', sans-serif; }
+                .pt-overlay-image { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+                .pt-overlay-desc { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+                .pt-overlay-actions { top: 4px; left: 8px; right: 8px; bottom: 4px; border-radius: 4px; }
+                .pt-overlay-bg { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        this._ptRefreshOverlays();
+    }
+
+    _ptRefreshOverlays() {
+        // Remove old overlays
+        document.querySelectorAll('.pt-overlay').forEach(el => el.remove());
 
         const productId = () => this.products[this.currentIndex]?.product_id || '';
         const send = (zone) => {
             window.parent.postMessage({ type: 'pt-edit', zone, productId: productId() }, window.location.origin);
         };
 
-        // Create overlay zones
         const zones = [
             { selector: '.product-half', cls: 'pt-overlay pt-overlay-bg', label: 'BACKGROUND', zone: 'background' },
             { selector: '.frame-container', cls: 'pt-overlay pt-overlay-image', label: 'IMAGE', zone: 'image' },
@@ -415,7 +457,7 @@ class HybridApp {
         zones.forEach(z => {
             const parent = document.querySelector(z.selector);
             if (!parent) return;
-            parent.style.position = parent.style.position || 'relative';
+            if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
             const overlay = document.createElement('div');
             overlay.className = z.cls;
             overlay.innerHTML = '<span class="pt-overlay-label">Tap to edit: ' + z.label + '</span>';
@@ -425,10 +467,8 @@ class HybridApp {
 
         // Disable the normal image tap (zoom/cycle/expand) in PT mode
         if (this.el.productFrame) this.el.productFrame.onclick = null;
-        // Disable checkout & save buttons
         if (this.el.cartButton) this.el.cartButton.onclick = null;
         if (this.el.heartButton) this.el.heartButton.onclick = null;
-        // Disable dark mode toggle
         if (this.el.galleryBrand) this.el.galleryBrand.onclick = null;
     }
 
@@ -751,7 +791,6 @@ class HybridApp {
             { el: this.el.productHalf, bg: p.background_top, video: this.el.bgVideoTop, image: this.el.bgImageTop },
             { el: this.el.infoHalf, bg: p.background_bottom, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
         ];
-        const isDark = document.body.classList.contains('dark-mode');
 
         halves.forEach(({ el, bg, video, image }) => {
             if (!el) return;
@@ -759,41 +798,49 @@ class HybridApp {
             if (video) { video.classList.remove('visible'); video.pause(); video.removeAttribute('src'); }
             if (image) { image.classList.remove('visible'); image.removeAttribute('src'); }
 
-            // Dark mode: only skip if product has NO custom background set.
-            // Per-product inline styles (set below) always take priority over
-            // dark-mode CSS variables — inline > stylesheet specificity.
-            // We still skip if product has no background config (use CSS var default).
-            if (isDark && !bg) {
-                el.style.background = '';
-                return;
-            }
+            // Always clear inline background first so CSS variables (including dark mode) apply by default.
+            // Only set inline style when the product has a CUSTOM background configured in admin.
+            el.style.background = '';
 
-            const config = bg || { type: 'color', color1: '#f8f8f8' };
-            if (config.type === 'gradient') {
-                el.style.background = `linear-gradient(135deg, ${config.color1 || '#f8f8f8'}, ${config.color2 || '#e0e0e0'})`;
-            } else if (config.type === 'animated') {
-                el.style.background = config.color1 || '#f8f8f8';
+            if (!bg) return; // No custom background → CSS vars handle it (dark mode works naturally)
+
+            // Product has a custom background config — always apply it (even in dark mode),
+            // because inline styles have higher specificity than CSS variable rules.
+            if (bg.type === 'gradient') {
+                el.style.background = `linear-gradient(135deg, ${bg.color1 || '#f8f8f8'}, ${bg.color2 || '#e0e0e0'})`;
+            } else if (bg.type === 'animated') {
+                el.style.background = bg.color1 || '#f8f8f8';
                 el.classList.add('bg-pulse');
-            } else if (config.type === 'image' && config.mediaUrl && image) {
-                el.style.background = config.color1 || '#f8f8f8';
-                image.src = config.mediaUrl;
+            } else if (bg.type === 'image' && bg.mediaUrl && image) {
+                el.style.background = bg.color1 || '#f8f8f8';
+                image.src = bg.mediaUrl;
                 image.classList.add('visible');
-            } else if (config.type === 'video' && config.mediaUrl && video) {
-                el.style.background = config.color1 || '#f8f8f8';
-                video.src = config.mediaUrl;
+            } else if (bg.type === 'video' && bg.mediaUrl && video) {
+                el.style.background = bg.color1 || '#f8f8f8';
+                video.src = bg.mediaUrl;
                 video.classList.add('visible');
                 video.play().catch(() => {});
             } else {
-                el.style.background = config.color1 || '#f8f8f8';
+                el.style.background = bg.color1 || '#f8f8f8';
             }
         });
 
-        // Per-product logo contrast: adjust logo based on the top half background
+        // Per-product logo contrast: adjust logo based on the actual rendered background.
+        // Run whenever a custom background_top exists (even in dark mode, because the
+        // custom colour may be light). In dark mode without custom bg, the dark CSS var
+        // is already correct for the default logo style.
         const topConfig = p.background_top;
-        if (topConfig && !isDark) {
+        const isDark = document.body.classList.contains('dark-mode');
+        if (topConfig) {
             const topColor = topConfig.color1 || topConfig.color2 || '';
             const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
             this._applyLogoContrast(topColor, bottomColor);
+        } else if (isDark) {
+            // Reset logo to dark-mode defaults (light logo on dark bg)
+            const imgEl = document.querySelector('#siteLogo img');
+            const textEl = document.querySelector('#siteLogo .logo-text');
+            if (imgEl) imgEl.style.filter = 'brightness(0) invert(1)';
+            if (textEl) textEl.style.color = '#ffffff';
         }
     }
 
