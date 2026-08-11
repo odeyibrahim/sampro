@@ -9,7 +9,8 @@ class HybridApp {
         this.shippingZones = {};  // { 'NG:NGN': { standard: { cost, estimated_days }, express: ... } }
         this.shippingCountries = [];  // [{ code, name }]
         this.selectedCountry = '';
-        this.ratesSource = 'fallback';  // 'live' | 'cached' | 'manual' | 'fallback'
+        this.ratesSource = 'fallback';
+        this.taxRates = { NGN: 0, USD: 0 }; // tax_rate from admin settings  // 'live' | 'cached' | 'manual' | 'fallback'
         // Display labels for internal type values.
         // Used in grid items and anywhere type is shown to visitors.
         // 'text' is omitted — text products are identified by media_kind,
@@ -52,6 +53,7 @@ class HybridApp {
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
         this.setRandomVerse();
         this.showIntro();
+        this._initPreviewTweak();
     }
 
     async loadStoreSettings() {
@@ -91,6 +93,9 @@ class HybridApp {
                     }
                 } catch (e) {}
             }
+            // Store tax rates for checkout display
+            this.taxRates.NGN = parseFloat(settings.tax_rate_ngn) || 0;
+            this.taxRates.USD = parseFloat(settings.tax_rate_usd) || 0;
             // Apply backdrop / background customisation from admin settings
             this.applyBackdropSettings(settings);
             // Store live_rates_enabled for the currency fetch
@@ -236,6 +241,9 @@ class HybridApp {
 
         // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
         this._applyNavContrast(color1, color2, bottomNav);
+
+        // Logo contrast: switch logo between light/dark variants based on bg luminance
+        this._applyLogoContrast(color1, color2);
     }
 
     // Determine whether a background colour is "dark" (perceived luminance < 0.4)
@@ -275,6 +283,27 @@ class HybridApp {
         if (navEl) navEl.style.color = navColor;
     }
 
+    _applyLogoContrast(c1, c2) {
+        const siteLogo = document.getElementById('siteLogo');
+        if (!siteLogo) return;
+
+        const sample = c1 || c2;
+        if (!sample) return;
+
+        const isDark = this._isDarkColor(sample);
+        const imgEl = siteLogo.querySelector('img');
+        const textEl = siteLogo.querySelector('.logo-text');
+
+        // If there's a logo image, invert it for dark backgrounds
+        if (imgEl) {
+            imgEl.style.filter = isDark ? 'brightness(0) invert(1)' : 'none';
+        }
+        // If text logo, ensure it contrasts
+        if (textEl) {
+            textEl.style.color = isDark ? '#ffffff' : '';
+        }
+    }
+
     // ---- SEO URL routing ----
     // Reads /product/:slug from the URL bar, finds the matching
     // product, and navigates to it.  Falls back to index 0.
@@ -282,7 +311,11 @@ class HybridApp {
         const match = window.location.pathname.match(/^\/product\/([\w\-]+)$/);
         if (!match) return;
         const slug = decodeURIComponent(match[1]);
-        const idx = this.products.findIndex(p => p.slug === slug);
+        // Match against DB slug first, then fall back to title-derived slug
+        let idx = this.products.findIndex(p => p.slug === slug);
+        if (idx === -1) {
+            idx = this.products.findIndex(p => this._slugify(p.title) === slug);
+        }
         if (idx !== -1) {
             this.currentIndex = idx;
         }
@@ -290,10 +323,20 @@ class HybridApp {
 
     // Push a SEO URL into the browser history without reload.
     // Called after every product navigation (next/prev/grid click).
+    _slugify(text) {
+        if (!text) return '';
+        return text.toLowerCase().trim()
+            .replace(/[\s\u00A0]+/g, '-')
+            .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+
     _pushProductUrl() {
         const p = this.products[this.currentIndex];
         if (!p) return;
-        const slug = p.slug;
+        // Use DB slug if available, otherwise generate one from title
+        const slug = p.slug || this._slugify(p.title);
         const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
         const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
         if (window.location.pathname !== url) {
@@ -328,6 +371,65 @@ class HybridApp {
             this._routeFromUrl();
         }
         this.renderImmediate();
+    }
+
+    // ---- Preview & Tweak: tap-to-edit overlays ----
+    // When loaded with ?pt=1 (inside admin iframe), add clickable overlay
+    // zones on image, description, background, and action row that
+    // postMessage to the parent admin window.
+    _initPreviewTweak() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('pt') !== '1') return;
+        if (window.parent === window) return; // not in iframe
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .pt-overlay { position: absolute; z-index: 500; cursor: pointer;
+                border: 2px dashed rgba(76,175,80,0.7); background: rgba(76,175,80,0.08);
+                display: flex; align-items: center; justify-content: center;
+                transition: background 0.2s; pointer-events: auto; }
+            .pt-overlay:hover { background: rgba(76,175,80,0.18); }
+            .pt-overlay-label { font-size: 10px; color: rgba(76,175,80,0.9); font-weight: 600;
+                text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;
+                font-family: 'Work Sans', sans-serif; }
+            .pt-overlay-image { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+            .pt-overlay-desc { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+            .pt-overlay-actions { top: 4px; left: 8px; right: 8px; bottom: 4px; border-radius: 4px; }
+            .pt-overlay-bg { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
+        `;
+        document.head.appendChild(style);
+
+        const productId = () => this.products[this.currentIndex]?.product_id || '';
+        const send = (zone) => {
+            window.parent.postMessage({ type: 'pt-edit', zone, productId: productId() }, window.location.origin);
+        };
+
+        // Create overlay zones
+        const zones = [
+            { selector: '.product-half', cls: 'pt-overlay pt-overlay-bg', label: 'BACKGROUND', zone: 'background' },
+            { selector: '.frame-container', cls: 'pt-overlay pt-overlay-image', label: 'IMAGE', zone: 'image' },
+            { selector: '.info-container', cls: 'pt-overlay pt-overlay-desc', label: 'DESCRIPTION', zone: 'description' },
+            { selector: '.action-row', cls: 'pt-overlay pt-overlay-actions', label: 'PRICE & VISIBILITY', zone: 'actions' }
+        ];
+
+        zones.forEach(z => {
+            const parent = document.querySelector(z.selector);
+            if (!parent) return;
+            parent.style.position = parent.style.position || 'relative';
+            const overlay = document.createElement('div');
+            overlay.className = z.cls;
+            overlay.innerHTML = '<span class="pt-overlay-label">Tap to edit: ' + z.label + '</span>';
+            overlay.onclick = (e) => { e.preventDefault(); e.stopPropagation(); send(z.zone); };
+            parent.appendChild(overlay);
+        });
+
+        // Disable the normal image tap (zoom/cycle/expand) in PT mode
+        if (this.el.productFrame) this.el.productFrame.onclick = null;
+        // Disable checkout & save buttons
+        if (this.el.cartButton) this.el.cartButton.onclick = null;
+        if (this.el.heartButton) this.el.heartButton.onclick = null;
+        // Disable dark mode toggle
+        if (this.el.galleryBrand) this.el.galleryBrand.onclick = null;
     }
 
     registerServiceWorker() {
@@ -657,7 +759,11 @@ class HybridApp {
             if (video) { video.classList.remove('visible'); video.pause(); video.removeAttribute('src'); }
             if (image) { image.classList.remove('visible'); image.removeAttribute('src'); }
 
-            if (isDark) {
+            // Dark mode: only skip if product has NO custom background set.
+            // Per-product inline styles (set below) always take priority over
+            // dark-mode CSS variables — inline > stylesheet specificity.
+            // We still skip if product has no background config (use CSS var default).
+            if (isDark && !bg) {
                 el.style.background = '';
                 return;
             }
@@ -681,6 +787,14 @@ class HybridApp {
                 el.style.background = config.color1 || '#f8f8f8';
             }
         });
+
+        // Per-product logo contrast: adjust logo based on the top half background
+        const topConfig = p.background_top;
+        if (topConfig && !isDark) {
+            const topColor = topConfig.color1 || topConfig.color2 || '';
+            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
+            this._applyLogoContrast(topColor, bottomColor);
+        }
     }
 
     formatPrice(usd) {
@@ -945,9 +1059,11 @@ class HybridApp {
         const shipping = shippingInfo.cost || 0;
 
         const subtotal = p.base_price * this.checkoutQuantity;
-        // Tax display: server computes actual tax, but show a reasonable
-        // estimate here. Use 0 since server handles it.
-        const tax = 0;
+        // Tax: estimate client-side from admin-configured rate.
+        // Server computes the actual tax in create_pending_order RPC.
+        const currency = this.selectedCurrency;
+        const taxRate = this.taxRates[currency] || this.taxRates[currency.toUpperCase()] || 0;
+        const tax = Math.round(subtotal * taxRate * 100) / 100;
         const total = subtotal + shipping + tax;
 
         if (this.el.checkoutSubtotal) this.el.checkoutSubtotal.innerText = this.formatPrice(subtotal);
@@ -958,7 +1074,9 @@ class HybridApp {
             }
             this.el.checkoutShipping.innerText = shipLabel;
         }
-        if (this.el.checkoutTax) this.el.checkoutTax.innerText = this.formatPrice(tax);
+        if (this.el.checkoutTax) {
+            this.el.checkoutTax.innerText = taxRate > 0 ? this.formatPrice(tax) + ' (' + (taxRate * 100).toFixed(1) + '%)' : this.formatPrice(0);
+        }
         const totalSpan = document.getElementById('checkoutTotal');
         if (totalSpan) totalSpan.innerText = this.formatPrice(total);
     }
