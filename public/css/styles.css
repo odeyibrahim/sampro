@@ -4,6 +4,26 @@
     box-sizing: border-box;
 }
 
+/* Prevent pinch-to-zoom on the entire site */
+
+/* Prevent iOS auto-zoom on input focus: minimum 16px font size */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+    font-size: 16px;
+}
+
+html, body {
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+    overscroll-behavior: none;
+}
+
 .skip-link {
     position: absolute;
     top: -60px;
@@ -594,7 +614,7 @@ body {
     background: var(--bg-bottom);
     border: none;
     z-index: 1000;
-    padding: 0 20px;
+    padding: 4px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
