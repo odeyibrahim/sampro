@@ -23,51 +23,238 @@
         </div>
 
         <div class="admin-tabs">
-            <div class="admin-tab active" data-tab="dashboard">Dashboard</div>
-            <div class="admin-tab" data-tab="products">Products</div>
+            <div class="admin-tab active" data-tab="overview">Overview</div>
+            <div class="admin-tab" data-tab="catalog">Catalog</div>
             <div class="admin-tab" data-tab="orders">Orders</div>
-            <div class="admin-tab" data-tab="customers">Customers</div>
-            <div class="admin-tab" data-tab="shipping">Shipping</div>
-            <div class="admin-tab" data-tab="settings">Settings</div>
+            <div class="admin-tab" data-tab="config">Configuration</div>
         </div>
 
-        <!-- Dashboard Tab -->
-        <div class="admin-section active" id="adminDashboard">
+        <!-- ════════════════════════════════════════════
+             OVERVIEW — Stats + Recent Orders + Customers + Low Stock
+             ════════════════════════════════════════════ -->
+        <div class="admin-section active" id="adminOverview">
             <div class="admin-stats">
                 <div class="stat-card"><div class="stat-value" id="totalRevenue">$0</div><div class="stat-label">Revenue</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalOrders">0</div><div class="stat-label">Orders</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Products</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalCustomers">0</div><div class="stat-label">Customers</div></div>
             </div>
-            <h3 class="admin-section-title">Recent Orders</h3>
-            <div class="table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-                    <tbody id="recentOrdersBody"></tbody>
-                </table>
-            </div>
-        </div>
 
-        <!-- Products Tab -->
-        <div class="admin-section" id="adminProducts">
-            <div class="admin-toolbar">
-                <h3 class="admin-section-title">Manage Products</h3>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="admin-btn confirm-pay" id="addProductBtn">+ Add Product</button>
-                    <button class="admin-btn" id="importCsvBtn">Import CSV</button>
-                    <button class="admin-btn" id="downloadCsvTemplateBtn">CSV Template</button>
+            <div class="overview-grid">
+                <div class="overview-col">
+                    <h3 class="admin-section-title">Recent Orders</h3>
+                    <div class="table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>Order ID</th><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                            <tbody id="recentOrdersBody"></tbody>
+                        </table>
+                    </div>
+
+                    <h3 class="admin-section-title" style="margin-top:20px;">Customers</h3>
+                    <div class="table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>Name</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Last Order</th></tr></thead>
+                            <tbody id="adminCustomersBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="overview-col">
+                    <h3 class="admin-section-title">Low Stock Alerts</h3>
+                    <div id="lowStockList" style="font-size:12px;"></div>
                 </div>
             </div>
-            <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
-            <div class="table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Image</th><th>Title</th><th>Type</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
-                    <tbody id="adminProductsBody"></tbody>
-                </table>
+        </div>
+
+        <!-- ════════════════════════════════════════════
+             CATALOG — Products + Side Panel Editor
+             ════════════════════════════════════════════ -->
+        <div class="admin-section" id="adminCatalog">
+            <div class="catalog-layout" id="catalogLayout">
+                <!-- Left: Product list -->
+                <div class="catalog-main" id="catalogMain">
+                    <div class="admin-toolbar">
+                        <h3 class="admin-section-title">Products</h3>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="admin-btn confirm-pay" id="addProductBtn">+ Add</button>
+                            <button class="admin-btn" id="importCsvBtn">Import CSV</button>
+                            <button class="admin-btn" id="downloadCsvTemplateBtn">Template</button>
+                            <button class="admin-btn" id="previewTweakBtn" style="background:#1a1a2e;color:#fff;">Preview & Tweak</button>
+                        </div>
+                    </div>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
+                    <div class="table-container">
+                        <table class="admin-table">
+                            <thead><tr><th></th><th>Title</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                            <tbody id="adminProductsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Right: Side Panel Editor -->
+                <div class="catalog-panel" id="catalogPanel">
+                    <div class="panel-header">
+                        <h3 id="editModalTitle">Add Product</h3>
+                        <span class="close-edit" id="cancelEditBtn">×</span>
+                    </div>
+                    <form id="editProductForm">
+                        <!-- Accordion: Basics -->
+                        <div class="accordion-section open" data-accordion="basics">
+                            <div class="accordion-trigger" onclick="this.parentElement.classList.toggle('open')">
+                                <span>Basics</span><span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-body">
+                                <div class="row-2">
+                                    <div class="form-group"><label>Title *</label><input type="text" id="editTitle" required></div>
+                                    <div class="form-group"><label>Author</label><input type="text" id="editAuthor" value="V."></div>
+                                </div>
+                                <div class="form-group"><label>URL Slug</label><input type="text" id="editSlug" placeholder="auto-generated-from-title"></div>
+                                <div class="row-3">
+                                    <div class="form-group"><label>Category</label><select id="editType"><option value="">None</option><option value="original">Original</option><option value="print">Print</option><option value="merch">Product</option><option value="craft">Handmade</option></select></div>
+                                    <div class="form-group"><label>Media Kind</label><select id="editMediaKind"><option value="image">Image</option><option value="video">Video</option><option value="text">Text</option></select></div>
+                                    <div class="form-group"><label>Orientation</label><select id="editOrientation"><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
+                                </div>
+                                <div class="form-group"><label>Description</label><textarea id="editDescription" rows="3"></textarea></div>
+                                <div class="row-3">
+                                    <div class="form-group"><label>Price (USD)</label><input type="number" id="editPrice" step="0.01"></div>
+                                    <div class="form-group"><label>Compare Price</label><input type="number" id="editComparePrice" step="0.01" placeholder="Strikethrough"></div>
+                                    <div class="form-group"><label>Stock</label><input type="number" id="editStock" min="0" value="1"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accordion: Media -->
+                        <div class="accordion-section" data-accordion="media">
+                            <div class="accordion-trigger" onclick="this.parentElement.classList.toggle('open')">
+                                <span>Media</span><span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-body">
+                                <div class="form-group"><label>Image/Video URL</label><input type="text" id="editImageUrl" placeholder="https://..."></div>
+                                <div class="file-upload-section visible">
+                                    <label>Or Upload from Device</label>
+                                    <div class="image-upload-area" id="deviceUploadArea">Click to upload</div>
+                                    <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display:none;">
+                                    <img id="previewMain" class="image-preview">
+                                </div>
+                                <div class="form-group"><label>Variations (one URL per line)</label><textarea id="editVariations" rows="2" placeholder="https://...\nhttps://..."></textarea></div>
+                                <div class="form-group">
+                                    <label>Additional Images</label>
+                                    <div class="image-upload-area" id="additionalUploadArea" style="padding:12px;">+ Add more images</div>
+                                    <input type="file" id="additionalFileUpload" accept="image/*" multiple style="display:none;">
+                                    <div id="additionalImagesPreview" class="additional-images-grid"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accordion: Display -->
+                        <div class="accordion-section" data-accordion="display">
+                            <div class="accordion-trigger" onclick="this.parentElement.classList.toggle('open')">
+                                <span>Display & Typography</span><span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-body">
+                                <div class="row-2">
+                                    <div class="form-group"><label>Font Family</label><select id="editFontFamily"><option value="'Copperplate', serif">Copperplate</option><option value="'Georgia', serif">Georgia</option><option value="'Work Sans', sans-serif">Work Sans</option><option value="'Courier Prime', monospace">Courier Prime</option></select></div>
+                                    <div class="form-group"><label>Content Order</label><select id="editContentOrder"><option value="title-first">Title First</option><option value="description-first">Description First</option></select></div>
+                                </div>
+                                <div class="row-3">
+                                    <div class="form-group"><label>Font Size (px)</label><input type="number" id="editFontSize" min="8" max="72" value="11"></div>
+                                    <div class="form-group"><label>Font Weight</label><select id="editFontWeight"><option value="300">Light</option><option value="400" selected>Regular</option><option value="500">Medium</option><option value="600">Semi Bold</option></select></div>
+                                    <div class="form-group"><label>Text Transform</label><select id="editTextTransform"><option value="none">None</option><option value="uppercase">Uppercase</option><option value="capitalize">Capitalize</option></select></div>
+                                </div>
+                                <div class="row-2">
+                                    <label class="inline-check"><input type="checkbox" id="editShowAuthor" checked> Show author</label>
+                                    <label class="inline-check"><input type="checkbox" id="editShowPrice" checked> Show price</label>
+                                </div>
+                                <div class="row-2">
+                                    <label class="inline-check"><input type="checkbox" id="editShowStock" checked> Show stock badge</label>
+                                    <label class="inline-check"><input type="checkbox" id="editIsFeatured"> Featured</label>
+                                </div>
+                                <div class="row-2">
+                                    <label class="inline-check"><input type="checkbox" id="editShowShare"> Show share button</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accordion: Advanced (Video, Frame, Backdrop, Tags) -->
+                        <div class="accordion-section" data-accordion="advanced">
+                            <div class="accordion-trigger" onclick="this.parentElement.classList.toggle('open')">
+                                <span>Advanced</span><span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-body">
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.4px;">Video</label>
+                                    <div class="row-3">
+                                        <label class="inline-check"><input type="checkbox" id="editVideoAutoplay" checked> Autoplay</label>
+                                        <label class="inline-check"><input type="checkbox" id="editVideoLoop" checked> Loop</label>
+                                        <label class="inline-check"><input type="checkbox" id="editVideoMuted" checked> Muted</label>
+                                    </div>
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.4px;">Frame</label>
+                                    <div class="row-3">
+                                        <div class="form-group"><label>Border (px)</label><input type="number" min="0" max="20" id="editBorderWidth" value="0"></div>
+                                        <div class="form-group"><label>Color</label><input type="color" id="editBorderColor" value="#000000"></div>
+                                        <div class="form-group"><label>Padding (px)</label><input type="number" min="0" max="40" id="editFramePadding" value="0"></div>
+                                    </div>
+                                    <div class="form-group"><label>Object Fit</label><select id="editFrameObjectFit"><option value="contain">Contain</option><option value="cover">Cover</option></select></div>
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.4px;">Backdrop — Top</label>
+                                    <div class="row-2">
+                                        <div class="form-group"><label>Type</label><select id="editBgTopType"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image</option><option value="video">Video</option></select></div>
+                                        <div class="form-group"><label>Color 1</label><input type="color" id="editBgTopColor1" value="#f8f8f8"></div>
+                                    </div>
+                                    <div class="row-2">
+                                        <div class="form-group"><label>Color 2</label><input type="color" id="editBgTopColor2" value="#e0e0e0"></div>
+                                        <div class="form-group"><label>Media URL</label><input type="text" id="editBgTopUrl" placeholder="https://..."></div>
+                                    </div>
+                                </div>
+                                <div style="margin-bottom:10px;">
+                                    <label style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.4px;">Backdrop — Bottom</label>
+                                    <div class="row-2">
+                                        <div class="form-group"><label>Type</label><select id="editBgBottomType"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image</option><option value="video">Video</option></select></div>
+                                        <div class="form-group"><label>Color 1</label><input type="color" id="editBgBottomColor1" value="#f8f8f8"></div>
+                                    </div>
+                                    <div class="row-2">
+                                        <div class="form-group"><label>Color 2</label><input type="color" id="editBgBottomColor2" value="#e0e0e0"></div>
+                                        <div class="form-group"><label>Media URL</label><input type="text" id="editBgBottomUrl" placeholder="https://..."></div>
+                                    </div>
+                                </div>
+                                <div class="form-group"><label>Tags</label><input type="text" id="editTags" placeholder="abstract, landscape, limited-edition"></div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 16px; padding-top:16px; border-top:1px solid var(--border-color, #eee);">
+                            <button type="submit" class="admin-btn confirm-pay" style="flex:2;">Save</button>
+                            <button type="button" class="admin-btn" id="deleteProductBtn" style="flex:1; display:none;">Delete</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Preview & Tweak: Iframe storefront with tap-to-edit overlays -->
+            <div class="preview-tweak-container" id="previewTweakContainer" style="display:none; position:relative; width:100%; height:calc(100vh - 160px); border:2px solid var(--border-color, #eee); border-radius:8px; overflow:hidden; background:#000;">
+                <div class="preview-tweak-toolbar" style="position:absolute; top:0; left:0; right:0; z-index:10; display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(0,0,0,0.85); color:#fff; font-size:12px;">
+                    <button class="admin-btn" id="previewTweakBack" style="padding:4px 12px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">← Back to List</button>
+                    <span id="previewTweakProduct" style="flex:1; font-weight:500; text-align:center; opacity:0.8;"></span>
+                    <button class="admin-btn" id="previewTweakPrev" style="padding:4px 10px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">‹ Prev</button>
+                    <button class="admin-btn" id="previewTweakNext" style="padding:4px 10px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">Next ›</button>
+                    <button class="admin-btn" id="previewTweakSave" style="padding:4px 12px; font-size:11px; background:#4CAF50; color:#fff; border:none;">Save</button>
+                </div>
+                <iframe id="previewTweakFrame" style="width:100%; height:calc(100% - 36px); border:none;" sandbox="allow-scripts allow-same-origin"></iframe>
+                <!-- Floating edit panels (shown on tap) -->
+                <div id="ptEditPanel" style="display:none; position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:20; background:rgba(26,26,46,0.97); color:#fff; padding:16px; border-radius:8px; width:92%; max-width:380px; max-height:50vh; overflow-y:auto; font-size:13px; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span id="ptEditTitle" style="font-weight:600;"></span>
+                        <button id="ptEditClose" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
+                    </div>
+                    <div id="ptEditBody"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Orders Tab -->
+        <!-- ════════════════════════════════════════════
+             ORDERS — All Orders (unchanged)
+             ════════════════════════════════════════════ -->
         <div class="admin-section" id="adminOrders">
             <h3 class="admin-section-title">All Orders</h3>
             <div class="table-container">
@@ -78,48 +265,10 @@
             </div>
         </div>
 
-        <!-- Customers Tab -->
-        <div class="admin-section" id="adminCustomers">
-            <h3 class="admin-section-title">Customers</h3>
-            <div class="table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Name</th><th>Email</th><th>Orders</th><th>Total Spent</th><th>Last Order</th></tr></thead>
-                    <tbody id="adminCustomersBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Shipping Zones Tab -->
-        <div class="admin-section" id="adminShipping">
-            <div class="admin-toolbar">
-                <h3 class="admin-section-title">Shipping Zones</h3>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button class="admin-btn confirm-pay" id="addShippingZoneBtn">+ Add Zone</button>
-                </div>
-            </div>
-            <p style="font-size:11px; color:#888; margin-bottom:12px;">Country-based shipping costs. 'ROW' = Rest of World (fallback for unmapped countries). The server looks up: exact country match, then ROW, then legacy shipping_rates table.</p>
-            <div class="table-container">
-                <table class="admin-table">
-                    <thead><tr><th>Country</th><th>Method</th><th>Currency</th><th>Cost</th><th>Days</th><th>Active</th><th>Actions</th></tr></thead>
-                    <tbody id="shippingZonesBody"></tbody>
-                </table>
-            </div>
-            <div style="margin-top:20px; padding:12px; border:1px solid var(--border-color, #ddd); border-radius:6px;">
-                <label class="section-label">Live Currency Rates</label>
-                <p style="font-size:11px; color:#888; margin-bottom:10px;">When enabled, the storefront fetches live exchange rates from the ECB (via frankfurter.app). Rates are cached for 4 hours. Admin-set rates above always override.</p>
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                    <label style="font-size:13px;">Live rates</label>
-                    <input type="checkbox" id="liveRatesToggle" checked style="width:16px; height:16px;">
-                    <span id="liveRatesStatus" style="font-size:11px; color:#888;">Checking...</span>
-                </div>
-                <button class="admin-btn" id="refreshRatesBtn">Force Refresh Rates</button>
-                <div id="liveRatesPreview" style="margin-top:10px; font-size:11px; color:#666;"></div>
-            </div>
-        </div>
-
-        <!-- Settings Tab -->
-        <div class="admin-section" id="adminSettings">
-            <h3 class="admin-section-title">Store Settings</h3>
+        <!-- ════════════════════════════════════════════
+             CONFIGURATION — Branding + Currencies + Shipping Zones + Legacy Shipping
+             ════════════════════════════════════════════ -->
+        <div class="admin-section" id="adminConfig">
             <div class="settings-form-wrap">
                 <div class="edit-section">
                     <label class="section-label">Branding</label>
@@ -141,7 +290,7 @@
 
                 <div class="edit-section">
                     <label class="section-label">Currency Exchange Rates</label>
-                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Rates relative to 1 USD. The frontend cycles through these currencies.</p>
+                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Rates relative to 1 USD. The frontend cycles through these currencies. Toggle live rates below to auto-fetch from ECB.</p>
                     <div class="row-2">
                         <div class="form-group"><label>EUR Rate</label><input type="number" id="rateEUR" value="0.92" step="0.01" min="0"></div>
                         <div class="form-group"><label>GBP Rate</label><input type="number" id="rateGBP" value="0.79" step="0.01" min="0"></div>
@@ -150,11 +299,41 @@
                         <div class="form-group"><label>NGN Rate</label><input type="number" id="rateNGN" value="1500" step="1" min="0"></div>
                         <div class="form-group"><label>USD Rate</label><input type="number" id="rateUSD" value="1" step="0.01" min="0" disabled style="opacity:0.5;"></div>
                     </div>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding:8px 0; border-top:1px solid var(--border-color, #eee);">
+                        <label style="font-size:12px; font-weight:500;">Live rates</label>
+                        <input type="checkbox" id="liveRatesToggle" checked style="width:16px; height:16px;">
+                        <span id="liveRatesStatus" style="font-size:11px; color:#888;">Checking...</span>
+                        <button class="admin-btn" id="refreshRatesBtn" style="margin-left:auto; font-size:11px; padding:4px 10px;">Force Refresh</button>
+                    </div>
+                    <div id="liveRatesPreview" style="font-size:11px; color:#666; margin-top:4px;"></div>
                 </div>
 
                 <div class="edit-section">
-                    <label class="section-label">Shipping Rates (USD)</label>
-                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Default rates used when no shipping_rates table row matches.</p>
+                    <label class="section-label">Tax Rates (Nigeria)</label>
+                    <p style="font-size:11px; color:#888; margin-bottom:10px;">VAT applied at checkout. Enter as decimal (e.g. 0.075 for 7.5%). Only applies to Nigerian customers (NGN orders).</p>
+                    <div class="row-2">
+                        <div class="form-group"><label>NGN Tax Rate (e.g. 0.075)</label><input type="number" id="taxRateNGN" value="0" step="0.001" min="0" max="1"></div>
+                        <div class="form-group"><label>USD Tax Rate</label><input type="number" id="taxRateUSD" value="0" step="0.001" min="0" max="1"></div>
+                    </div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Shipping Zones</label>
+                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Country-based shipping costs. 'ROW' = Rest of World (fallback). Server lookup: exact country match → ROW → legacy rates below.</p>
+                    <div style="margin-bottom:10px;">
+                        <button class="admin-btn confirm-pay" id="addShippingZoneBtn" style="font-size:12px;">+ Add Zone</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="admin-table">
+                            <thead><tr><th>Country</th><th>Method</th><th>Currency</th><th>Cost</th><th>Days</th><th>Active</th><th>Actions</th></tr></thead>
+                            <tbody id="shippingZonesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="edit-section">
+                    <label class="section-label">Legacy Shipping Rates (fallback)</label>
+                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Used when no shipping zone matches. Zone-based shipping above takes priority.</p>
                     <div class="row-2">
                         <div class="form-group"><label>Local Standard ($)</label><input type="number" id="localStdShipping" value="7" step="0.01"></div>
                         <div class="form-group"><label>Local Express ($)</label><input type="number" id="localExpShipping" value="15" step="0.01"></div>
@@ -174,141 +353,10 @@
                 </div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="admin-btn" id="saveSettingsBtn" style="flex:1;">Save Settings</button>
+                    <button class="admin-btn" id="saveSettingsBtn" style="flex:1;">Save All Settings</button>
                     <button class="admin-btn" id="exportDataBtn" style="flex:1;">Export JSON</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div class="edit-modal" id="editModal">
-        <div class="edit-content">
-            <div class="edit-header">
-                <h3 id="editModalTitle">Add Product</h3>
-                <span class="close-edit" id="cancelEditBtn">×</span>
-            </div>
-            <form id="editProductForm">
-                <div class="edit-section">
-                    <label class="section-label">Basic Info</label>
-                    <div class="row-2">
-                        <div class="form-group"><label>Title *</label><input type="text" id="editTitle" required></div>
-                        <div class="form-group"><label>Author</label><input type="text" id="editAuthor" value="V."></div>
-                    </div>
-                    <div class="form-group"><label>URL Slug</label><input type="text" id="editSlug" placeholder="auto-generated-from-title" style="font-size:11px; color:#888;"></div>
-                    <div class="row-3">
-                        <div class="form-group"><label>Type</label><select id="editType"><option value="original">Original</option><option value="print">Print</option><option value="merch">Merch</option><option value="craft">Craft</option></select></div>
-                        <div class="form-group"><label>Media Kind</label><select id="editMediaKind"><option value="image">Image</option><option value="video">Video</option><option value="text">Text</option></select></div>
-                        <div class="form-group"><label>Orientation</label><select id="editOrientation"><option value="square">Square</option><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
-                    </div>
-                    <div class="form-group"><label>Description</label><textarea id="editDescription" rows="4"></textarea></div>
-                    <div class="form-group"><label>Text Content</label><textarea id="editContent" rows="3" placeholder="For text-type products: the body text to display"></textarea></div>
-                    <div class="row-3">
-                        <div class="form-group"><label>Price (USD)</label><input type="number" id="editPrice" step="0.01"></div>
-                        <div class="form-group"><label>Compare Price</label><input type="number" id="editComparePrice" step="0.01" placeholder="Strikethrough"></div>
-                        <div class="form-group"><label>Stock</label><input type="number" id="editStock" min="0" value="1"></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Media</label>
-                    <div class="form-group"><label>Image/Video URL</label><input type="text" id="editImageUrl" placeholder="https://..."></div>
-                    <div class="file-upload-section visible">
-                        <label>Or Upload from Device</label>
-                        <div class="image-upload-area" id="deviceUploadArea">Click to upload from device</div>
-                        <input type="file" id="deviceFileUpload" accept="image/*,video/*" style="display:none;">
-                        <img id="previewMain" class="image-preview">
-                    </div>
-                    <div class="form-group"><label>Variations (one URL per line)</label><textarea id="editVariations" rows="2" placeholder="https://...\nhttps://..."></textarea></div>
-                    <div class="form-group">
-                        <label>Additional Images</label>
-                        <div class="image-upload-area" id="additionalUploadArea" style="padding:12px;">+ Add more images</div>
-                        <input type="file" id="additionalFileUpload" accept="image/*" multiple style="display:none;">
-                        <div id="additionalImagesPreview" class="additional-images-grid"></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Display & Typography</label>
-                    <div class="row-2">
-                        <div class="form-group"><label>Font Family</label><select id="editFontFamily"><option value="'Copperplate', serif">Copperplate</option><option value="'Georgia', serif">Georgia</option><option value="'Work Sans', sans-serif">Work Sans</option><option value="'Courier Prime', monospace">Courier Prime</option></select></div>
-                        <div class="form-group"><label>Content Order</label><select id="editContentOrder"><option value="title-first">Title First</option><option value="description-first">Description First</option></select></div>
-                    </div>
-                    <div class="row-3">
-                        <div class="form-group"><label>Font Size (px)</label><input type="number" id="editFontSize" min="8" max="72" value="11"></div>
-                        <div class="form-group"><label>Font Weight</label><select id="editFontWeight"><option value="300">Light (300)</option><option value="400" selected>Regular (400)</option><option value="500">Medium (500)</option><option value="600">Semi Bold (600)</option></select></div>
-                        <div class="form-group"><label>Text Transform</label><select id="editTextTransform"><option value="none">None</option><option value="uppercase">Uppercase</option><option value="capitalize">Capitalize</option></select></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Toggles</label>
-                    <div class="row-2">
-                        <label class="inline-check"><input type="checkbox" id="editShowAuthor" checked> Show author</label>
-                        <label class="inline-check"><input type="checkbox" id="editShowPrice" checked> Show price</label>
-                    </div>
-                    <div class="row-2">
-                        <label class="inline-check"><input type="checkbox" id="editShowStock" checked> Show stock badge</label>
-                        <label class="inline-check"><input type="checkbox" id="editIsFeatured"> Featured product</label>
-                    </div>
-                    <div class="row-2">
-                        <label class="inline-check"><input type="checkbox" id="editShowShare"> Show share button</label>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Video Settings</label>
-                    <div class="row-3">
-                        <label class="inline-check"><input type="checkbox" id="editVideoAutoplay" checked> Autoplay</label>
-                        <label class="inline-check"><input type="checkbox" id="editVideoLoop" checked> Loop</label>
-                        <label class="inline-check"><input type="checkbox" id="editVideoMuted" checked> Muted</label>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Frame</label>
-                    <div class="row-3">
-                        <div class="form-group"><label>Border Width (px)</label><input type="number" min="0" max="20" id="editBorderWidth" value="0"></div>
-                        <div class="form-group"><label>Border Color</label><input type="color" id="editBorderColor" value="#000000"></div>
-                        <div class="form-group"><label>Frame Padding (px)</label><input type="number" min="0" max="40" id="editFramePadding" value="0"></div>
-                    </div>
-                    <div class="form-group"><label>Object Fit</label><select id="editFrameObjectFit"><option value="contain">Contain</option><option value="cover">Cover</option></select></div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Backdrop — Top Half</label>
-                    <div class="row-2">
-                        <div class="form-group"><label>Type</label><select id="editBgTopType"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image</option><option value="video">Video</option></select></div>
-                        <div class="form-group"><label>Color 1</label><input type="color" id="editBgTopColor1" value="#f8f8f8"></div>
-                    </div>
-                    <div class="row-2">
-                        <div class="form-group"><label>Color 2 (gradient)</label><input type="color" id="editBgTopColor2" value="#e0e0e0"></div>
-                        <div class="form-group"><label>Media URL</label><input type="text" id="editBgTopUrl" placeholder="https://..."></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Backdrop — Bottom Half</label>
-                    <div class="row-2">
-                        <div class="form-group"><label>Type</label><select id="editBgBottomType"><option value="color">Solid Color</option><option value="gradient">Gradient</option><option value="animated">Animated Pulse</option><option value="image">Image</option><option value="video">Video</option></select></div>
-                        <div class="form-group"><label>Color 1</label><input type="color" id="editBgBottomColor1" value="#f8f8f8"></div>
-                    </div>
-                    <div class="row-2">
-                        <div class="form-group"><label>Color 2 (gradient)</label><input type="color" id="editBgBottomColor2" value="#e0e0e0"></div>
-                        <div class="form-group"><label>Media URL</label><input type="text" id="editBgBottomUrl" placeholder="https://..."></div>
-                    </div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Tags</label>
-                    <div class="form-group"><label>Comma-separated tags</label><input type="text" id="editTags" placeholder="abstract, landscape, limited-edition"></div>
-                </div>
-
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button type="submit" class="admin-btn confirm-pay" style="flex:2;">Save Product</button>
-                    <button type="button" class="admin-btn" id="deleteProductBtn" style="flex:1; display:none;">Delete</button>
-                </div>
-            </form>
         </div>
     </div>
 
