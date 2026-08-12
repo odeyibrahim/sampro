@@ -220,11 +220,11 @@ class HybridApp {
     }
 
     _applyNavContrast(c1, c2, navEl) {
-        // Sample the first colour (or second if first is missing)
+        // Always clear inline styles first so CSS dark-mode vars can take over.
+        // Previously this returned early when called with empty args,
+        // leaving stale inline colours that overrode dark mode.
         var sample = c1 || c2;
-        if (!sample) return; // nothing custom applied, keep defaults
-
-        var dark = this._isDarkColor(sample);
+        var dark = sample ? this._isDarkColor(sample) : false;
         var navColor = dark ? '#ffffff' : '';
         var arrowColor = dark ? 'rgba(255,255,255,0.7)' : '';
         var pageColor = dark ? 'rgba(255,255,255,0.6)' : '';
@@ -768,8 +768,8 @@ class HybridApp {
             el.style.background = '';
 
             // Priority: per-product bg > global backdrop > CSS vars (dark mode)
-            if (bg) {
-                // Per-product custom background — always apply (even in dark mode)
+            if (bg && !isDark) {
+                // Per-product custom background — skip in dark mode so CSS vars work
                 this._applyBgConfig(el, bg, video, image);
             } else if (useGlobal && !isDark && gb.color1) {
                 // Global backdrop from admin settings — skip in dark mode so CSS vars work
@@ -802,19 +802,24 @@ class HybridApp {
             this._applyNavContrast('', '', bottomNav);
         }
 
-        // Logo contrast
-        const topConfig = p.background_top;
-        if (topConfig) {
-            const topColor = topConfig.color1 || topConfig.color2 || '';
-            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
-            this._applyLogoContrast(topColor, bottomColor);
-        } else if (!isDark && gb && gb.color1) {
-            this._applyLogoContrast(gb.color1, gb.color2);
-        } else if (isDark) {
+        // Logo contrast — dark mode always wins to prevent stale inline colours
+        if (isDark) {
             const imgEl = document.querySelector('#siteLogo img');
             const textEl = document.querySelector('#siteLogo .logo-text');
             if (imgEl) imgEl.style.filter = 'brightness(0) invert(1)';
             if (textEl) textEl.style.color = '#ffffff';
+        } else if (topConfig) {
+            const topColor = topConfig.color1 || topConfig.color2 || '';
+            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
+            this._applyLogoContrast(topColor, bottomColor);
+        } else if (gb && gb.color1) {
+            this._applyLogoContrast(gb.color1, gb.color2);
+        } else {
+            // Clear leftover inline styles so CSS vars take over
+            const imgEl = document.querySelector('#siteLogo img');
+            const textEl = document.querySelector('#siteLogo .logo-text');
+            if (imgEl) imgEl.style.filter = '';
+            if (textEl) textEl.style.color = '';
         }
     }
 
