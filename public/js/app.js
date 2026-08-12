@@ -186,23 +186,63 @@ class HybridApp {
     }
 
     applyBackdropSettings(settings) {
-        // Store global backdrop config — applied later in renderBackgrounds()
-        // so it can be skipped in dark mode. We do NOT set inline CSS custom
-        // properties here because they would override body.dark-mode rules.
+        const root = document.documentElement;
+        const productHalf = document.getElementById('productHalf');
+        const infoHalf = document.getElementById('infoHalf');
+        const contentWrapper = document.getElementById('contentWrapper');
+        const bottomNav = document.querySelector('.bottom-nav');
+
         var color1 = settings.bg_color1 || '';
         var color2 = settings.bg_color2 || '';
         var bgImage = settings.bg_image || '';
-        var bgHalf = settings.bg_half || '';
+        var bgHalf = settings.bg_half || ''; // 'top', 'bottom', or 'both'
 
-        this._globalBackdrop = {
-            color1: color1,
-            color2: color2,
-            bgImage: bgImage,
-            applyTop: !bgHalf || bgHalf === 'top' || bgHalf === 'both',
-            applyBottom: !bgHalf || bgHalf === 'bottom' || bgHalf === 'both'
-        };
+        // Determine which halves get custom backgrounds
+        var applyTop = !bgHalf || bgHalf === 'top' || bgHalf === 'both';
+        var applyBottom = !bgHalf || bgHalf === 'bottom' || bgHalf === 'both';
 
-        // Apply logo contrast for global backdrop
+        // Build background CSS value
+        function buildBg(c1, c2, img) {
+            if (img) {
+                return 'url(' + img + ') center/cover no-repeat';
+            }
+            if (c1 && c2 && c1 !== c2) {
+                return 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
+            }
+            if (c1) return c1;
+            return '';
+        }
+
+        // Tier 3c: image only once (product half), colors for everything else
+        var topBg = applyTop ? buildBg(color1, color2, bgImage) : '';
+        var bottomBg = applyBottom ? buildBg(color1, color2, '') : ''; // colors only, no image repeat
+
+        // Apply to product half (top)
+        if (productHalf && topBg) {
+            productHalf.style.background = topBg;
+        }
+        // Apply to info half (bottom)
+        if (infoHalf && bottomBg) {
+            infoHalf.style.background = bottomBg;
+        }
+        // Sync CSS variables — set on BOTH :root and body so they
+        // override the body.dark-mode stylesheet rule (inline > stylesheet).
+        if (color1) {
+            root.style.setProperty('--bg-top', color1);
+            root.style.setProperty('--bg-bottom', color1);
+            document.body.style.setProperty('--bg-top', color1);
+            document.body.style.setProperty('--bg-bottom', color1);
+        }
+        // Keep bottom-nav background in sync with the info half
+        if (bottomNav && bottomBg) {
+            bottomNav.style.background = bottomBg;
+            bottomNav.style.backdropFilter = 'none';
+        }
+
+        // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
+        this._applyNavContrast(color1, color2, bottomNav);
+
+        // Logo contrast: switch logo between light/dark variants based on bg luminance
         this._applyLogoContrast(color1, color2);
     }
 
@@ -220,11 +260,11 @@ class HybridApp {
     }
 
     _applyNavContrast(c1, c2, navEl) {
-        // Always clear inline styles first so CSS dark-mode vars can take over.
-        // Previously this returned early when called with empty args,
-        // leaving stale inline colours that overrode dark mode.
+        // Sample the first colour (or second if first is missing)
         var sample = c1 || c2;
-        var dark = sample ? this._isDarkColor(sample) : false;
+        if (!sample) return; // nothing custom applied, keep defaults
+
+        var dark = this._isDarkColor(sample);
         var navColor = dark ? '#ffffff' : '';
         var arrowColor = dark ? 'rgba(255,255,255,0.7)' : '';
         var pageColor = dark ? 'rgba(255,255,255,0.6)' : '';
@@ -684,15 +724,15 @@ class HybridApp {
         }
 
         if (this.el.infoContainer) {
-            // Description-first is now the natural DOM order (from Block 2).
-            // Only apply .order-title-first when explicitly needed.
+            // For text products with body content, always show body first (content-first)
+            // unless explicitly set to title-first.
             let order;
             if (isTextProduct && p.content) {
                 order = p.content_order === 'title-first' ? 'title-first' : 'description-first';
             } else {
                 order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
             }
-            // Since description-first is now the DOM default, only toggle title-first override.
+            this.el.infoContainer.classList.toggle('order-description-first', order === 'description-first');
             this.el.infoContainer.classList.toggle('order-title-first', order === 'title-first');
         }
 
@@ -747,100 +787,60 @@ class HybridApp {
     }
 
     renderBackgrounds(p) {
-        const isDark = document.body.classList.contains('dark-mode');
-        const gb = this._globalBackdrop; // global backdrop from admin settings
-
         const halves = [
-            { el: this.el.productHalf, bg: p.background_top, useGlobal: gb && gb.applyTop, isTop: true, video: this.el.bgVideoTop, image: this.el.bgImageTop },
-            { el: this.el.infoHalf, bg: p.background_bottom, useGlobal: gb && gb.applyBottom, isTop: false, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
+            { el: this.el.productHalf, bg: p.background_top, video: this.el.bgVideoTop, image: this.el.bgImageTop },
+            { el: this.el.infoHalf, bg: p.background_bottom, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
         ];
 
-        // Also clear any leftover inline styles on bottom-nav
-        const bottomNav = document.querySelector('.bottom-nav');
-
-        halves.forEach(({ el, bg, useGlobal, isTop, video, image }) => {
+        halves.forEach(({ el, bg, video, image }) => {
             if (!el) return;
             el.classList.remove('bg-pulse');
             if (video) { video.classList.remove('visible'); video.pause(); video.removeAttribute('src'); }
             if (image) { image.classList.remove('visible'); image.removeAttribute('src'); }
 
             // Always clear inline background first so CSS variables (including dark mode) apply by default.
+            // Only set inline style when the product has a CUSTOM background configured in admin.
             el.style.background = '';
 
-            // Priority: per-product bg > global backdrop > CSS vars (dark mode)
-            if (bg && !isDark) {
-                // Per-product custom background — skip in dark mode so CSS vars work
-                this._applyBgConfig(el, bg, video, image);
-            } else if (useGlobal && !isDark && gb.color1) {
-                // Global backdrop from admin settings — skip in dark mode so CSS vars work
-                var c1 = gb.color1, c2 = gb.color2;
-                if (isTop && gb.bgImage) {
-                    el.style.background = 'url(' + gb.bgImage + ') center/cover no-repeat';
-                } else if (c1 && c2 && c1 !== c2) {
-                    el.style.background = 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
-                } else if (c1) {
-                    el.style.background = c1;
-                }
+            if (!bg) return; // No custom background → CSS vars handle it (dark mode works naturally)
+
+            // Product has a custom background config — always apply it (even in dark mode),
+            // because inline styles have higher specificity than CSS variable rules.
+            if (bg.type === 'gradient') {
+                el.style.background = `linear-gradient(135deg, ${bg.color1 || '#f8f8f8'}, ${bg.color2 || '#e0e0e0'})`;
+            } else if (bg.type === 'animated') {
+                el.style.background = bg.color1 || '#f8f8f8';
+                el.classList.add('bg-pulse');
+            } else if (bg.type === 'image' && bg.mediaUrl && image) {
+                el.style.background = bg.color1 || '#f8f8f8';
+                image.src = bg.mediaUrl;
+                image.classList.add('visible');
+            } else if (bg.type === 'video' && bg.mediaUrl && video) {
+                el.style.background = bg.color1 || '#f8f8f8';
+                video.src = bg.mediaUrl;
+                video.classList.add('visible');
+                video.play().catch(() => {});
+            } else {
+                el.style.background = bg.color1 || '#f8f8f8';
             }
-            // else: no custom bg, no global bg, or dark mode → CSS vars handle it
         });
 
-        // Sync bottom-nav background: use global backdrop (if not dark mode) or CSS var
-        if (bottomNav) {
-            bottomNav.style.background = '';
-            bottomNav.style.backdropFilter = '';
-            if (!isDark && gb && gb.color1 && gb.applyBottom) {
-                bottomNav.style.background = gb.color1;
-            }
-        }
-
-        // Nav contrast for global backdrop (only when not dark mode)
-        if (!isDark && gb && gb.color1) {
-            this._applyNavContrast(gb.color1, gb.color2, bottomNav);
+        // Per-product logo contrast: adjust logo based on the actual rendered background.
+        // Run whenever a custom background_top exists (even in dark mode, because the
+        // custom colour may be light). In dark mode without custom bg, the dark CSS var
+        // is already correct for the default logo style.
+        const topConfig = p.background_top;
+        const isDark = document.body.classList.contains('dark-mode');
+        if (topConfig) {
+            const topColor = topConfig.color1 || topConfig.color2 || '';
+            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
+            this._applyLogoContrast(topColor, bottomColor);
         } else if (isDark) {
-            // Reset nav contrast in dark mode
-            this._applyNavContrast('', '', bottomNav);
-        }
-
-        // Logo contrast — dark mode always wins to prevent stale inline colours
-        if (isDark) {
+            // Reset logo to dark-mode defaults (light logo on dark bg)
             const imgEl = document.querySelector('#siteLogo img');
             const textEl = document.querySelector('#siteLogo .logo-text');
             if (imgEl) imgEl.style.filter = 'brightness(0) invert(1)';
             if (textEl) textEl.style.color = '#ffffff';
-        } else if (topConfig) {
-            const topColor = topConfig.color1 || topConfig.color2 || '';
-            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
-            this._applyLogoContrast(topColor, bottomColor);
-        } else if (gb && gb.color1) {
-            this._applyLogoContrast(gb.color1, gb.color2);
-        } else {
-            // Clear leftover inline styles so CSS vars take over
-            const imgEl = document.querySelector('#siteLogo img');
-            const textEl = document.querySelector('#siteLogo .logo-text');
-            if (imgEl) imgEl.style.filter = '';
-            if (textEl) textEl.style.color = '';
-        }
-    }
-
-    // Helper to apply a background config object to an element
-    _applyBgConfig(el, bg, video, image) {
-        if (bg.type === 'gradient') {
-            el.style.background = 'linear-gradient(135deg, ' + (bg.color1 || '#f8f8f8') + ', ' + (bg.color2 || '#e0e0e0') + ')';
-        } else if (bg.type === 'animated') {
-            el.style.background = bg.color1 || '#f8f8f8';
-            el.classList.add('bg-pulse');
-        } else if (bg.type === 'image' && bg.mediaUrl && image) {
-            el.style.background = bg.color1 || '#f8f8f8';
-            image.src = bg.mediaUrl;
-            image.classList.add('visible');
-        } else if (bg.type === 'video' && bg.mediaUrl && video) {
-            el.style.background = bg.color1 || '#f8f8f8';
-            video.src = bg.mediaUrl;
-            video.classList.add('visible');
-            video.play().catch(() => {});
-        } else {
-            el.style.background = bg.color1 || '#f8f8f8';
         }
     }
 
@@ -1246,8 +1246,6 @@ class HybridApp {
     closeGrid() {
         this.el.gridOverlay.classList.remove('active');
         document.body.style.overflow = '';
-        // Re-render current product to prevent text disappearing
-        this.renderImmediate();
     }
 
     toggleGridDetails() {
