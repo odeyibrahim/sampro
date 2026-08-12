@@ -4,6 +4,26 @@
     box-sizing: border-box;
 }
 
+/* Prevent pinch-to-zoom on the entire site */
+
+/* Prevent iOS auto-zoom on input focus: minimum 16px font size */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+    font-size: 16px;
+}
+
+html, body {
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+    overscroll-behavior: none;
+}
+
 .skip-link {
     position: absolute;
     top: -60px;
@@ -92,21 +112,37 @@
     --color-border: #eee;
     --bg-top: #f8f8f8;
     --bg-bottom: #f8f8f8;
-    --nav-height: 60px;
+
+    /* Design-system tokens (from Block 2) */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --font-serif: 'Copperplate', 'Georgia', serif;
+    --font-sans: 'Work Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --transition-fast: 0.2s ease;
+    --transition-base: 0.3s ease;
+    --z-index-nav: 100;
+    --z-index-overlay: 1000;
+    --z-index-modal: 2000;
+    --z-index-loading: 3000;
+
+    --nav-height: 40px;
     --content-max-width: 100vw; /* Prevent side gaps on desktop */
 }
 
 body.dark-mode {
-    --color-primary: #fff;
+    --color-primary: #f0f0f0; /* Reduced halation on OLED vs #fff */
     --color-light: #1a1a1a;
-    --color-gray-light: #2a2a2a;
+    --color-gray-light: #333333; /* Better subtle contrast vs #2a2a2a */
     --color-gray: #999;
     --color-gray-dark: #aaa;
     --color-surface: #121212;
     --color-overlay: rgba(0,0,0,0.4);
     --color-border: #2a2a2a;
     --bg-top: #121212;
-    --bg-bottom: #121212;
+    --bg-bottom: #1a1a1a; /* Two-tone separation from Block 2 */
     background: #0a0a0a;
     color: #eee;
 }
@@ -116,10 +152,11 @@ body {
     background: var(--bg-top);
     color: #333;
     overflow: hidden;
-    height: 100vh;
+    height: 100vh; /* fallback */
+    height: 100dvh; /* dynamic viewport height for Safari */
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    transition: background 0.6s ease, color 0.6s ease;
+    transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 /* ---------- Offline banner ---------- */
@@ -143,7 +180,8 @@ body {
 .content-wrapper {
     max-width: var(--content-max-width);
     margin: 0 auto;
-    height: 100vh;
+    height: 100vh; /* fallback */
+    height: 100dvh; /* dynamic viewport height for Safari */
     background: var(--bg-top);
     position: relative;
     overflow: hidden;
@@ -239,14 +277,10 @@ body {
 .grid-icon-top:hover { color: var(--color-primary); }
 
 .gallery-brand {
-    position: absolute; /* Anchored to content wrapper */
-    bottom: 20px;
-    left: 20px;
     font-size: 10px;
     color: var(--color-gray);
     opacity: 0.7;
     cursor: pointer;
-    z-index: 100;
     font-family: 'Work Sans', sans-serif;
     letter-spacing: 1px;
     user-select: none;
@@ -272,7 +306,8 @@ body {
     display: grid;
     grid-template-rows: 1fr 1fr;
     gap: 0;
-    height: 100vh;
+    height: 100vh; /* fallback */
+    height: 100dvh; /* dynamic viewport height for Safari */
     opacity: 0;
     transition: opacity 0.6s ease;
 }
@@ -425,7 +460,8 @@ body {
 }
 .split-container.text-mode .product-half { display: none; }
 .split-container.text-mode .info-half {
-    height: 100vh;
+    height: 100vh; /* fallback */
+    height: 100dvh; /* dynamic viewport height for Safari */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -472,11 +508,9 @@ body {
     transform: translateY(6px);
 }
 
-.info-container .title-author { order: 0; }
-.info-container .description { order: 1; }
-.info-container .action-row { order: 2; }
-.info-container.order-description-first .description { order: 0; }
-.info-container.order-description-first .title-author { order: 1; }
+/* Description-first is now the natural DOM order (from Block 2).
+   .order-title-first overrides back to title-first for specific products. */
+.info-container.order-title-first .title-author { order: -1; }
 
 .title-author {
     display: flex;
@@ -542,6 +576,7 @@ body {
     background: var(--color-light);
     color: var(--color-primary);
 }
+.action-row .icon-button:active { transform: scale(0.95); }
 .action-row .icon-button.heart.saved { color: var(--color-heart); }
 .action-row .icon-button.heart.saved:active { animation: heartPop 0.35s ease; }
 @keyframes heartPop {
@@ -587,18 +622,25 @@ body {
 
 /* ---------- Bottom nav ---------- */
 .bottom-nav {
-    position: absolute; /* Anchored to wrapper */
+    position: fixed; /* Anchored to viewport (from Block 2) */
     bottom: 0; left: 0;
     width: 100%;
-    height: var(--nav-height);
     background: var(--bg-bottom);
-    border: none;
-    z-index: 1000;
-    padding: 0 20px;
+    border-top: 1px solid var(--color-border); /* Subtle separation (from Block 2) */
+    z-index: var(--z-index-nav); /* Token-based (from Block 2) */
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: background 0.6s ease;
+    transition: background var(--transition-base);
+}
+.nav-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 
@@ -611,15 +653,17 @@ body {
 .arrow-btn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 11px;
     color: var(--color-gray-dark);
     cursor: pointer;
-    padding: 8px;
+    padding: 4px;
     width: 32px; height: 32px;
     transition: all 0.2s;
+    touch-action: manipulation;
 }
 .arrow-btn:hover { color: var(--color-primary); }
-.arrow-btn:disabled { color: #ccc; cursor: not-allowed; }
+.arrow-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.arrow-btn:active:not(:disabled) { transform: scale(0.95); }
 
 .page-indicator {
     font-size: 11px;
