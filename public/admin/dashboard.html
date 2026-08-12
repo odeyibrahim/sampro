@@ -78,7 +78,6 @@
                             <button class="admin-btn confirm-pay" id="addProductBtn">+ Add</button>
                             <button class="admin-btn" id="importCsvBtn">Import CSV</button>
                             <button class="admin-btn" id="downloadCsvTemplateBtn">Template</button>
-                            <button class="admin-btn" id="previewTweakBtn" style="background:#1a1a2e;color:#fff;">Preview & Tweak</button>
                         </div>
                     </div>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
@@ -107,7 +106,7 @@
                                     <div class="form-group"><label>Title *</label><input type="text" id="editTitle" required></div>
                                     <div class="form-group"><label>Author</label><input type="text" id="editAuthor" value="V."></div>
                                 </div>
-                                <div class="form-group"><label>URL Slug</label><input type="text" id="editSlug" placeholder="auto-generated-from-title"></div>
+                                <div class="form-group"><label>URL Slug</label><input type="text" id="editSlug" placeholder="auto-generated-from-title" style="font-size:11px; color:#888;"></div>
                                 <div class="row-3">
                                     <div class="form-group"><label>Category</label><select id="editType"><option value="">None</option><option value="original">Original</option><option value="print">Print</option><option value="merch">Product</option><option value="craft">Handmade</option></select></div>
                                     <div class="form-group"><label>Media Kind</label><select id="editMediaKind"><option value="image">Image</option><option value="video">Video</option><option value="text">Text</option></select></div>
@@ -230,26 +229,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- Preview & Tweak: Iframe storefront with tap-to-edit overlays -->
-            <div class="preview-tweak-container" id="previewTweakContainer" style="display:none; position:relative; width:100%; height:calc(100vh - 160px); border:2px solid var(--border-color, #eee); border-radius:8px; overflow:hidden; background:#000;">
-                <div class="preview-tweak-toolbar" style="position:absolute; top:0; left:0; right:0; z-index:10; display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(0,0,0,0.85); color:#fff; font-size:12px;">
-                    <button class="admin-btn" id="previewTweakBack" style="padding:4px 12px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">← Back to List</button>
-                    <span id="previewTweakProduct" style="flex:1; font-weight:500; text-align:center; opacity:0.8;"></span>
-                    <button class="admin-btn" id="previewTweakPrev" style="padding:4px 10px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">‹ Prev</button>
-                    <button class="admin-btn" id="previewTweakNext" style="padding:4px 10px; font-size:11px; color:#fff; background:rgba(255,255,255,0.15); border:none;">Next ›</button>
-                    <button class="admin-btn" id="previewTweakSave" style="padding:4px 12px; font-size:11px; background:#4CAF50; color:#fff; border:none;">Save</button>
-                </div>
-                <iframe id="previewTweakFrame" style="width:100%; height:calc(100% - 36px); border:none;" sandbox="allow-scripts allow-same-origin"></iframe>
-                <!-- Floating edit panels (shown on tap) -->
-                <div id="ptEditPanel" style="display:none; position:absolute; bottom:12px; left:50%; transform:translateX(-50%); z-index:20; background:rgba(26,26,46,0.97); color:#fff; padding:16px; border-radius:8px; width:92%; max-width:380px; max-height:50vh; overflow-y:auto; font-size:13px; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span id="ptEditTitle" style="font-weight:600;"></span>
-                        <button id="ptEditClose" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">×</button>
-                    </div>
-                    <div id="ptEditBody"></div>
-                </div>
-            </div>
         </div>
 
         <!-- ════════════════════════════════════════════
@@ -306,15 +285,6 @@
                         <button class="admin-btn" id="refreshRatesBtn" style="margin-left:auto; font-size:11px; padding:4px 10px;">Force Refresh</button>
                     </div>
                     <div id="liveRatesPreview" style="font-size:11px; color:#666; margin-top:4px;"></div>
-                </div>
-
-                <div class="edit-section">
-                    <label class="section-label">Tax Rates (Nigeria)</label>
-                    <p style="font-size:11px; color:#888; margin-bottom:10px;">VAT applied at checkout. Enter as decimal (e.g. 0.075 for 7.5%). Only applies to Nigerian customers (NGN orders).</p>
-                    <div class="row-2">
-                        <div class="form-group"><label>NGN Tax Rate (e.g. 0.075)</label><input type="number" id="taxRateNGN" value="0" step="0.001" min="0" max="1"></div>
-                        <div class="form-group"><label>USD Tax Rate</label><input type="number" id="taxRateUSD" value="0" step="0.001" min="0" max="1"></div>
-                    </div>
                 </div>
 
                 <div class="edit-section">
