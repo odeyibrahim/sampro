@@ -609,7 +609,7 @@ body {
     background: var(--bg-bottom);
     border: none;
     z-index: 1000;
-    padding: 0 8px;
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
