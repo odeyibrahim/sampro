@@ -15,8 +15,8 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="icon" href="icons/icon-192.png">
     
-    <!-- Styles -->
-    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Styles (Relative Path) -->
+    <link rel="stylesheet" href="css/styles.css">
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
@@ -25,9 +25,9 @@
     <!-- Libraries -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     
-    <!-- App Scripts -->
-    <script src="/js/utils.js"></script>
-    <script src="/js/app.js" defer></script>
+    <!-- App Scripts (Relative Paths) -->
+    <script src="js/utils.js"></script>
+    <script src="js/app.js" defer></script>
 </head>
 <body>
     <a href="#mainContent" class="skip-link">Skip to content</a>
@@ -103,11 +103,11 @@
                 <img class="bg-media-layer" id="bgImageBottom" alt="">
 
                 <div class="info-container" id="infoContainer">
-                    <div class="description" id="descriptionText">Loading...</div>
                     <div class="title-author">
                         <span id="productTitle">-</span>
                         <span id="productCreator" class="product-creator">V.</span>
                     </div>
+                    <div class="description" id="descriptionText">Loading...</div>
 
                     <div class="action-row" id="priceRow">
                         <button class="currency-selector" id="currencyDisplay" type="button">USD</button>
@@ -122,15 +122,13 @@
 
             <!-- Bottom nav -->
             <nav class="bottom-nav" aria-label="Gallery navigation">
-                <div class="nav-content">
-                    <div class="nav-left">
-                        <span class="gallery-brand" id="galleryBrand">v.gallery.shop</span>
-                    </div>
-                    <div class="nav-arrows">
-                        <button class="arrow-btn" id="prevBtn" type="button" aria-label="Previous">‹</button>
-                        <div class="page-indicator" id="pageIndicator">1/1</div>
-                        <button class="arrow-btn" id="nextBtn" type="button" aria-label="Next">›</button>
-                    </div>
+                <div class="nav-left">
+                    <span class="gallery-brand" id="galleryBrand">v.gallery.shop</span>
+                </div>
+                <div class="nav-arrows">
+                    <button class="arrow-btn" id="prevBtn" type="button" aria-label="Previous">‹</button>
+                    <div class="page-indicator" id="pageIndicator">1/1</div>
+                    <button class="arrow-btn" id="nextBtn" type="button" aria-label="Next">›</button>
                 </div>
             </nav>
         </div>
