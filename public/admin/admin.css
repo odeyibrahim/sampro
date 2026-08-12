@@ -394,71 +394,6 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
     letter-spacing: 0.4px;
 }
 
-/* ---------- Catalog Panel Form Controls ---------- */
-.accordion-body .form-group input,
-.accordion-body .form-group textarea,
-.accordion-body .form-group select,
-.catalog-panel .form-group input,
-.catalog-panel .form-group textarea,
-.catalog-panel .form-group select {
-    width: 100%;
-    padding: 9px 10px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 13px;
-    background: #fff;
-    color: #000;
-    font-family: 'Roboto Mono', monospace;
-    margin-bottom: 2px;
-}
-.accordion-body .form-group textarea,
-.catalog-panel .form-group textarea {
-    min-height: 70px;
-    resize: vertical;
-}
-.accordion-body .form-group input[type="color"],
-.catalog-panel .form-group input[type="color"] {
-    padding: 4px;
-    height: 36px;
-    cursor: pointer;
-}
-.accordion-body .form-group input[type="number"],
-.catalog-panel .form-group input[type="number"] {
-    -moz-appearance: textfield;
-}
-.accordion-body .form-group input[type="number"]::-webkit-inner-spin-button,
-.accordion-body .form-group input[type="number"]::-webkit-outer-spin-button,
-.catalog-panel .form-group input[type="number"]::-webkit-inner-spin-button,
-.catalog-panel .form-group input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.accordion-body label.inline-check,
-.catalog-panel label.inline-check {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    text-transform: none;
-    color: #333;
-    cursor: pointer;
-    margin: 6px 4px;
-}
-.accordion-body label.inline-check input,
-.catalog-panel label.inline-check input {
-    width: auto;
-    margin: 0;
-}
-.accordion-body > label:not(.inline-check):not([class]),
-.catalog-panel > label:not(.inline-check):not([class]) {
-    display: block;
-    font-size: 10px;
-    color: #888;
-    margin: 8px 0 3px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-}
-
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
@@ -624,28 +559,6 @@ body.admin-dashboard-body.dark-mode .accordion-section { border-color: #2a2a2a; 
 body.admin-dashboard-body.dark-mode .accordion-trigger { background: #111; color: #D0A380; }
 body.admin-dashboard-body.dark-mode .accordion-trigger:hover { background: #1a1a1a; }
 body.admin-dashboard-body.dark-mode .accordion-body { background: #1a1a1a; }
-body.admin-dashboard-body.dark-mode .accordion-body .form-group input,
-body.admin-dashboard-body.dark-mode .accordion-body .form-group textarea,
-body.admin-dashboard-body.dark-mode .accordion-body .form-group select,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group input,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group textarea,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group select {
-    background: #0a0a0a;
-    border-color: #333;
-    color: #e0e0e0;
-}
-body.admin-dashboard-body.dark-mode .accordion-body .form-group input:focus,
-body.admin-dashboard-body.dark-mode .accordion-body .form-group textarea:focus,
-body.admin-dashboard-body.dark-mode .accordion-body .form-group select:focus,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group input:focus,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group textarea:focus,
-body.admin-dashboard-body.dark-mode .catalog-panel .form-group select:focus {
-    border-color: #D0A380;
-}
-body.admin-dashboard-body.dark-mode .accordion-body label.inline-check,
-body.admin-dashboard-body.dark-mode .catalog-panel label.inline-check { color: #ccc; }
-body.admin-dashboard-body.dark-mode .accordion-body > label:not(.inline-check):not([class]),
-body.admin-dashboard-body.dark-mode .catalog-panel > label:not(.inline-check):not([class]) { color: #888; }
 
 @media (max-width: 900px) {
     .catalog-layout { grid-template-columns: 1fr; }
