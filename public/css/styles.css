@@ -4,6 +4,26 @@
     box-sizing: border-box;
 }
 
+/* Prevent pinch-to-zoom on the entire site */
+
+/* Prevent iOS auto-zoom on input focus: minimum 16px font size */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+    font-size: 16px;
+}
+
+html, body {
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+    overscroll-behavior: none;
+}
+
 .skip-link {
     position: absolute;
     top: -60px;
@@ -92,7 +112,7 @@
     --color-border: #eee;
     --bg-top: #f8f8f8;
     --bg-bottom: #f8f8f8;
-    --nav-height: 60px;
+    --nav-height: 40px;
     --content-max-width: 100vw; /* Prevent side gaps on desktop */
 }
 
@@ -239,14 +259,10 @@ body {
 .grid-icon-top:hover { color: var(--color-primary); }
 
 .gallery-brand {
-    position: absolute; /* Anchored to content wrapper */
-    bottom: 20px;
-    left: 20px;
     font-size: 10px;
     color: var(--color-gray);
     opacity: 0.7;
     cursor: pointer;
-    z-index: 100;
     font-family: 'Work Sans', sans-serif;
     letter-spacing: 1px;
     user-select: none;
@@ -590,11 +606,10 @@ body {
     position: absolute; /* Anchored to wrapper */
     bottom: 0; left: 0;
     width: 100%;
-    height: var(--nav-height);
     background: var(--bg-bottom);
     border: none;
     z-index: 1000;
-    padding: 0 20px;
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -611,12 +626,13 @@ body {
 .arrow-btn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 11px;
     color: var(--color-gray-dark);
     cursor: pointer;
-    padding: 8px;
+    padding: 4px;
     width: 32px; height: 32px;
     transition: all 0.2s;
+    touch-action: manipulation;
 }
 .arrow-btn:hover { color: var(--color-primary); }
 .arrow-btn:disabled { color: #ccc; cursor: not-allowed; }
