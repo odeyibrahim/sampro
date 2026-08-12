@@ -543,9 +543,11 @@ class HybridApp {
     }
 
     async loadProducts() {
-        this.showLoading(true);
         try {
-            const response = await fetch('/.netlify/functions/get-products');
+            const response = await Promise.race([
+                fetch('/.netlify/functions/get-products'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+            ]);
             const data = await response.json();
             if (data && data.length > 0) {
                 this.products = data;
@@ -561,7 +563,6 @@ class HybridApp {
         }
         this._routeFromUrl();
         this.updateDisplay();
-        this.showLoading(false);
     }
 
     loadSaved() {
@@ -768,8 +769,8 @@ class HybridApp {
             el.style.background = '';
 
             // Priority: per-product bg > global backdrop > CSS vars (dark mode)
-            if (bg && !isDark) {
-                // Per-product custom background — skip in dark mode so CSS vars work
+            if (bg) {
+                // Per-product custom background — always apply (even in dark mode)
                 this._applyBgConfig(el, bg, video, image);
             } else if (useGlobal && !isDark && gb.color1) {
                 // Global backdrop from admin settings — skip in dark mode so CSS vars work
