@@ -684,15 +684,15 @@ class HybridApp {
         }
 
         if (this.el.infoContainer) {
-            // Description-first is now the natural DOM order (from Block 2).
-            // Only apply .order-title-first when explicitly needed.
+            // For text products with body content, always show body first (content-first)
+            // unless explicitly set to title-first.
             let order;
             if (isTextProduct && p.content) {
                 order = p.content_order === 'title-first' ? 'title-first' : 'description-first';
             } else {
                 order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
             }
-            // Since description-first is now the DOM default, only toggle title-first override.
+            this.el.infoContainer.classList.toggle('order-description-first', order === 'description-first');
             this.el.infoContainer.classList.toggle('order-title-first', order === 'title-first');
         }
 
