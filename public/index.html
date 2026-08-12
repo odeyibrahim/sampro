@@ -15,7 +15,22 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="icon" href="icons/icon-192.png">
     
-    <!-- Styles -->
+    <!-- Critical: intro overlay painted instantly before external CSS arrives -->
+    <style>
+        .intro-overlay{position:fixed;inset:0;background:#1a1a1a;z-index:9999;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;opacity:1;transition:opacity .6s ease;pointer-events:all}
+        .intro-overlay.hidden{opacity:0;pointer-events:none}
+        .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
+        @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .intro-poem{font-size:clamp(18px,4vh,18px);line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif}
+        .intro-signature{color:#D0A380;font-size:24px;margin-bottom:40px;font-family:'Copperplate',Georgia,serif}
+        .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s}
+        .enter-gallery:hover{background:#000;color:#fff}
+        .loading{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;display:none;align-items:center;justify-content:center}
+        .loading.active{display:flex}
+        .spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.15);border-top-color:#D0A380;border-radius:50%;animation:ciSpin .7s linear infinite}
+        @keyframes ciSpin{to{transform:rotate(360deg)}}
+    </style>
+    <link rel="preload" href="/css/styles.css" as="style">
     <link rel="stylesheet" href="/css/styles.css">
     
     <!-- Fonts -->
