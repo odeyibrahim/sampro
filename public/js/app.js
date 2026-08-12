@@ -9,7 +9,8 @@ class HybridApp {
         this.shippingZones = {};  // { 'NG:NGN': { standard: { cost, estimated_days }, express: ... } }
         this.shippingCountries = [];  // [{ code, name }]
         this.selectedCountry = '';
-        this.ratesSource = 'fallback';  // 'live' | 'cached' | 'manual' | 'fallback'
+        this.ratesSource = 'fallback';
+        this.taxRates = { NGN: 0, USD: 0 }; // tax_rate from admin settings  // 'live' | 'cached' | 'manual' | 'fallback'
         // Display labels for internal type values.
         // Used in grid items and anywhere type is shown to visitors.
         // 'text' is omitted — text products are identified by media_kind,
@@ -52,6 +53,7 @@ class HybridApp {
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
         this.setRandomVerse();
         this.showIntro();
+        this._initPreviewTweak();
     }
 
     async loadStoreSettings() {
@@ -91,6 +93,9 @@ class HybridApp {
                     }
                 } catch (e) {}
             }
+            // Store tax rates for checkout display
+            this.taxRates.NGN = parseFloat(settings.tax_rate_ngn) || 0;
+            this.taxRates.USD = parseFloat(settings.tax_rate_usd) || 0;
             // Apply backdrop / background customisation from admin settings
             this.applyBackdropSettings(settings);
             // Store live_rates_enabled for the currency fetch
@@ -181,61 +186,24 @@ class HybridApp {
     }
 
     applyBackdropSettings(settings) {
-        const root = document.documentElement;
-        const productHalf = document.getElementById('productHalf');
-        const infoHalf = document.getElementById('infoHalf');
-        const contentWrapper = document.getElementById('contentWrapper');
-        const bottomNav = document.querySelector('.bottom-nav');
-
+        // Store global backdrop config — applied later in renderBackgrounds()
+        // so it can be skipped in dark mode. We do NOT set inline CSS custom
+        // properties here because they would override body.dark-mode rules.
         var color1 = settings.bg_color1 || '';
         var color2 = settings.bg_color2 || '';
         var bgImage = settings.bg_image || '';
-        var bgHalf = settings.bg_half || ''; // 'top', 'bottom', or 'both'
+        var bgHalf = settings.bg_half || '';
 
-        // Determine which halves get custom backgrounds
-        var applyTop = !bgHalf || bgHalf === 'top' || bgHalf === 'both';
-        var applyBottom = !bgHalf || bgHalf === 'bottom' || bgHalf === 'both';
+        this._globalBackdrop = {
+            color1: color1,
+            color2: color2,
+            bgImage: bgImage,
+            applyTop: !bgHalf || bgHalf === 'top' || bgHalf === 'both',
+            applyBottom: !bgHalf || bgHalf === 'bottom' || bgHalf === 'both'
+        };
 
-        // Build background CSS value
-        function buildBg(c1, c2, img) {
-            if (img) {
-                return 'url(' + img + ') center/cover no-repeat';
-            }
-            if (c1 && c2 && c1 !== c2) {
-                return 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
-            }
-            if (c1) return c1;
-            return '';
-        }
-
-        // Tier 3c: image only once (product half), colors for everything else
-        var topBg = applyTop ? buildBg(color1, color2, bgImage) : '';
-        var bottomBg = applyBottom ? buildBg(color1, color2, '') : ''; // colors only, no image repeat
-
-        // Apply to product half (top)
-        if (productHalf && topBg) {
-            productHalf.style.background = topBg;
-        }
-        // Apply to info half (bottom)
-        if (infoHalf && bottomBg) {
-            infoHalf.style.background = bottomBg;
-        }
-        // Sync CSS variables — set on BOTH :root and body so they
-        // override the body.dark-mode stylesheet rule (inline > stylesheet).
-        if (color1) {
-            root.style.setProperty('--bg-top', color1);
-            root.style.setProperty('--bg-bottom', color1);
-            document.body.style.setProperty('--bg-top', color1);
-            document.body.style.setProperty('--bg-bottom', color1);
-        }
-        // Keep bottom-nav background in sync with the info half
-        if (bottomNav && bottomBg) {
-            bottomNav.style.background = bottomBg;
-            bottomNav.style.backdropFilter = 'none';
-        }
-
-        // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
-        this._applyNavContrast(color1, color2, bottomNav);
+        // Apply logo contrast for global backdrop
+        this._applyLogoContrast(color1, color2);
     }
 
     // Determine whether a background colour is "dark" (perceived luminance < 0.4)
@@ -275,6 +243,27 @@ class HybridApp {
         if (navEl) navEl.style.color = navColor;
     }
 
+    _applyLogoContrast(c1, c2) {
+        const siteLogo = document.getElementById('siteLogo');
+        if (!siteLogo) return;
+
+        const sample = c1 || c2;
+        if (!sample) return;
+
+        const isDark = this._isDarkColor(sample);
+        const imgEl = siteLogo.querySelector('img');
+        const textEl = siteLogo.querySelector('.logo-text');
+
+        // If there's a logo image, invert it for dark backgrounds
+        if (imgEl) {
+            imgEl.style.filter = isDark ? 'brightness(0) invert(1)' : 'none';
+        }
+        // If text logo, ensure it contrasts
+        if (textEl) {
+            textEl.style.color = isDark ? '#ffffff' : '';
+        }
+    }
+
     // ---- SEO URL routing ----
     // Reads /product/:slug from the URL bar, finds the matching
     // product, and navigates to it.  Falls back to index 0.
@@ -282,7 +271,11 @@ class HybridApp {
         const match = window.location.pathname.match(/^\/product\/([\w\-]+)$/);
         if (!match) return;
         const slug = decodeURIComponent(match[1]);
-        const idx = this.products.findIndex(p => p.slug === slug);
+        // Match against DB slug first, then fall back to title-derived slug
+        let idx = this.products.findIndex(p => p.slug === slug);
+        if (idx === -1) {
+            idx = this.products.findIndex(p => this._slugify(p.title) === slug);
+        }
         if (idx !== -1) {
             this.currentIndex = idx;
         }
@@ -290,10 +283,20 @@ class HybridApp {
 
     // Push a SEO URL into the browser history without reload.
     // Called after every product navigation (next/prev/grid click).
+    _slugify(text) {
+        if (!text) return '';
+        return text.toLowerCase().trim()
+            .replace(/[\s\u00A0]+/g, '-')
+            .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+    }
+
     _pushProductUrl() {
         const p = this.products[this.currentIndex];
         if (!p) return;
-        const slug = p.slug;
+        // Use DB slug if available, otherwise generate one from title
+        const slug = p.slug || this._slugify(p.title);
         const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
         const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
         if (window.location.pathname !== url) {
@@ -328,6 +331,105 @@ class HybridApp {
             this._routeFromUrl();
         }
         this.renderImmediate();
+    }
+
+    // ---- Preview & Tweak: tap-to-edit overlays ----
+    // When loaded with ?pt=1 (inside admin iframe), add clickable overlay
+    // zones on image, description, background, and action row that
+    // postMessage to the parent admin window.
+    _initPreviewTweak() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('pt') !== '1') return;
+        if (window.parent === window) return; // not in iframe
+
+        this._ptMode = true;
+
+        // Skip intro in preview mode — go straight to gallery
+        this.showIntro = function() {};
+        this.enterGallery = function() {
+            if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
+            this.updateDisplay();
+        };
+        // Enter immediately once products are loaded
+        const origLoad = this.loadProducts.bind(this);
+        this.loadProducts = async function() {
+            await origLoad();
+            this.enterGallery();
+            this._ptCreateOverlays();
+        };
+
+        // Listen for navigation commands from parent admin
+        window.addEventListener('message', (e) => {
+            if (e.origin !== window.location.origin) return;
+            if (!e.data || e.data.type !== 'pt-navigate') return;
+            const idx = parseInt(e.data.index, 10);
+            if (!isNaN(idx) && idx >= 0 && idx < this.products.length) {
+                this.currentIndex = idx;
+                this.updateDisplay();
+                this._ptRefreshOverlays();
+                window.parent.postMessage({ type: 'pt-navigated', index: idx }, window.location.origin);
+            }
+        });
+    }
+
+    _ptCreateOverlays() {
+        if (!this._ptMode) return;
+        // Inject styles once
+        if (!document.getElementById('ptStyles')) {
+            const style = document.createElement('style');
+            style.id = 'ptStyles';
+            style.textContent = `
+                .pt-overlay { position: absolute; z-index: 500; cursor: pointer;
+                    border: 2px dashed rgba(76,175,80,0.7); background: rgba(76,175,80,0.08);
+                    display: flex; align-items: center; justify-content: center;
+                    transition: background 0.2s; pointer-events: auto; }
+                .pt-overlay:hover { background: rgba(76,175,80,0.18); }
+                .pt-overlay-label { font-size: 10px; color: rgba(76,175,80,0.9); font-weight: 600;
+                    text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;
+                    font-family: 'Work Sans', sans-serif; }
+                .pt-overlay-image { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+                .pt-overlay-desc { top: 8px; left: 8px; right: 8px; bottom: 8px; border-radius: 4px; }
+                .pt-overlay-actions { top: 4px; left: 8px; right: 8px; bottom: 4px; border-radius: 4px; }
+                .pt-overlay-bg { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        this._ptRefreshOverlays();
+    }
+
+    _ptRefreshOverlays() {
+        // Remove old overlays
+        document.querySelectorAll('.pt-overlay').forEach(el => el.remove());
+
+        const productId = () => this.products[this.currentIndex]?.product_id || '';
+        const send = (zone) => {
+            window.parent.postMessage({ type: 'pt-edit', zone, productId: productId() }, window.location.origin);
+        };
+
+        const zones = [
+            { selector: '.product-half', cls: 'pt-overlay pt-overlay-bg', label: 'BACKGROUND', zone: 'background' },
+            { selector: '.frame-container', cls: 'pt-overlay pt-overlay-image', label: 'IMAGE', zone: 'image' },
+            { selector: '.info-container', cls: 'pt-overlay pt-overlay-desc', label: 'DESCRIPTION', zone: 'description' },
+            { selector: '.action-row', cls: 'pt-overlay pt-overlay-actions', label: 'PRICE & VISIBILITY', zone: 'actions' }
+        ];
+
+        zones.forEach(z => {
+            const parent = document.querySelector(z.selector);
+            if (!parent) return;
+            if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+            const overlay = document.createElement('div');
+            overlay.className = z.cls;
+            overlay.innerHTML = '<span class="pt-overlay-label">Tap to edit: ' + z.label + '</span>';
+            overlay.onclick = (e) => { e.preventDefault(); e.stopPropagation(); send(z.zone); };
+            parent.appendChild(overlay);
+        });
+
+        // Disable the normal image tap (zoom/cycle/expand) in PT mode
+        if (this.el.productFrame) this.el.productFrame.onclick = null;
+        if (this.el.cartButton) this.el.cartButton.onclick = null;
+        if (this.el.heartButton) this.el.heartButton.onclick = null;
+        if (this.el.galleryBrand) this.el.galleryBrand.onclick = null;
     }
 
     registerServiceWorker() {
@@ -582,15 +684,15 @@ class HybridApp {
         }
 
         if (this.el.infoContainer) {
-            // For text products with body content, always show body first (content-first)
-            // unless explicitly set to title-first.
+            // Description-first is now the natural DOM order (from Block 2).
+            // Only apply .order-title-first when explicitly needed.
             let order;
             if (isTextProduct && p.content) {
                 order = p.content_order === 'title-first' ? 'title-first' : 'description-first';
             } else {
                 order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
             }
-            this.el.infoContainer.classList.toggle('order-description-first', order === 'description-first');
+            // Since description-first is now the DOM default, only toggle title-first override.
             this.el.infoContainer.classList.toggle('order-title-first', order === 'title-first');
         }
 
@@ -645,42 +747,96 @@ class HybridApp {
     }
 
     renderBackgrounds(p) {
-        const halves = [
-            { el: this.el.productHalf, bg: p.background_top, video: this.el.bgVideoTop, image: this.el.bgImageTop },
-            { el: this.el.infoHalf, bg: p.background_bottom, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
-        ];
         const isDark = document.body.classList.contains('dark-mode');
+        const gb = this._globalBackdrop; // global backdrop from admin settings
 
-        halves.forEach(({ el, bg, video, image }) => {
+        const halves = [
+            { el: this.el.productHalf, bg: p.background_top, useGlobal: gb && gb.applyTop, isTop: true, video: this.el.bgVideoTop, image: this.el.bgImageTop },
+            { el: this.el.infoHalf, bg: p.background_bottom, useGlobal: gb && gb.applyBottom, isTop: false, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
+        ];
+
+        // Also clear any leftover inline styles on bottom-nav
+        const bottomNav = document.querySelector('.bottom-nav');
+
+        halves.forEach(({ el, bg, useGlobal, isTop, video, image }) => {
             if (!el) return;
             el.classList.remove('bg-pulse');
             if (video) { video.classList.remove('visible'); video.pause(); video.removeAttribute('src'); }
             if (image) { image.classList.remove('visible'); image.removeAttribute('src'); }
 
-            if (isDark) {
-                el.style.background = '';
-                return;
-            }
+            // Always clear inline background first so CSS variables (including dark mode) apply by default.
+            el.style.background = '';
 
-            const config = bg || { type: 'color', color1: '#f8f8f8' };
-            if (config.type === 'gradient') {
-                el.style.background = `linear-gradient(135deg, ${config.color1 || '#f8f8f8'}, ${config.color2 || '#e0e0e0'})`;
-            } else if (config.type === 'animated') {
-                el.style.background = config.color1 || '#f8f8f8';
-                el.classList.add('bg-pulse');
-            } else if (config.type === 'image' && config.mediaUrl && image) {
-                el.style.background = config.color1 || '#f8f8f8';
-                image.src = config.mediaUrl;
-                image.classList.add('visible');
-            } else if (config.type === 'video' && config.mediaUrl && video) {
-                el.style.background = config.color1 || '#f8f8f8';
-                video.src = config.mediaUrl;
-                video.classList.add('visible');
-                video.play().catch(() => {});
-            } else {
-                el.style.background = config.color1 || '#f8f8f8';
+            // Priority: per-product bg > global backdrop > CSS vars (dark mode)
+            if (bg) {
+                // Per-product custom background — always apply (even in dark mode)
+                this._applyBgConfig(el, bg, video, image);
+            } else if (useGlobal && !isDark && gb.color1) {
+                // Global backdrop from admin settings — skip in dark mode so CSS vars work
+                var c1 = gb.color1, c2 = gb.color2;
+                if (isTop && gb.bgImage) {
+                    el.style.background = 'url(' + gb.bgImage + ') center/cover no-repeat';
+                } else if (c1 && c2 && c1 !== c2) {
+                    el.style.background = 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
+                } else if (c1) {
+                    el.style.background = c1;
+                }
             }
+            // else: no custom bg, no global bg, or dark mode → CSS vars handle it
         });
+
+        // Sync bottom-nav background: use global backdrop (if not dark mode) or CSS var
+        if (bottomNav) {
+            bottomNav.style.background = '';
+            bottomNav.style.backdropFilter = '';
+            if (!isDark && gb && gb.color1 && gb.applyBottom) {
+                bottomNav.style.background = gb.color1;
+            }
+        }
+
+        // Nav contrast for global backdrop (only when not dark mode)
+        if (!isDark && gb && gb.color1) {
+            this._applyNavContrast(gb.color1, gb.color2, bottomNav);
+        } else if (isDark) {
+            // Reset nav contrast in dark mode
+            this._applyNavContrast('', '', bottomNav);
+        }
+
+        // Logo contrast
+        const topConfig = p.background_top;
+        if (topConfig) {
+            const topColor = topConfig.color1 || topConfig.color2 || '';
+            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
+            this._applyLogoContrast(topColor, bottomColor);
+        } else if (!isDark && gb && gb.color1) {
+            this._applyLogoContrast(gb.color1, gb.color2);
+        } else if (isDark) {
+            const imgEl = document.querySelector('#siteLogo img');
+            const textEl = document.querySelector('#siteLogo .logo-text');
+            if (imgEl) imgEl.style.filter = 'brightness(0) invert(1)';
+            if (textEl) textEl.style.color = '#ffffff';
+        }
+    }
+
+    // Helper to apply a background config object to an element
+    _applyBgConfig(el, bg, video, image) {
+        if (bg.type === 'gradient') {
+            el.style.background = 'linear-gradient(135deg, ' + (bg.color1 || '#f8f8f8') + ', ' + (bg.color2 || '#e0e0e0') + ')';
+        } else if (bg.type === 'animated') {
+            el.style.background = bg.color1 || '#f8f8f8';
+            el.classList.add('bg-pulse');
+        } else if (bg.type === 'image' && bg.mediaUrl && image) {
+            el.style.background = bg.color1 || '#f8f8f8';
+            image.src = bg.mediaUrl;
+            image.classList.add('visible');
+        } else if (bg.type === 'video' && bg.mediaUrl && video) {
+            el.style.background = bg.color1 || '#f8f8f8';
+            video.src = bg.mediaUrl;
+            video.classList.add('visible');
+            video.play().catch(() => {});
+        } else {
+            el.style.background = bg.color1 || '#f8f8f8';
+        }
     }
 
     formatPrice(usd) {
@@ -945,9 +1101,11 @@ class HybridApp {
         const shipping = shippingInfo.cost || 0;
 
         const subtotal = p.base_price * this.checkoutQuantity;
-        // Tax display: server computes actual tax, but show a reasonable
-        // estimate here. Use 0 since server handles it.
-        const tax = 0;
+        // Tax: estimate client-side from admin-configured rate.
+        // Server computes the actual tax in create_pending_order RPC.
+        const currency = this.selectedCurrency;
+        const taxRate = this.taxRates[currency] || this.taxRates[currency.toUpperCase()] || 0;
+        const tax = Math.round(subtotal * taxRate * 100) / 100;
         const total = subtotal + shipping + tax;
 
         if (this.el.checkoutSubtotal) this.el.checkoutSubtotal.innerText = this.formatPrice(subtotal);
@@ -958,7 +1116,9 @@ class HybridApp {
             }
             this.el.checkoutShipping.innerText = shipLabel;
         }
-        if (this.el.checkoutTax) this.el.checkoutTax.innerText = this.formatPrice(tax);
+        if (this.el.checkoutTax) {
+            this.el.checkoutTax.innerText = taxRate > 0 ? this.formatPrice(tax) + ' (' + (taxRate * 100).toFixed(1) + '%)' : this.formatPrice(0);
+        }
         const totalSpan = document.getElementById('checkoutTotal');
         if (totalSpan) totalSpan.innerText = this.formatPrice(total);
     }
@@ -1081,6 +1241,8 @@ class HybridApp {
     closeGrid() {
         this.el.gridOverlay.classList.remove('active');
         document.body.style.overflow = '';
+        // Re-render current product to prevent text disappearing
+        this.renderImmediate();
     }
 
     toggleGridDetails() {
