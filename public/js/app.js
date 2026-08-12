@@ -39,30 +39,20 @@ class HybridApp {
 
     async init() {
         this.bindElements();
-
-        // Show intro IMMEDIATELY — zero network dependency.
-        // The user sees the verse + enter button while products load in background.
-        this.setRandomVerse();
-        this.showIntro();
-        const enterBtn = document.getElementById('enterGalleryBtn');
-        if (enterBtn) enterBtn.onclick = () => this.enterGallery();
-
-        // Synchronous setup — no async needed
+        await this.loadProducts();
         this.loadSaved();
         this.loadCurrency();
+        this.fetchCurrencyRates();
+        this.fetchShippingZones();
         this.setupEvents();
         this.setupSwipe();
         this.setupPwa();
         this.updateOfflineBanner();
-
-        // Async but non-blocking — fire and forget
-        this.fetchCurrencyRates();
-        this.fetchShippingZones();
         this.loadStoreSettings();
-
-        // Products load in background; intro is already visible
-        this.loadProducts();
-
+        const enterBtn = document.getElementById('enterGalleryBtn');
+        if (enterBtn) enterBtn.onclick = () => this.enterGallery();
+        this.setRandomVerse();
+        this.showIntro();
         this._initPreviewTweak();
     }
 
@@ -230,11 +220,11 @@ class HybridApp {
     }
 
     _applyNavContrast(c1, c2, navEl) {
-        // Always clear inline styles first so CSS dark-mode vars can take over.
-        // Previously this returned early when called with empty args,
-        // leaving stale inline colours that overrode dark mode.
+        // Sample the first colour (or second if first is missing)
         var sample = c1 || c2;
-        var dark = sample ? this._isDarkColor(sample) : false;
+        if (!sample) return; // nothing custom applied, keep defaults
+
+        var dark = this._isDarkColor(sample);
         var navColor = dark ? '#ffffff' : '';
         var arrowColor = dark ? 'rgba(255,255,255,0.7)' : '';
         var pageColor = dark ? 'rgba(255,255,255,0.6)' : '';
@@ -553,48 +543,25 @@ class HybridApp {
     }
 
     async loadProducts() {
-        // --- Cache-first: instant render from previous visit ---
-        var cached = null;
+        this.showLoading(true);
         try {
-            var raw = localStorage.getItem('products_cache');
-            if (raw) cached = JSON.parse(raw);
-        } catch (e) {}
-        if (cached && Array.isArray(cached) && cached.length > 0) {
-            this.products = cached;
-            this._routeFromUrl();
-            this.renderImmediate();
-        }
-
-        // --- Then refresh from network ---
-        try {
-            this.showLoading(true);
-            const response = await Promise.race([
-                fetch('/.netlify/functions/get-products'),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-            ]);
+            const response = await fetch('/.netlify/functions/get-products');
             const data = await response.json();
             if (data && data.length > 0) {
                 this.products = data;
-                // Persist for next visit's instant load
-                try { localStorage.setItem('products_cache', JSON.stringify(data)); } catch (e) {}
-                this._routeFromUrl();
-                this.updateDisplay();
+            } else {
+                throw new Error('No products from API');
             }
         } catch (e) {
-            // If no cache was loaded either, fall back to hardcoded samples
-            if (this.products.length === 0) {
-                this.products = [
-                    { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
-                    { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
-                    { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
-                ];
-                this._routeFromUrl();
-                this.updateDisplay();
-            }
-            // If cache was already rendered above, user sees nothing wrong
-        } finally {
-            this.showLoading(false);
+            this.products = [
+                { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
+                { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
+                { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
+            ];
         }
+        this._routeFromUrl();
+        this.updateDisplay();
+        this.showLoading(false);
     }
 
     loadSaved() {
@@ -717,15 +684,15 @@ class HybridApp {
         }
 
         if (this.el.infoContainer) {
-            // Description-first is now the natural DOM order (from Block 2).
-            // Only apply .order-title-first when explicitly needed.
+            // For text products with body content, always show body first (content-first)
+            // unless explicitly set to title-first.
             let order;
             if (isTextProduct && p.content) {
                 order = p.content_order === 'title-first' ? 'title-first' : 'description-first';
             } else {
                 order = p.content_order === 'description-first' ? 'description-first' : 'title-first';
             }
-            // Since description-first is now the DOM default, only toggle title-first override.
+            this.el.infoContainer.classList.toggle('order-description-first', order === 'description-first');
             this.el.infoContainer.classList.toggle('order-title-first', order === 'title-first');
         }
 
@@ -835,24 +802,19 @@ class HybridApp {
             this._applyNavContrast('', '', bottomNav);
         }
 
-        // Logo contrast — dark mode always wins to prevent stale inline colours
-        if (isDark) {
+        // Logo contrast
+        const topConfig = p.background_top;
+        if (topConfig) {
+            const topColor = topConfig.color1 || topConfig.color2 || '';
+            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
+            this._applyLogoContrast(topColor, bottomColor);
+        } else if (!isDark && gb && gb.color1) {
+            this._applyLogoContrast(gb.color1, gb.color2);
+        } else if (isDark) {
             const imgEl = document.querySelector('#siteLogo img');
             const textEl = document.querySelector('#siteLogo .logo-text');
             if (imgEl) imgEl.style.filter = 'brightness(0) invert(1)';
             if (textEl) textEl.style.color = '#ffffff';
-        } else if (topConfig) {
-            const topColor = topConfig.color1 || topConfig.color2 || '';
-            const bottomColor = p.background_bottom ? (p.background_bottom.color1 || p.background_bottom.color2 || '') : '';
-            this._applyLogoContrast(topColor, bottomColor);
-        } else if (gb && gb.color1) {
-            this._applyLogoContrast(gb.color1, gb.color2);
-        } else {
-            // Clear leftover inline styles so CSS vars take over
-            const imgEl = document.querySelector('#siteLogo img');
-            const textEl = document.querySelector('#siteLogo .logo-text');
-            if (imgEl) imgEl.style.filter = '';
-            if (textEl) textEl.style.color = '';
         }
     }
 
