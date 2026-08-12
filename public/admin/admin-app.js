@@ -225,6 +225,8 @@
                 if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
             } catch (e) {}
         }
+        if (settings.tax_rate_ngn) document.getElementById('taxRateNGN').value = settings.tax_rate_ngn;
+        if (settings.tax_rate_usd) document.getElementById('taxRateUSD').value = settings.tax_rate_usd;
         if (settings.logo_url) {
             var logoPreview = document.getElementById('logoPreview');
             if (logoPreview) { logoPreview.src = settings.logo_url; }
@@ -600,7 +602,9 @@
             ship_local_ngn_std: parseFloat(document.getElementById('localStdNGN').value) || 0,
             ship_local_ngn_exp: parseFloat(document.getElementById('localExpNGN').value) || 0,
             whatsapp: document.getElementById('settingWhatsapp').value.trim(),
-            logo_size: parseInt(document.getElementById('logoSizeRange').value) || 36
+            logo_size: parseInt(document.getElementById('logoSizeRange').value) || 36,
+            tax_rate_ngn: parseFloat(document.getElementById('taxRateNGN').value) || 0,
+            tax_rate_usd: parseFloat(document.getElementById('taxRateUSD').value) || 0
         };
         // Include logo if one was uploaded
         if (uploadedLogoData) {
@@ -1145,5 +1149,174 @@
             });
             observer.observe(catPanel, { attributes: true, attributeFilter: ['class'] });
         }
+
+        // ═══════════════════════════════════════════════════════
+        // PREVIEW & TWEAK MODE
+        // Embeds the live storefront in an iframe with tap-to-edit
+        // overlays. Tap image→upload, tap description→editable,
+        // tap background→color picker, tap action row→toggle visibility.
+        // ═══════════════════════════════════════════════════════
+        var ptContainer = document.getElementById('previewTweakContainer');
+        var ptFrame = document.getElementById('previewTweakFrame');
+        var ptBackBtn = document.getElementById('previewTweakBack');
+        var ptSaveBtn = document.getElementById('previewTweakSave');
+        var ptPrevBtn = document.getElementById('previewTweakPrev');
+        var ptNextBtn = document.getElementById('previewTweakNext');
+        var ptEditPanel = document.getElementById('ptEditPanel');
+        var ptEditTitle = document.getElementById('ptEditTitle');
+        var ptEditBody = document.getElementById('ptEditBody');
+        var ptEditClose = document.getElementById('ptEditClose');
+        var ptProductLabel = document.getElementById('previewTweakProduct');
+        var ptProducts = []; // loaded products list
+        var ptIndex = 0;    // current product in preview
+        var ptFrameReady = false;
+
+        function ptLoadProducts() {
+            return apiCall('get_products').then(function (list) {
+                ptProducts = Array.isArray(list) ? list : [];
+            });
+        }
+
+        function ptShow() {
+            ptContainer.style.display = 'block';
+            document.getElementById('catalogLayout').style.display = 'none';
+            ptLoadProducts().then(function () {
+                ptIndex = 0;
+                if (!ptFrameReady) {
+                    ptFrame.src = '/?pt=1';
+                    ptFrame.onload = function () { ptFrameReady = true; ptSendNavigate(); };
+                } else {
+                    ptSendNavigate();
+                }
+                ptUpdateLabel();
+            });
+        }
+
+        function ptHide() {
+            ptContainer.style.display = 'none';
+            ptEditPanel.style.display = 'none';
+            document.getElementById('catalogLayout').style.display = '';
+            ptFrame.src = 'about:blank';
+            ptFrameReady = false;
+            loadProducts();
+        }
+
+        function ptSendNavigate() {
+            if (!ptFrameReady || !ptFrame.contentWindow) return;
+            ptFrame.contentWindow.postMessage({ type: 'pt-navigate', index: ptIndex }, window.location.origin);
+        }
+
+        function ptUpdateLabel() {
+            var p = ptProducts[ptIndex];
+            if (ptProductLabel) ptProductLabel.textContent = (ptIndex + 1) + '/' + ptProducts.length + ' — ' + (p && p.title ? p.title : 'Untitled');
+        }
+
+        // Called from within the iframe via postMessage
+        window.addEventListener('message', function (e) {
+            if (e.origin !== window.location.origin) return;
+            if (!e.data) return;
+            if (e.data.type === 'pt-edit') {
+                ptShowEditPanel(e.data.zone, e.data.productId);
+            }
+        });
+
+        function ptShowEditPanel(zone, productId) {
+            var p = ptProducts.find(function (x) { return x.product_id === productId; });
+            if (!p) return;
+
+            ptEditPanel.style.display = 'block';
+            var html = '';
+
+            if (zone === 'image') {
+                ptEditTitle.textContent = 'Edit Image';
+                html = '<div class="form-group"><label>Image URL</label><input type="text" id="ptField_image_url" value="' + esc(p.image_url || '') + '" style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"></div>';
+                html += '<label style="display:block;margin-top:8px;font-size:12px;opacity:0.7;">Or upload new image</label>';
+                html += '<input type="file" id="ptImageUpload" accept="image/*" style="margin-top:4px;font-size:16px;"></div>';
+            } else if (zone === 'description') {
+                ptEditTitle.textContent = 'Edit Description';
+                html = '<div class="form-group"><label>Title</label><input type="text" id="ptField_title" value="' + esc(p.title || '') + '" style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"></div>';
+                html += '<div class="form-group" style="margin-top:8px;"><label>Description</label><textarea id="ptField_description" rows="4" style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;">' + esc(p.description || '') + '</textarea></div>';
+            } else if (zone === 'background') {
+                ptEditTitle.textContent = 'Edit Background';
+                var bgTop = p.background_top || {};
+                html = '<p style="font-size:11px;opacity:0.6;margin-bottom:8px;">Top Half Background</p>';
+                html += '<div style="display:flex;gap:8px;margin-bottom:8px;"><div class="form-group" style="flex:1;"><label>Type</label><select id="ptField_bg_top_type" style="width:100%;padding:6px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"><option value="color"' + (bgTop.type === 'color' ? ' selected' : '') + '>Color</option><option value="gradient"' + (bgTop.type === 'gradient' ? ' selected' : '') + '>Gradient</option><option value="image"' + (bgTop.type === 'image' ? ' selected' : '') + '>Image</option></select></div>';
+                html += '<div class="form-group" style="flex:1;"><label>Color 1</label><input type="color" id="ptField_bg_top_c1" value="' + (bgTop.color1 || '#f8f8f8') + '" style="width:100%;height:36px;border:none;border-radius:4px;"></div></div>';
+                html += '<div style="display:flex;gap:8px;"><div class="form-group" style="flex:1;"><label>Color 2</label><input type="color" id="ptField_bg_top_c2" value="' + (bgTop.color2 || '#e0e0e0') + '" style="width:100%;height:36px;border:none;border-radius:4px;"></div>';
+                html += '<div class="form-group" style="flex:1;"><label>Media URL</label><input type="text" id="ptField_bg_top_url" value="' + esc(bgTop.mediaUrl || '') + '" placeholder="https://..." style="width:100%;padding:6px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"></div></div>';
+            } else if (zone === 'actions') {
+                ptEditTitle.textContent = 'Toggle Visibility';
+                html = '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;"><input type="checkbox" id="ptField_show_price" ' + (p.show_price !== false ? 'checked' : '') + ' style="width:18px;height:18px;"> Show price</label>';
+                html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;"><input type="checkbox" id="ptField_show_author" ' + (p.show_author !== false ? 'checked' : '') + ' style="width:18px;height:18px;"> Show author</label>';
+                html += '<label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;"><input type="checkbox" id="ptField_show_stock" ' + (p.show_stock !== false ? 'checked' : '') + ' style="width:18px;height:18px;"> Show stock badge</label>';
+                html += '<div class="form-group" style="margin-top:12px;"><label>Price (USD)</label><input type="number" id="ptField_price" value="' + (p.base_price || 0) + '" step="0.01" style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"></div>';
+                html += '<div class="form-group" style="margin-top:8px;"><label>Stock</label><input type="number" id="ptField_stock" value="' + (p.stock || 0) + '" min="0" style="width:100%;padding:8px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;font-size:16px;"></div>';
+            }
+
+            html += '<button id="ptEditApply" style="margin-top:12px;padding:8px 20px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;width:100%;">Apply</button>';
+            ptEditBody.innerHTML = html;
+
+            // Wire up apply button
+            var applyBtn = document.getElementById('ptEditApply');
+            if (applyBtn) applyBtn.onclick = function () { ptApplyEdit(zone, p); };
+
+            // Wire up image upload
+            var uploadInput = document.getElementById('ptImageUpload');
+            if (uploadInput) {
+                uploadInput.onchange = function () {
+                    handleFileUpload(uploadInput, null, function (base64) {
+                        var urlInput = document.getElementById('ptField_image_url');
+                        if (urlInput) urlInput.value = base64;
+                    });
+                };
+            }
+        }
+
+        function ptApplyEdit(zone, p) {
+            var data = { product_id: p.product_id };
+
+            if (zone === 'image') {
+                data.image_url = document.getElementById('ptField_image_url').value.trim();
+            } else if (zone === 'description') {
+                data.title = document.getElementById('ptField_title').value.trim();
+                data.description = document.getElementById('ptField_description').value.trim();
+            } else if (zone === 'background') {
+                data.background_top = {
+                    type: document.getElementById('ptField_bg_top_type').value,
+                    color1: document.getElementById('ptField_bg_top_c1').value,
+                    color2: document.getElementById('ptField_bg_top_c2').value,
+                    mediaUrl: document.getElementById('ptField_bg_top_url').value.trim()
+                };
+            } else if (zone === 'actions') {
+                data.show_price = document.getElementById('ptField_show_price').checked;
+                data.show_author = document.getElementById('ptField_show_author').checked;
+                data.show_stock = document.getElementById('ptField_show_stock').checked;
+                data.base_price = parseFloat(document.getElementById('ptField_price').value) || 0;
+                data.stock = parseInt(document.getElementById('ptField_stock').value, 10) || 0;
+            }
+
+            ptEditPanel.style.display = 'none';
+            showNotification('Saving...');
+
+            apiCall('update_product', data).then(function (result) {
+                if (result.error) { showNotification(result.error, 'error'); return; }
+                showNotification('Saved');
+                // Refresh product list and re-render
+                ptLoadProducts().then(function () { ptUpdateLabel(); ptSendNavigate(); });
+            });
+        }
+
+        function ptSaveAll() {
+            ptHide();
+        }
+
+        // Wire buttons
+        var ptTweakBtn = document.getElementById('previewTweakBtn');
+        if (ptTweakBtn) ptTweakBtn.onclick = ptShow;
+        if (ptBackBtn) ptBackBtn.onclick = ptHide;
+        if (ptSaveBtn) ptSaveBtn.onclick = ptSaveAll;
+        if (ptPrevBtn) ptPrevBtn.onclick = function () { if (ptIndex > 0) { ptIndex--; ptUpdateLabel(); ptSendNavigate(); } };
+        if (ptNextBtn) ptNextBtn.onclick = function () { if (ptIndex < ptProducts.length - 1) { ptIndex++; ptUpdateLabel(); ptSendNavigate(); } };
+        if (ptEditClose) ptEditClose.onclick = function () { ptEditPanel.style.display = 'none'; };
     });
 })();
