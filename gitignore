@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Netlify
+.netlify/
+.netlify/state.json
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Build output
+dist/
+.cache/
+.functions/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
