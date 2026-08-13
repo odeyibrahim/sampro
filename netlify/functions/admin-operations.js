@@ -3,22 +3,16 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendPaymentConfirmedEmail } from './_lib/email.js';
 import { getSettings } from './_lib/settings.js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_WINDOW_MINUTES = 15;
 
 // Helper: resolve the correct match key/value for a lookup by id or product_id.
-// Prevents 'invalid input syntax for type uuid: "undefined"' when
-// the client sends product_id (text) but the query used id (uuid).
 function resolveId(data) {
     if (data.id) return { key: 'id', val: data.id };
     if (data.product_id) return { key: 'product_id', val: data.product_id };
     return null;
-}
-
-function getClientIp(event) {
-    const fwd = event.headers['x-forwarded-for'] || event.headers['X-Forwarded-For'];
-    return fwd ? fwd.split(',')[0].trim() : 'unknown';
 }
 
 // Helper: generate a URL-safe slug from a title.
@@ -27,19 +21,13 @@ function slugify(text) {
     return text
         .toLowerCase()
         .trim()
-        .replace(/[\s\u00A0]+/g, '-')          // spaces → hyphens
-        .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '') // remove non-alphanumeric (keep accented latin)
-        .replace(/-+/g, '-')                       // collapse multiple hyphens
-        .replace(/^-|-$/g, '');                     // trim leading/trailing hyphens
+        .replace(/[\s\u00A0]+/g, '-')
+        .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
 }
 
-// Shared by create_product/update_product. Builds the full set of
-// writable product columns — including frame_style/background_top/
-// background_bottom/content/tags/compare_price/is_featured, which
-// existed in the schema but were never wired up until now, plus the
-// design-system columns added in migration 003 (media_kind,
-// typography, visibility toggles, content order, video settings),
-// and the SEO slug from migration 005.
+// Shared by create_product/update_product.
 function productFieldsFromData(data, { excludeShare, excludeSlug } = {}) {
     const fields = {
         title: data.title,
@@ -81,8 +69,11 @@ function productFieldsFromData(data, { excludeShare, excludeSlug } = {}) {
 }
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
+    // No wildcard fallback — if SITE_URL is unset, cross-origin requests
+    // from browsers will be blocked (empty string = no ACAO header).
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Token',
         'Content-Type': 'application/json'
     };
@@ -109,8 +100,6 @@ export const handler = async (event) => {
 
         // ============================================================
         // LOGIN — fails closed if ADMIN_PASSWORD_HASH isn't configured.
-        // No "demo mode" fallback: an unset hash is a configuration
-        // error, not an open door.
         // ============================================================
         if (operation === 'login') {
             const clientIp = getClientIp(event);
@@ -154,6 +143,12 @@ export const handler = async (event) => {
             const token = crypto.randomBytes(32).toString('hex');
             const expiresAt = new Date();
             expiresAt.setHours(expiresAt.getHours() + 24);
+
+            // SECURITY: Clean up expired sessions on every successful login
+            // to prevent the admin_sessions table from growing unbounded.
+            try {
+                await supabase.from('admin_sessions').delete().lt('expires_at', new Date().toISOString());
+            } catch (_) {}
 
             const { error: insertError } = await supabase
                 .from('admin_sessions')
@@ -237,7 +232,6 @@ export const handler = async (event) => {
                     .select()
                     .single();
 
-                // Fallback: retry without columns that may not exist yet
                 if (createError && ((createError.message || '').includes('show_share') || (createError.message || '').includes('slug'))) {
                     const opts = {};
                     if ((createError.message || '').includes('show_share')) opts.excludeShare = true;
@@ -254,7 +248,6 @@ export const handler = async (event) => {
                     if (retry.error) return { statusCode: 500, headers, body: JSON.stringify({ error: retry.error.message }) };
                     result = retry.data;
                 } else if (createError && (createError.message || '').includes('unique') && (createError.message || '').includes('slug')) {
-                    // Slug collision — append random suffix
                     const baseSlug = data.slug || slugify(data.title);
                     const uniqueSlug = baseSlug + '-' + Math.random().toString(36).substr(2, 4);
                     const retry = await supabase
@@ -289,7 +282,6 @@ export const handler = async (event) => {
                     .select()
                     .single();
 
-                // Fallback: retry without columns that may not exist yet
                 if (updateError && ((updateError.message || '').includes('show_share') || (updateError.message || '').includes('slug'))) {
                     const opts = {};
                     if ((updateError.message || '').includes('show_share')) opts.excludeShare = true;
@@ -355,14 +347,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // Manual confirmation for bank/domiciliary transfers.
-            // The admin has looked at the actual bank statement and
-            // confirmed the money landed — this reuses the exact same
-            // atomic, idempotent function the webhooks call, so stock
-            // decrements and customer stats update consistently no
-            // matter which payment path was used.
-            // ------------------------------------------------------
             case 'confirm_bank_payment': {
                 if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order id required' }) };
                 const { data: order } = await supabase
@@ -397,17 +381,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // REFUND — for paystack/flutterwave orders, actually calls
-            // the provider's refund API using the stored transaction_id
-            // before touching our own records. For bank_transfer orders
-            // there's no refund API to call (same as there's no payment
-            // API to call) — the admin sends the money back manually,
-            // outside this system, and this just records that it
-            // happened. Either way, mark_order_refunded() is the only
-            // thing that changes payment_status/stock, mirroring how
-            // mark_order_paid() is the single choke point on the way in.
-            // ------------------------------------------------------
             case 'refund_order': {
                 if (!data.id) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Order id required' }) };
                 const { data: order } = await supabase
@@ -446,7 +419,6 @@ export const handler = async (event) => {
                         return { statusCode: 502, headers, body: JSON.stringify({ error: refundData.message || 'Flutterwave refund failed' }) };
                     }
                 }
-                // bank_transfer: no API call — admin has already sent the money back manually.
 
                 const { data: refundResult, error: refundError } = await supabase.rpc('mark_order_refunded', {
                     p_order_id: data.id,
@@ -461,9 +433,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // DISCOUNT CODES
-            // ------------------------------------------------------
             case 'get_discount_codes': {
                 const { data: codes } = await supabase
                     .from('discount_codes')
@@ -527,21 +496,11 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // SETTINGS — store name, logo URL, WhatsApp number, tax
-            // rates. Generic key/value upsert so the admin UI never
-            // needs the Supabase Table Editor for day-to-day changes.
-            // ------------------------------------------------------
             case 'get_settings': {
                 result = await getSettings(supabase);
                 break;
             }
 
-            // ------------------------------------------------------
-            // DASHBOARD INIT — returns stats, products (summary),
-            // recent orders, and settings in one round-trip so the
-            // admin doesn't fire 4 separate cold-start invocations.
-            // ------------------------------------------------------
             case 'dashboard_init': {
                 const [ordersResult, revenueResult, productsResult, customersResult, ordersFull, settingsResult] = await Promise.all([
                     supabase.from('orders').select('*', { count: 'exact', head: true }),
@@ -589,12 +548,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // SHIPPING RATES — one row per (method, currency). Editing
-            // here writes straight to the table create_pending_order()
-            // already reads from, so changes apply to checkout
-            // immediately, no redeploy.
-            // ------------------------------------------------------
             case 'get_shipping_rates': {
                 const { data: rates } = await supabase
                     .from('shipping_rates')
@@ -621,11 +574,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // CSV IMPORT — bulk-create products from CSV rows.
-            // Each row maps to the same schema as create_product.
-            // Column headers must match the field names below.
-            // ------------------------------------------------------
             case 'import_csv': {
                 if (!Array.isArray(data.products) || data.products.length === 0) {
                     return { statusCode: 400, headers, body: JSON.stringify({ error: 'No products in CSV data' }) };
@@ -658,9 +606,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // SHIPPING ZONES — country-based shipping CRUD
-            // ------------------------------------------------------
             case 'get_shipping_zones': {
                 const { data: zones } = await supabase
                     .from('shipping_zones')
@@ -726,13 +671,7 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // LIVE CURRENCY RATES — force-refresh or toggle
-            // ------------------------------------------------------
             case 'refresh_currency_rates': {
-                // Trigger a live fetch by calling the public endpoint
-                // (or inline the same logic). We inline to avoid
-                // a serverless-to-serverless cold start.
                 try {
                     const resp = await fetch('https://api.frankfurter.app/latest?from=USD', {
                         signal: AbortSignal.timeout(5000)
@@ -759,9 +698,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            // ------------------------------------------------------
-            // REORDER PRODUCTS — drag-to-sort save
-            // ------------------------------------------------------
             case 'reorder_products': {
                 const order = data.order;
                 if (!Array.isArray(order) || order.length === 0) {
@@ -769,8 +705,6 @@ export const handler = async (event) => {
                     break;
                 }
                 try {
-                    // Update sort_order for each product sequentially
-                    // (avoids Supabase concurrent-write conflicts)
                     let failCount = 0;
                     for (const item of order) {
                         const res = await supabase
