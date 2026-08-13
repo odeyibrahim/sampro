@@ -71,7 +71,7 @@
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
         // Map tab names to section IDs: overview→adminOverview, catalog→adminCatalog, orders→adminOrders, config→adminConfig
-        var idMap = { overview: 'adminOverview', catalog: 'adminCatalog', orders: 'adminOrders', config: 'adminConfig' };
+        var idMap = { overview: 'adminOverview', catalog: 'adminCatalog', config: 'adminConfig' };
         var targetId = idMap[tabName] || ('admin' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
         document.querySelectorAll('.admin-section').forEach(function(section) {
             section.classList.toggle('active', section.id === targetId);
@@ -156,9 +156,7 @@
 
     function renderOrdersTables(orders) {
         var tbody = document.getElementById('adminOrdersBody');
-        var recent = document.getElementById('recentOrdersBody');
         if (tbody) tbody.innerHTML = orders.map(mapOrder).join('');
-        if (recent) recent.innerHTML = orders.slice(-6).reverse().map(mapOrder).join('');
     }
 
     function renderLowStock(products) {
@@ -304,7 +302,7 @@
         if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
         // Reset all text/number fields
-        ['editTitle','editAuthor','editDescription','editImageUrl','editPrice','editComparePrice','editVariations','editTags','editSlug'].forEach(function (id) {
+        ['editTitle','editAuthor','editDescription','editImageUrl','editPrice','editVariations','editTags'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -324,17 +322,14 @@
         if (document.getElementById('editContentOrder')) document.getElementById('editContentOrder').value = 'title-first';
         if (document.getElementById('editFontWeight')) document.getElementById('editFontWeight').value = '400';
         if (document.getElementById('editTextTransform')) document.getElementById('editTextTransform').value = 'none';
-        if (document.getElementById('editFrameObjectFit')) document.getElementById('editFrameObjectFit').value = 'contain';
-        if (document.getElementById('editFontSize')) document.getElementById('editFontSize').value = '11';
-        if (document.getElementById('editBorderWidth')) document.getElementById('editBorderWidth').value = '0';
-        if (document.getElementById('editBorderColor')) document.getElementById('editBorderColor').value = '#000000';
-        if (document.getElementById('editFramePadding')) document.getElementById('editFramePadding').value = '0';
 
-        // Reset backdrop fields
-        ['editBgTopType','editBgBottomType'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = 'color'; });
-        ['editBgTopColor1','editBgBottomColor1'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = '#f8f8f8'; });
-        ['editBgTopColor2','editBgBottomColor2'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = '#e0e0e0'; });
-        ['editBgTopUrl','editBgBottomUrl'].forEach(function(id) { if (document.getElementById(id)) document.getElementById(id).value = ''; });
+        if (document.getElementById('editFontSize')) document.getElementById('editFontSize').value = '12';
+
+        // Reset backdrop top fields
+        if (document.getElementById('editBgTopType')) document.getElementById('editBgTopType').value = 'color';
+        if (document.getElementById('editBgTopColor1')) document.getElementById('editBgTopColor1').value = '#f8f8f8';
+        if (document.getElementById('editBgTopColor2')) document.getElementById('editBgTopColor2').value = '#e0e0e0';
+        if (document.getElementById('editBgTopUrl')) document.getElementById('editBgTopUrl').value = '';
 
         // Reset checkboxes
         ['editShowAuthor','editShowPrice','editShowStock','editVideoAutoplay','editVideoLoop','editVideoMuted'].forEach(function(id) {
@@ -355,8 +350,7 @@
                 if (!Array.isArray(result)) return;
                 var p = result.find(function (x) { return String(x.product_id) === String(productId); });
                 if (!p) return;
-                document.getElementById('editTitle').value = p.title || '';
-                document.getElementById('editSlug').value = p.slug || '';
+        document.getElementById('editTitle').value = p.title || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
                 // editContent removed from UI — content field not used
@@ -365,7 +359,6 @@
                 document.getElementById('editOrientation').value = p.orientation || 'square';
                 document.getElementById('editStock').value = p.stock || 1;
                 document.getElementById('editPrice').value = p.base_price || '';
-                document.getElementById('editComparePrice').value = p.compare_price || '';
                 document.getElementById('editImageUrl').value = p.image_url || '';
                 document.getElementById('editTags').value = Array.isArray(p.tags) ? p.tags.join(', ') : '';
 
@@ -402,31 +395,19 @@
                 document.getElementById('editIsFeatured').checked = !!p.is_featured;
                 document.getElementById('editShowShare').checked = !!p.show_share;
 
-                // Backdrop top
+        // Backdrop top
                 var bgTop = p.background_top || {};
                 if (document.getElementById('editBgTopType')) document.getElementById('editBgTopType').value = bgTop.type || 'color';
                 if (document.getElementById('editBgTopColor1')) document.getElementById('editBgTopColor1').value = bgTop.color1 || '#f8f8f8';
                 if (document.getElementById('editBgTopColor2')) document.getElementById('editBgTopColor2').value = bgTop.color2 || '#e0e0e0';
                 if (document.getElementById('editBgTopUrl')) document.getElementById('editBgTopUrl').value = bgTop.mediaUrl || '';
 
-                // Backdrop bottom
-                var bgBottom = p.background_bottom || {};
-                if (document.getElementById('editBgBottomType')) document.getElementById('editBgBottomType').value = bgBottom.type || 'color';
-                if (document.getElementById('editBgBottomColor1')) document.getElementById('editBgBottomColor1').value = bgBottom.color1 || '#f8f8f8';
-                if (document.getElementById('editBgBottomColor2')) document.getElementById('editBgBottomColor2').value = bgBottom.color2 || '#e0e0e0';
-                if (document.getElementById('editBgBottomUrl')) document.getElementById('editBgBottomUrl').value = bgBottom.mediaUrl || '';
-
                 // Video
                 document.getElementById('editVideoAutoplay').checked = p.video_autoplay !== false;
                 document.getElementById('editVideoLoop').checked = p.video_loop !== false;
                 document.getElementById('editVideoMuted').checked = p.video_muted !== false;
 
-                // Frame
-                var frame = p.frame_style || {};
-                if (document.getElementById('editBorderWidth')) document.getElementById('editBorderWidth').value = frame.borderWidth || 0;
-                if (document.getElementById('editBorderColor')) document.getElementById('editBorderColor').value = frame.borderColor || '#000000';
-                if (document.getElementById('editFramePadding')) document.getElementById('editFramePadding').value = frame.padding || 0;
-                if (document.getElementById('editFrameObjectFit')) document.getElementById('editFrameObjectFit').value = frame.objectFit || 'contain';
+
             });
         }
 
@@ -478,9 +459,16 @@
         var originalBtnText = submitBtn ? submitBtn.textContent : '';
         if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
 
+        // Auto-generate slug from title
+        var slugVal = titleVal.toLowerCase().trim()
+            .replace(/[\s\u00A0]+/g, '-')
+            .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+
         var data = {
             title: titleVal,
-            slug: val('editSlug').trim() || undefined, // empty = auto-generate from title
+            slug: slugVal || undefined,
             author: val('editAuthor').trim() || 'V.',
             description: val('editDescription').trim(),
             content: '', // text_content field removed from admin UI
@@ -489,12 +477,12 @@
             orientation: val('editOrientation'),
             stock: parseInt(val('editStock'), 10) || 0,
             base_price: priceVal,
-            compare_price: parseFloat(val('editComparePrice')) || null,
+            compare_price: null,
             image_url: uploadedFileData || val('editImageUrl').trim(),
             variations: allVariations,
             tags: tags,
             font_family: val('editFontFamily'),
-            font_size: parseInt(val('editFontSize'), 10) || 11,
+            font_size: parseInt(val('editFontSize'), 10) || 12,
             font_weight: parseInt(val('editFontWeight'), 10) || 400,
             text_transform: val('editTextTransform'),
             content_order: val('editContentOrder'),
@@ -506,23 +494,11 @@
             video_autoplay: chk('editVideoAutoplay'),
             video_loop: chk('editVideoLoop'),
             video_muted: chk('editVideoMuted'),
-            frame_style: {
-                borderWidth: parseInt(val('editBorderWidth'), 10) || 0,
-                borderColor: val('editBorderColor') || '#000000',
-                padding: parseInt(val('editFramePadding'), 10) || 0,
-                objectFit: val('editFrameObjectFit') || 'contain'
-            },
             background_top: {
                 type: val('editBgTopType'),
                 color1: val('editBgTopColor1'),
                 color2: val('editBgTopColor2'),
                 mediaUrl: val('editBgTopUrl').trim()
-            },
-            background_bottom: {
-                type: val('editBgBottomType'),
-                color1: val('editBgBottomColor1'),
-                color2: val('editBgBottomColor2'),
-                mediaUrl: val('editBgBottomUrl').trim()
             }
         };
 
@@ -537,6 +513,8 @@
         showNotification(editingId ? 'Product updated' : 'Product added');
         closeEditModal();
         Promise.all([loadProducts(), loadStats()]);
+        // Broadcast change to frontend
+        broadcastChange('products_updated');
     }
 
     async function deleteProduct(productId) {
@@ -610,6 +588,8 @@
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Settings saved');
         uploadedLogoData = null;
+        // Broadcast change to frontend
+        broadcastChange('settings_updated');
         // Persist dark mode preference
         var isDark = document.body.classList.contains('dark-mode');
         try { localStorage.setItem('admin_dark_mode', isDark ? '1' : '0'); } catch(e) {}
@@ -790,6 +770,14 @@
         a.download = 'vgallery_product_template.csv';
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    // ---- BroadcastChannel for real-time frontend updates ----
+    var bc = null;
+    try { bc = new BroadcastChannel('vgallery_admin'); } catch(e) {}
+    function broadcastChange(type) {
+        if (bc) bc.postMessage({ type: type, ts: Date.now() });
+        try { localStorage.setItem('vgallery_admin_event', JSON.stringify({ type: type, ts: Date.now() })); } catch(e) {}
     }
 
     function logout() {
@@ -1112,38 +1100,12 @@
         // ---- Image URL live preview ----
         setupImageUrlPreview();
 
-        // Auto-generate slug from title when slug field is empty/unmodified
-        var titleInput = document.getElementById('editTitle');
-        var slugInput = document.getElementById('editSlug');
-        var slugManuallyEdited = false;
-        if (titleInput && slugInput) {
-            titleInput.addEventListener('input', function () {
-                if (slugManuallyEdited) return;
-                var raw = titleInput.value.toLowerCase().trim()
-                    .replace(/[\s\u00A0]+/g, '-')
-                    .replace(/[^a-z0-9\-\u00C0-\u024F]+/g, '')
-                    .replace(/-+/g, '-')
-                    .replace(/^-|-$/g, '');
-                slugInput.value = raw;
-            });
-            slugInput.addEventListener('input', function () {
-                slugManuallyEdited = true;
-            });
-        }
+        // ---- Slug auto-generates from title (no manual field) ----
 
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeEditModal();
         });
 
-        // Reset slugManuallyEdited each time the edit panel opens
-        var catPanel = document.getElementById('catalogPanel');
-        if (catPanel) {
-            var observer = new MutationObserver(function () {
-                if (catPanel.classList.contains('active')) {
-                    slugManuallyEdited = false;
-                }
-            });
-            observer.observe(catPanel, { attributes: true, attributeFilter: ['class'] });
-        }
+
     });
 })();
