@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getSettings } from './_lib/settings.js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 // Public counterpart to get-products.js. Deliberately returns only the
 // subset of `settings` that's safe to expose with no auth: branding
@@ -10,8 +11,9 @@ import { getSettings } from './_lib/settings.js';
 // this function, so a future admin-only setting can't leak by accident.
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -25,12 +27,17 @@ export const handler = async (event) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // SECURITY: Rate limit — 60 requests per IP per minute on public GET
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'get-settings', 60, 1);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
+
         const settings = await getSettings(supabase);
 
-        // Safe public fields — exchange_rates and logo_size are needed
-        // for price display and branding; backdrop fields let the storefront
-        // reflect admin customisation. live_rates_enabled tells the storefront
-        // whether to fetch live rates from the API or use admin-set rates.
+        // SECURITY: Safe public fields — only fields explicitly picked leave this function,
+        // so a future admin-only setting can't leak by accident.
         const publicFields = {
             store_name: settings.store_name,
             logo_url: settings.logo_url,
@@ -41,7 +48,9 @@ export const handler = async (event) => {
             bg_color1: settings.bg_color1,
             bg_color2: settings.bg_color2,
             bg_image: settings.bg_image,
-            bg_half: settings.bg_half
+            bg_half: settings.bg_half,
+            store_country: settings.store_country,
+            local_tax_rate: settings.local_tax_rate
         };
 
         return {
