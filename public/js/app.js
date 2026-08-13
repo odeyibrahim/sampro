@@ -136,7 +136,7 @@ class HybridApp {
                 this.ratesSource = data.source || 'fallback';
                 this.updateDisplay();
                 if (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) {
-                    this.updateCheckoutTotal();
+                    this.updateCheckoutTotals();
                 }
             }
         } catch (e) {
@@ -393,9 +393,8 @@ class HybridApp {
         this.checkoutRevealed = true;
         const accordion = document.getElementById('checkoutAccordion');
         if (accordion) {
-            accordion.style.display = 'grid';
-            // Open totals section (left) and shipping section (right)
-            this.toggleAccordion('accordionTotalsBody');
+            accordion.style.display = 'block';
+            // Open shipping section first (user fills address, then totals auto-calculate)
             this.toggleAccordion('accordionShippingBody');
         }
         const revealBtn = document.getElementById('checkoutRevealBtn');
@@ -453,10 +452,22 @@ class HybridApp {
 
         if (type === 'terms') {
             title.textContent = 'Terms of Service';
-            body.innerHTML = '<p>By placing an order through V. Gallery, you agree to the following terms: All products are described as accurately as possible. Original artworks and handmade items may have slight variations. Digital prints are produced on archival-quality paper. Orders are processed within 1-3 business days. Shipping times vary by destination — local orders typically arrive within 3-5 business days, international orders within 1-2 weeks. Returns are accepted within 7 days of delivery for damaged or incorrect items only. Refunds are processed to the original payment method within 5-10 business days. V. Gallery reserves the right to refuse service. All content, images, and designs on this platform are the intellectual property of V. Gallery and may not be reproduced without permission.</p>';
+            body.innerHTML = '<div class="legal-poem">' +
+                '<p>By placing an order through V. Gallery, you enter into an agreement governed by these terms. Please read carefully before proceeding.</p>' +
+                '<p>All products are described as accurately as possible; however, original artworks and handmade items may carry slight, unique variations — each piece is singular by nature.</p>' +
+                '<p>Digital prints are produced on archival-quality paper, designed to preserve colour and detail for generations.</p>' +
+                '<p>Orders are processed within one to three business days. Shipping times vary by destination — local deliveries typically arrive within three to five business days, while international orders may take one to two weeks.</p>' +
+                '<p>Returns are accepted within seven days of delivery, and only for items that arrive damaged or incorrect. Refunds are processed to the original payment method within five to ten business days.</p>' +
+                '<p>V. Gallery reserves the right to refuse service at its discretion. All content, images, and designs displayed on this platform are the intellectual property of V. Gallery and may not be reproduced, distributed, or used without written permission.</p>' +
+                '</div>';
         } else {
             title.textContent = 'Privacy Policy';
-            body.innerHTML = '<p>V. Gallery collects only the information necessary to process your order: name, email, shipping address, and payment details. Payment information is handled securely through our payment providers (Paystack/Flutterwave) and is never stored on our servers. We do not sell, share, or distribute your personal data to third parties for marketing purposes. Your email may be used to send order updates only. We use industry-standard security measures to protect your data. By using this site, you consent to the collection and use of your information as described above. You may request deletion of your data at any time by contacting us.</p>';
+            body.innerHTML = '<div class="legal-poem">' +
+                '<p>V. Gallery collects only the information necessary to process your order — your name, email, shipping address, and payment details.</p>' +
+                '<p>Payment information is handled securely through our providers, Paystack and Flutterwave, and is never stored on our servers. We do not sell, share, or distribute your personal data to third parties for marketing purposes.</p>' +
+                '<p>Your email may be used solely to send order updates and nothing more. We employ industry-standard security measures to safeguard your information at every step.</p>' +
+                '<p>By using this site, you consent to the collection and use of your information as described herein. You may request the deletion of your data at any time by contacting us directly.</p>' +
+                '</div>';
         }
 
         overlay.classList.add('active');
@@ -739,6 +750,13 @@ class HybridApp {
             const data = await response.json();
             if (data && data.length > 0) {
                 this.products = data;
+                // Sort by sort_order for correct page sequence
+                this.products.sort(function(a, b) {
+                    var oa = (a.sort_order || 0);
+                    var ob = (b.sort_order || 0);
+                    if (oa !== ob) return oa - ob;
+                    return (a.created_at || 0) - (b.created_at || 0);
+                });
             } else {
                 throw new Error('No products from API');
             }
@@ -998,7 +1016,7 @@ class HybridApp {
         if (this.el.currencyDisplay) this.el.currencyDisplay.value = this.selectedCurrency;
         this.updateDisplay();
         if (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) {
-            this.updateCheckoutTotal();
+            this.updateCheckoutTotals();
         }
     }
 
