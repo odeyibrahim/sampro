@@ -85,7 +85,7 @@
     }
 
     function applyStats(stats) {
-        document.getElementById('totalRevenue').textContent = '₦' + (stats.totalRevenue || 0).toFixed(0);
+        document.getElementById('totalRevenue').textContent = '$' + (stats.totalRevenue || 0).toFixed(2);
         document.getElementById('totalOrders').textContent = stats.totalOrders || 0;
         document.getElementById('totalProducts').textContent = stats.totalProducts || 0;
         document.getElementById('totalCustomers').textContent = stats.totalCustomers || 0;
@@ -120,7 +120,7 @@
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td>' + esc(p.title || '') + imgCount + featured + '</td>' +
                 '<td>' + esc(typeDisplay) + (collDisplay ? ' · ' + collDisplay : '') + '</td>' +
-                '<td>₦' + esc((p.base_price || 0).toFixed(0)) + '</td>' +
+                '<td>$' + esc((p.base_price || 0).toFixed(2)) + '</td>' +
                 '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:54px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;"></td>' +
                 '<td style="white-space:nowrap;">' +
                     '<button class="admin-btn" data-edit-id="' + attr(p.product_id) + '" title="Edit">Edit</button> ' +
@@ -217,7 +217,7 @@
             '<td>' + esc(String(o.order_id || o.id || '').slice(0, 10)) + '</td>' +
             '<td>' + esc(o.customer_name || 'N/A') + '</td>' +
             '<td>' + esc(o.product_title || '') + ' &times; ' + esc(o.quantity || 1) + '</td>' +
-            '<td>₦' + esc((o.amount || 0).toFixed(0)) + '</td>' +
+            '<td>$' + esc((o.amount || 0).toFixed(2)) + '</td>' +
             '<td>' + esc(o.payment_method || 'paystack') + '</td>' +
             '<td><span class="badge ' + attr(o.status || 'pending') + '">' + esc(o.status || 'pending') + '</span></td>' +
             '<td>' + esc(new Date(o.created_at || o.date || Date.now()).toLocaleDateString()) + '</td>' +
@@ -247,7 +247,7 @@
                     '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(p.title || 'Untitled') + '</div>' +
                     '<div style="color:' + color + ';font-size:11px;font-weight:500;">' + label + '</div>' +
                 '</div>' +
-                '<div style="font-size:11px;color:#888;">₦' + (p.base_price || 0).toFixed(0) + '</div>' +
+                '<div style="font-size:11px;color:#888;">$' + (p.base_price || 0).toFixed(2) + '</div>' +
             '</div>';
         }).join('');
     }
@@ -264,7 +264,7 @@
                 '<td>' + esc(c.name || 'N/A') + '</td>' +
                 '<td>' + esc(c.email || '') + '</td>' +
                 '<td>' + (c.order_count || 0) + '</td>' +
-                '<td>₦' + (c.total_spent || 0).toFixed(0) + '</td>' +
+                '<td>$' + (c.total_spent || 0).toFixed(2) + '</td>' +
                 '<td>' + esc(c.last_order ? new Date(c.last_order).toLocaleDateString() : '-') + '</td>' +
             '</tr>';
         }).join('');
@@ -290,9 +290,9 @@
         if (settings.exchange_rates) {
             try {
                 var rates = JSON.parse(settings.exchange_rates);
-                if (rates.USD) document.getElementById('rateUSD').value = rates.USD;
                 if (rates.EUR) document.getElementById('rateEUR').value = rates.EUR;
                 if (rates.GBP) document.getElementById('rateGBP').value = rates.GBP;
+                if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
             } catch (e) {}
         }
         if (settings.logo_url) {
@@ -645,10 +645,10 @@
 
     async function saveSettings() {
         var exchangeRates = JSON.stringify({
-            NGN: 1,
-            USD: parseFloat(document.getElementById('rateUSD').value) || 0.000667,
-            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.000613,
-            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.000527
+            USD: 1,
+            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.92,
+            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.79,
+            NGN: parseFloat(document.getElementById('rateNGN').value) || 1500
         });
         var data = {
             store_name: document.getElementById('storeName').value.trim() || 'V. Gallery',
@@ -893,7 +893,7 @@
                         '<option value="standard"' + (z.method === 'standard' ? ' selected' : '') + '>Standard</option>' +
                         '<option value="express"' + (z.method === 'express' ? ' selected' : '') + '>Express</option>' +
                     '</select>' +
-                    '<input type="text" value="' + attr(z.currency || 'NGN') + '" data-field="currency" placeholder="Cur" style="width:50px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                    '<input type="text" value="' + attr(z.currency || 'USD') + '" data-field="currency" placeholder="Cur" style="width:50px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
                     '<input type="number" value="' + parseFloat(z.cost || 0).toFixed(2) + '" data-field="cost" placeholder="Cost" step="0.01" min="0" style="width:65px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
                     '<input type="text" value="' + attr(z.estimated_days || '') + '" data-field="estimated_days" placeholder="Days" style="width:55px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
                     '<span style="font-size:10px; color:' + activeColor + ';">' + activeLabel + '</span>' +
@@ -954,9 +954,9 @@
         var name = prompt('Display name (e.g. Nigeria, United States):') || code;
         var method = prompt('Method (standard or express):', 'standard');
         if (!method) return;
-        var currency = prompt('Currency (NGN, USD, GBP, EUR):', 'NGN');
+        var currency = prompt('Currency (NGN, USD, GBP, EUR):', 'USD');
         if (!currency) return;
-        var cost = prompt('Shipping cost (' + currency + '):', '5000');
+        var cost = prompt('Shipping cost (' + currency + '):', '15');
         if (cost === null) return;
         var days = prompt('Estimated delivery days (e.g. 3-5, 7-14):', '') || '';
 
