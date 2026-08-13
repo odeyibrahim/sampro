@@ -6,6 +6,9 @@ import { sendPaymentConfirmedEmail } from './_lib/email.js';
 // function's URL as the webhook: https://your-site/.netlify/functions/paystack-webhook
 // Paystack signs every webhook with your SECRET key — no separate
 // webhook secret to configure on their side.
+//
+// SECURITY: No CORS header needed — this is a server-to-server endpoint
+// called by Paystack's infrastructure, never by a browser.
 
 export const handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -16,6 +19,11 @@ export const handler = async (event) => {
         const rawBody = event.isBase64Encoded
             ? Buffer.from(event.body, 'base64').toString('utf8')
             : (event.body || '');
+
+        // SECURITY: Reject empty or oversized bodies
+        if (!rawBody || rawBody.length > 100000) {
+            return { statusCode: 400, body: 'Invalid payload' };
+        }
 
         const signature = event.headers['x-paystack-signature'] || event.headers['X-Paystack-Signature'];
         const expectedHash = crypto
@@ -31,13 +39,12 @@ export const handler = async (event) => {
         const payload = JSON.parse(rawBody);
 
         // Always ack with 200 once the signature is valid, even if our
-        // own processing hits an error below — this stops Paystack from
-        // retrying an event we've already understood, while any real
-        // failure still gets logged for us to investigate.
+        // own processing hits an error below.
         if (payload.event === 'charge.success') {
             const { reference, id: transactionId, status } = payload.data;
 
-            if (status === 'success' && reference) {
+            // SECURITY: Validate reference format before using it
+            if (status === 'success' && reference && reference.length <= 100) {
                 const supabase = createClient(
                     process.env.VITE_SUPABASE_URL,
                     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -70,8 +77,6 @@ export const handler = async (event) => {
 
     } catch (error) {
         console.error('Paystack webhook error:', error);
-        // Still 200 — Paystack will otherwise retry indefinitely for an
-        // error on our end that a retry won't fix, and we've logged it.
         return { statusCode: 200, body: JSON.stringify({ received: true, error: 'internal' }) };
     }
 };
