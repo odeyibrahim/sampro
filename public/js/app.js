@@ -30,6 +30,7 @@ class HybridApp {
         this.lastBankOrder = null;
         this.gridDetailsVisible = true;
         this.doubleTapTimer = null;
+        this._activeCollection = null;
         this.deferredInstallPrompt = null;
         this.sessionId = localStorage.getItem('session_id') || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
         localStorage.setItem('session_id', this.sessionId);
@@ -382,7 +383,7 @@ class HybridApp {
         const saved = localStorage.getItem('vgallery_currency');
         if (saved) {
             this.selectedCurrency = saved;
-            if (this.el.currencyDisplay) this.el.currencyDisplay.textContent = saved;
+            if (this.el.currencyDisplay) this.el.currencyDisplay.value = saved;
         }
     }
 
@@ -514,6 +515,7 @@ class HybridApp {
         }
 
         this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -771,6 +773,10 @@ class HybridApp {
             // Show expanded thumbnails
             this.renderExpandedThumbnails();
         }
+    }
+
+    _isExpanded() {
+        return this.el.productFrame && this.el.productFrame.classList.contains('expanded');
     }
 
     // Renders persistent variation indicator dots below the product frame.
@@ -1100,14 +1106,26 @@ class HybridApp {
     }
 
     openGrid() {
+        // Close expanded view if active to prevent glitch
+        if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) {
+            this.el.productFrame.classList.remove('expanded');
+            this.el.splitContainer.classList.remove('fullview-active');
+            this.removeExpandedThumbnails();
+        }
+        this.zoomActive = false;
+        this._detectContextLabel();
         this.renderGrid('all');
         this.el.gridOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        this._setupCollectionDropdown();
     }
 
     closeGrid() {
         this.el.gridOverlay.classList.remove('active');
         document.body.style.overflow = '';
+        // Close collection dropdown if open
+        const dd = document.getElementById('collectionDropdown');
+        if (dd) dd.classList.remove('open');
     }
 
     toggleGridDetails() {
@@ -1119,8 +1137,18 @@ class HybridApp {
 
     renderGrid(filter) {
         let filtered = this.products;
-        if (filter === 'saved') {
+        if (filter === 'context') {
+            // Context tab = saved/favourited items
             filtered = this.products.filter(p => this.savedItems.has(p.product_id));
+        } else if (filter === 'collection') {
+            // Handled by _activeCollection
+            if (this._activeCollection) {
+                if (this._activeCollection === 'text') {
+                    filtered = this.products.filter(p => p.media_kind === 'text');
+                } else {
+                    filtered = this.products.filter(p => p.type === this._activeCollection);
+                }
+            }
         } else if (filter !== 'all') {
             filtered = this.products.filter(p => p.type === filter);
         }
@@ -1141,7 +1169,6 @@ class HybridApp {
             const showPrice = p.show_price !== false;
             const isSaved = this.savedItems.has(p.product_id);
             
-            // Restored grid-item-title, grid-item-price, and grid-item-meta (type + saved)
             const typeLabel = this.TYPE_LABELS[p.type] || '';
             html += '<div class="grid-item" data-action="view-product" data-id="' + Utils.escapeAttr(p.product_id) + '" tabindex="0" role="button">' +
                 thumb +
@@ -1157,10 +1184,83 @@ class HybridApp {
         }
         if (this.el.gridContainer) this.el.gridContainer.innerHTML = html;
 
-        const filterBtns = document.querySelectorAll('.filter-btn');
+        // Update filter button active states
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         for (let i = 0; i < filterBtns.length; i++) {
             filterBtns[i].classList.toggle('active', filterBtns[i].dataset.filter === filter);
         }
+        // Update collection button state
+        const collBtn = document.getElementById('collectionFilterBtn');
+        if (collBtn) collBtn.classList.toggle('active', filter === 'collection' && !!this._activeCollection);
+        // Update collection option states
+        const collOptions = document.querySelectorAll('.collection-option');
+        for (let i = 0; i < collOptions.length; i++) {
+            collOptions[i].classList.toggle('active', collOptions[i].dataset.collection === this._activeCollection);
+        }
+    }
+
+    // Detect dominant product type to set context tab label
+    _detectContextLabel() {
+        const ctxBtn = document.getElementById('contextFilterBtn');
+        if (!ctxBtn) return;
+        const counts = { merch: 0, craft: 0, original: 0, print: 0 };
+        this.products.forEach(p => {
+            if (p.media_kind === 'text') { /* text products don't count for closet/curation */ }
+            else if (counts[p.type] !== undefined) counts[p.type]++;
+        });
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const textCount = this.products.filter(p => p.media_kind === 'text').length;
+        
+        if (textCount > total) {
+            ctxBtn.textContent = 'Diary';
+        } else {
+            const merchTotal = (counts.merch || 0) + (counts.craft || 0);
+            const artTotal = (counts.original || 0) + (counts.print || 0);
+            if (merchTotal > artTotal) {
+                ctxBtn.textContent = 'Closet';
+            } else {
+                ctxBtn.textContent = 'Curation';
+            }
+        }
+    }
+
+    // Setup collection dropdown toggle and option clicks
+    _setupCollectionDropdown() {
+        const collBtn = document.getElementById('collectionFilterBtn');
+        const dropdown = document.getElementById('collectionDropdown');
+        if (!collBtn || !dropdown) return;
+
+        // Toggle dropdown on click
+        collBtn.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        };
+
+        // Close dropdown when clicking outside
+        const closeDropdown = (e) => {
+            if (!dropdown.contains(e.target) && e.target !== collBtn) {
+                dropdown.classList.remove('open');
+            }
+        };
+        document.addEventListener('click', closeDropdown);
+
+        // Collection option clicks
+        const options = dropdown.querySelectorAll('.collection-option');
+        options.forEach(opt => {
+            opt.onclick = (e) => {
+                e.stopPropagation();
+                const coll = opt.dataset.collection;
+                if (this._activeCollection === coll) {
+                    // Deselect — show all
+                    this._activeCollection = null;
+                    this.renderGrid('all');
+                } else {
+                    this._activeCollection = coll;
+                    this.renderGrid('collection');
+                }
+                dropdown.classList.remove('open');
+            };
+        });
     }
 
     viewProduct(productId) {
@@ -1207,6 +1307,7 @@ class HybridApp {
             }
         }
         this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -1334,9 +1435,13 @@ class HybridApp {
             radio.addEventListener('change', (e) => this.selectPaymentProvider(e.target.value));
         });
 
-        const filterBtns = document.querySelectorAll('.filter-btn');
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         for (let i = 0; i < filterBtns.length; i++) {
-            filterBtns[i].onclick = () => this.filterGrid(filterBtns[i].dataset.filter);
+            filterBtns[i].onclick = () => {
+                const f = filterBtns[i].dataset.filter;
+                this._activeCollection = null; // Reset collection when clicking All/Context
+                this.filterGrid(f);
+            };
         }
 
         document.addEventListener('keydown', (e) => {
@@ -1345,7 +1450,7 @@ class HybridApp {
                 this.closeGrid();
                 this.closeShare();
             }
-            if (!this.isModalOpen()) {
+            if (!this.isModalOpen() && !this._isExpanded()) {
                 if (e.key === 'ArrowRight') this.nextProduct();
                 if (e.key === 'ArrowLeft') this.prevProduct();
                 if (e.key === 's' || e.key === 'S') this.toggleSave();
