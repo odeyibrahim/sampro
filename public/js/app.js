@@ -13,6 +13,7 @@ class HybridApp {
         this.selectedCountry = '';
         this.ratesSource = 'fallback';  // 'live' | 'cached' | 'manual' | 'fallback'
         this.storeCountryCode = '';  // Store's base country (from admin settings)
+        this.localTaxRate = 0.075;  // Default 7.5%, overridden by admin settings
         // Display labels for internal type values.
         // Used in grid items and anywhere type is shown to visitors.
         // 'text' is omitted — text products are identified by media_kind,
@@ -103,6 +104,10 @@ class HybridApp {
             // Store base country for shipping calculations
             if (settings.store_country) {
                 this.storeCountryCode = settings.store_country.toLowerCase();
+            }
+            // Store local tax rate (percentage, e.g. 7.5 means 7.5%)
+            if (settings.local_tax_rate !== undefined && settings.local_tax_rate !== null) {
+                this.localTaxRate = parseFloat(settings.local_tax_rate) / 100;
             }
             // Store live_rates_enabled for the currency fetch
             this._liveRatesEnabled = settings.live_rates_enabled !== false;
@@ -294,12 +299,10 @@ class HybridApp {
     }
 
     getTaxRate() {
-        // Simple tax estimation based on country
         const countryInput = document.getElementById('checkoutCountryInput');
         const customerCountry = (countryInput && countryInput.value.trim().toLowerCase()) || '';
         const storeCountry = (this.storeCountryCode || 'nigeria').toLowerCase();
-        // Nigerian VAT ~7.5%, most international 0% for digital goods
-        if (customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1) return 0.075;
+        if (customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1) return this.localTaxRate;
         return 0;
     }
 
@@ -390,8 +393,9 @@ class HybridApp {
         this.checkoutRevealed = true;
         const accordion = document.getElementById('checkoutAccordion');
         if (accordion) {
-            accordion.style.display = 'block';
-            // Open first section (shipping info)
+            accordion.style.display = 'grid';
+            // Open totals section (left) and shipping section (right)
+            this.toggleAccordion('accordionTotalsBody');
             this.toggleAccordion('accordionShippingBody');
         }
         const revealBtn = document.getElementById('checkoutRevealBtn');
