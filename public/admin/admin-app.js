@@ -107,10 +107,11 @@
             var typeLabels = { original: 'Original', print: 'Print', merch: 'Product', craft: 'Handmade' };
             var typeDisplay = typeLabels[p.type] || '';
             var featured = p.is_featured ? ' <span style="color:#D0A380;font-size:10px;">\u2605</span>' : '';
+            var collDisplay = p.collection ? '<span style="color:#D0A380;font-size:10px;">' + esc(p.collection) + '</span>' : '';
             return '<tr>' +
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td>' + esc(p.title || '') + imgCount + featured + '</td>' +
-                '<td>' + esc(typeDisplay) + '</td>' +
+                '<td>' + esc(typeDisplay) + (collDisplay ? ' · ' + collDisplay : '') + '</td>' +
                 '<td>$' + esc((p.base_price || 0).toFixed(2)) + '</td>' +
                 '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:54px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;"></td>' +
                 '<td style="white-space:nowrap;">' +
@@ -302,12 +303,14 @@
         if (deleteBtn) deleteBtn.style.display = productId ? 'inline-block' : 'none';
 
         // Reset all text/number fields
-        ['editTitle','editAuthor','editDescription','editImageUrl','editPrice','editVariations','editTags'].forEach(function (id) {
+        ['editTitle','editAuthor','editDescription','editImageUrl','editPrice','editVariations','editTags','editCollection'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el) el.value = '';
         });
         var stockEl = document.getElementById('editStock');
         if (stockEl) stockEl.value = 1;
+        var sortEl = document.getElementById('editSortOrder');
+        if (sortEl) sortEl.value = 0;
         var preview = document.getElementById('previewMain');
         if (preview) { preview.src = ''; preview.style.display = 'none'; preview.onerror = null; }
 
@@ -353,6 +356,8 @@
         document.getElementById('editTitle').value = p.title || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
+                document.getElementById('editCollection').value = p.collection || '';
+                document.getElementById('editSortOrder').value = p.sort_order || 0;
                 // editContent removed from UI — content field not used
                 document.getElementById('editType').value = p.type || '';
                 document.getElementById('editMediaKind').value = p.media_kind || 'image';
@@ -475,6 +480,8 @@
             type: val('editType'),
             media_kind: val('editMediaKind'),
             orientation: val('editOrientation'),
+            collection: val('editCollection').trim(),
+            sort_order: parseInt(val('editSortOrder'), 10) || 0,
             stock: parseInt(val('editStock'), 10) || 0,
             base_price: priceVal,
             compare_price: null,
@@ -524,6 +531,7 @@
         showNotification('Product deleted');
         closeEditModal();
         Promise.all([loadProducts(), loadStats()]);
+        broadcastChange('products_updated');
     }
 
     async function duplicateProduct(productId) {
@@ -541,6 +549,7 @@
         if (res.error) { showNotification(res.error, 'error'); return; }
         showNotification('Product duplicated');
         Promise.all([loadProducts(), loadStats()]);
+        broadcastChange('products_updated');
     }
 
     async function toggleFeatured(productId) {
@@ -553,12 +562,14 @@
         if (res.error) { showNotification(res.error, 'error'); return; }
         showNotification(newVal ? 'Marked as featured' : 'Removed from featured');
         loadProducts();
+        broadcastChange('products_updated');
     }
 
     async function updateStock(productId, newStock) {
         var result = await apiCall('update_stock', { product_id: productId, stock: parseInt(newStock, 10) || 0 });
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Stock updated');
+        broadcastChange('products_updated');
     }
 
     async function saveSettings() {
