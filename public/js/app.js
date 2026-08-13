@@ -594,7 +594,11 @@ class HybridApp {
     _pushProductUrl() {
         const p = this.products[this.currentIndex];
         if (!p) return;
-        const slug = p.slug;
+        // Use slug if set, otherwise derive one from the title
+        let slug = p.slug;
+        if (!slug && p.title) {
+            slug = p.title.toLowerCase().trim().replace(/[\s\W]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
         const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
         const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
         if (window.location.pathname !== url) {
