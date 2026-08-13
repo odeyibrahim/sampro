@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getSettings } from './_lib/settings.js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 // Public endpoint — returns exchange rates to USD.
 // Strategy:
@@ -22,8 +23,9 @@ const HARDCODED_FALLBACK = {
 };
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -36,6 +38,15 @@ export const handler = async (event) => {
             process.env.VITE_SUPABASE_URL,
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
+
+        // SECURITY: Rate limit — 30 requests per IP per minute
+        // (lower than other GET endpoints because each live-rate miss
+        // triggers an external API call to frankfurter.app)
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'get-currency-rates', 30, 1);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
 
         const settings = await getSettings(supabase);
         const liveEnabled = settings.live_rates_enabled !== 'false';
@@ -71,7 +82,6 @@ export const handler = async (event) => {
         if (cacheAge < CACHE_TTL_MS && settings.live_rates_data) {
             try {
                 const cached = JSON.parse(settings.live_rates_data);
-                // Merge admin overrides on top (admin can pin specific rates)
                 const rates = { ...cached, ...adminRates };
                 rates.USD = 1;
                 return {
@@ -92,7 +102,7 @@ export const handler = async (event) => {
         let liveRates = null;
         try {
             const resp = await fetch(FRANKFURTER_URL, {
-                signal: AbortSignal.timeout(3000) // 3s timeout
+                signal: AbortSignal.timeout(3000)
             });
             if (resp.ok) {
                 const data = await resp.json();
@@ -105,7 +115,6 @@ export const handler = async (event) => {
         }
 
         if (liveRates) {
-            // Persist cache
             try {
                 const now = new Date().toISOString();
                 await supabase.from('settings').upsert([
@@ -116,7 +125,6 @@ export const handler = async (event) => {
                 console.error('Failed to cache live rates:', e.message);
             }
 
-            // Admin overrides take priority
             const rates = { ...liveRates, ...adminRates };
             rates.USD = 1;
             return {
@@ -148,7 +156,6 @@ export const handler = async (event) => {
             } catch (e) {}
         }
 
-        // Ultimate fallback
         const rates = { ...HARDCODED_FALLBACK, ...adminRates };
         rates.USD = 1;
         return {
