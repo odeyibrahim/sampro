@@ -410,7 +410,9 @@ body {
     z-index: 10;
     background: linear-gradient(transparent, rgba(0,0,0,0.4));
     justify-content: center;
+    scrollbar-width: none;
 }
+.expanded-thumbnails::-webkit-scrollbar { display: none; }
 .expanded-thumb {
     flex-shrink: 0;
     width: 52px;
@@ -645,16 +647,20 @@ body {
     font-size: 10px;
     color: var(--color-gray);
     font-family: 'Roboto Mono', monospace;
-    padding: 3px 5px;
+    padding: 3px 18px 3px 5px;
     border: 1px solid var(--color-gray-light);
     border-radius: 4px;
     cursor: pointer;
     background: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 5px center;
     transition: all 0.2s;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
     outline: none;
+    pointer-events: auto;
 }
 .action-row .currency-selector:hover,
 .action-row .currency-selector:focus {
