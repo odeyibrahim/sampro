@@ -6,6 +6,9 @@ import { sendPaymentConfirmedEmail } from './_lib/email.js';
 //   Secret Hash: same value as FLUTTERWAVE_WEBHOOK_SECRET_HASH below.
 // Flutterwave echoes that secret hash back in the `verif-hash` header
 // on every call, so we just compare strings (no HMAC needed here).
+//
+// SECURITY: No CORS header needed — this is a server-to-server endpoint
+// called by Flutterwave's infrastructure, never by a browser.
 
 export const handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -21,17 +24,28 @@ export const handler = async (event) => {
             return { statusCode: 401, body: 'Invalid signature' };
         }
 
-        const payload = JSON.parse(event.body || '{}');
+        // SECURITY: Reject empty or oversized bodies
+        const rawBody = event.body || '';
+        if (!rawBody || rawBody.length > 100000) {
+            return { statusCode: 400, body: 'Invalid payload' };
+        }
+
+        const payload = JSON.parse(rawBody);
         const data = payload.data || {};
 
         if ((payload.event === 'charge.completed') && data.status === 'successful') {
             const txRef = data.tx_ref;
             const transactionId = data.id;
 
+            // SECURITY: Validate tx_ref format
+            if (!txRef || txRef.length > 100) {
+                console.warn('Flutterwave webhook: invalid tx_ref length');
+                return { statusCode: 200, body: JSON.stringify({ received: true }) };
+            }
+
             // Belt-and-braces: re-verify the transaction directly with
             // Flutterwave's API using our secret key, rather than trusting
-            // the webhook body alone. This protects against a webhook
-            // being replayed if the secret hash were ever compromised.
+            // the webhook body alone.
             const verifyResponse = await fetch(
                 `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
                 { headers: { 'Authorization': `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}` } }
