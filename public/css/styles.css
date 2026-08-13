@@ -170,7 +170,7 @@ body.dark-mode {
     --color-overlay: rgba(0,0,0,0.4);
     --color-border: #2a2a2a;
     --bg-top: #121212;
-    --bg-bottom: #1a1a1a; /* Two-tone separation from Block 2 */
+    --bg-bottom: #121212;
     background: #0a0a0a;
     color: #eee;
 }
@@ -675,14 +675,11 @@ body {
     font-size: 10px;
     color: var(--color-gray);
     font-family: 'Roboto Mono', monospace;
-    padding: 3px 18px 3px 5px;
+    padding: 3px 8px 3px 5px;
     border: 1px solid var(--color-gray-light);
     border-radius: 4px;
     cursor: pointer;
     background: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 5px center;
     transition: all 0.2s;
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -1139,21 +1136,11 @@ body.dark-mode .collection-option.active {
 }
 .icon-button { position: relative; }
 
-/* Two-sided checkout layout: order summary left, form right */
-.checkout-layout {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 30px;
-    align-items: start;
-    margin-top: 24px;
+/* Single-column checkout accordion */
+.checkout-accordion {
+    margin-top: 20px;
     padding-top: 20px;
     border-top: 1px solid var(--color-gray-light);
-}
-.checkout-left {
-    /* Left column: totals + discount */
-}
-.checkout-right {
-    /* Right column: shipping form + payment + place order */
 }
 /* Mini-cart items section (single column, shown before checkout reveal) */
 .cart-items-section {
@@ -1440,6 +1427,17 @@ body.dark-mode .collection-option.active {
     color: var(--color-gray-dark);
     -webkit-overflow-scrolling: touch;
 }
+.legal-poem {
+    font-family: 'Work Sans', sans-serif;
+}
+.legal-poem p {
+    margin-bottom: 16px;
+    line-height: 1.8;
+    font-size: 13px;
+}
+.legal-poem p:last-child {
+    margin-bottom: 0;
+}
 
 /* ---------- Share overlay ---------- */
 .share-overlay {
@@ -1613,6 +1611,79 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
 
 /* img pointer-events handled at top of file */
 
+/* ---------- Dark mode checkout specifics ---------- */
+body.dark-mode .checkout-panel {
+    background: #121212;
+    color: #f0f0f0;
+}
+body.dark-mode .checkout-header {
+    border-bottom-color: #333;
+}
+body.dark-mode .cart-item {
+    border-bottom-color: #333;
+}
+body.dark-mode .cart-subtotal-row {
+    border-top-color: #333;
+}
+body.dark-mode .checkout-accordion {
+    border-top-color: #333;
+}
+body.dark-mode .accordion-section {
+    border-color: #333;
+}
+body.dark-mode .accordion-header:hover {
+    background: #1a1a1a;
+}
+body.dark-mode .accordion-arrow {
+    color: #666;
+}
+body.dark-mode .summary-row.total {
+    border-top-color: #f0f0f0;
+}
+body.dark-mode .form-group input,
+body.dark-mode .form-group select {
+    border-bottom-color: #333;
+    color: #f0f0f0;
+}
+body.dark-mode .form-group input::placeholder {
+    color: #555;
+}
+body.dark-mode .form-group input:focus,
+body.dark-mode .form-group select:focus {
+    border-bottom-color: #f0f0f0;
+}
+body.dark-mode .payment-method-option {
+    border-color: #333;
+}
+body.dark-mode .payment-method-option.selected {
+    border-color: #f0f0f0;
+    background: #1a1a1a;
+}
+body.dark-mode .place-order-btn {
+    background: #f0f0f0;
+    color: #121212;
+}
+body.dark-mode .checkout-legal {
+    border-top-color: #333;
+}
+body.dark-mode .legal-modal {
+    background: #121212;
+    color: #f0f0f0;
+}
+body.dark-mode .legal-modal-header {
+    border-bottom-color: #333;
+}
+body.dark-mode .legal-modal-body {
+    color: #bbb;
+}
+body.dark-mode .bank-details-panel {
+    border-color: #333;
+    background: #1a1a1a;
+}
+body.dark-mode .bank-block {
+    background: #121212;
+}
+
 /* ---------- Responsive ---------- */
 @media (min-width: 768px) {
     .split-container {
@@ -1624,7 +1695,7 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
 
 @media (max-width: 767px) {
     .grid-container { grid-template-columns: repeat(3, 1fr); gap: 30px; }
-    .checkout-layout { grid-template-columns: 1fr; }
+    .checkout-accordion { /* already single column */ }
     .checkout-panel { width: 100%; max-width: 100%; }
     .product-half { padding: 60px 20px 20px; }
     .grid-overlay { padding: 0 16px 16px; }
@@ -1638,6 +1709,10 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
     }
     .action-row .icon-button {
         width: 28px; height: 28px; font-size: 13px;
+    }
+    .action-row .currency-selector option {
+        background: var(--color-surface, #fff);
+        color: var(--color-primary, #000);
     }
     .action-row .currency-selector {
         font-size: 9px; padding: 2px 5px;
