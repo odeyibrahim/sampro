@@ -7,7 +7,7 @@
     <title>V. Gallery · Art + Commerce</title>
     
     <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -125,7 +125,12 @@
                     </div>
 
                     <div class="action-row" id="priceRow">
-                        <button class="currency-selector" id="currencyDisplay" type="button">NGN</button>
+                        <select class="currency-selector" id="currencyDisplay">
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GBP">GBP</option>
+                            <option value="NGN">NGN</option>
+                        </select>
                         <span class="price-tag" id="priceTag"></span>
                         <span class="original-price" id="originalPrice" style="display:none;"></span>
                         <button class="icon-button" id="cartButton" type="button" aria-label="Buy now">𐚱</button>
@@ -156,10 +161,14 @@
         <div class="grid-header">
             <div class="grid-filters">
                 <button class="filter-btn active" data-filter="all" type="button">All</button>
-                <button class="filter-btn" data-filter="original" type="button">Originals</button>
-                <button class="filter-btn" data-filter="print" type="button">Prints</button>
-                <button class="filter-btn" data-filter="merch" type="button">Products</button>
-                <button class="filter-btn" data-filter="saved" type="button">♡ Saved</button>
+                <div class="filter-btn-collection-wrap">
+                    <button class="filter-btn" id="collectionFilterBtn" type="button">Collections</button>
+                    <div class="collection-dropdown" id="collectionDropdown">
+                        <div class="collection-dropdown-label">Filter by collection</div>
+                        <!-- Populated dynamically from product data -->
+                    </div>
+                </div>
+                <button class="filter-btn" data-filter="context" type="button" id="contextFilterBtn">Closet</button>
                 <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">👁</button>
             </div>
             <span class="close-grid-btn" data-action="close-grid" role="button" tabindex="0" aria-label="Close grid">←</span>
@@ -167,26 +176,81 @@
         <div class="grid-container" id="gridContainer"></div>
     </div>
 
-    <!-- Checkout -->
+    <!-- Cart drawer (mini-cart) -->
     <div class="checkout-overlay" id="checkoutOverlay" data-action="close-checkout-overlay"></div>
-    <div class="checkout-panel" id="checkoutPanel" role="dialog" aria-modal="true" aria-label="Checkout">
+    <div class="checkout-panel" id="checkoutPanel" role="dialog" aria-modal="true" aria-label="Cart">
         <div class="checkout-header">
-            <h2>Checkout</h2>
-            <span class="close-checkout" data-action="close-checkout" role="button" tabindex="0" aria-label="Close checkout">←</span>
+            <h2>Cart</h2>
+            <span class="close-checkout" data-action="close-checkout" role="button" tabindex="0" aria-label="Close cart">←</span>
         </div>
 
-        <div class="checkout-layout">
-            <div class="order-summary">
-                <h3 style="margin-bottom: 20px; font-size: 14px; font-weight: 400;">Your Order</h3>
-                <div id="checkoutProductPreview"></div>
+        <!-- Mini-cart: items list -->
+        <div class="cart-items-section" id="cartItemsSection">
+            <div id="cartItemsList"></div>
+            <div class="cart-subtotal-row">
+                <span>Subtotal</span>
+                <span id="cartSubtotal"></span>
+            </div>
+        </div>
 
-                <div class="quantity-selector">
-                    <button class="quantity-btn" data-action="qty-dec" type="button" aria-label="Decrease quantity">−</button>
-                    <span id="checkoutQuantity" style="font-size: 16px; min-width: 40px; text-align: center;">1</span>
-                    <button class="quantity-btn" data-action="qty-inc" type="button" aria-label="Increase quantity">+</button>
+        <!-- Empty cart state -->
+        <div class="cart-empty" id="cartEmpty" style="display:none;">
+            <p class="cart-empty-text">Your cart is empty</p>
+        </div>
+
+        <!-- Checkout button (reveals accordion sections) -->
+        <button class="checkout-reveal-btn" id="checkoutRevealBtn" data-action="reveal-checkout" type="button" style="display:none;">Checkout</button>
+
+        <!-- Accordion checkout sections (hidden until checkout is clicked) -->
+        <div class="checkout-accordion" id="checkoutAccordion" style="display:none;">
+
+            <!-- 1. Shipping Information -->
+            <div class="accordion-section" id="accordionShipping">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionShippingBody">
+                    <span>Shipping Information</span>
+                    <span class="accordion-arrow">▸</span>
                 </div>
+                <div class="accordion-body" id="accordionShippingBody">
+                    <div class="form-group">
+                        <label for="checkoutEmail">Email</label>
+                        <input type="email" id="checkoutEmail" placeholder="you@example.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutPhone">Phone</label>
+                        <input type="tel" id="checkoutPhone" placeholder="+1 555 000 0000" required autocomplete="tel">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutName">Full Name</label>
+                        <input type="text" id="checkoutName" placeholder="John Doe" required autocomplete="name">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutAddress">Street Address</label>
+                        <input type="text" id="checkoutAddress" placeholder="123 Main St" required autocomplete="street-address">
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-group form-group-half">
+                            <label for="checkoutCity">City</label>
+                            <input type="text" id="checkoutCity" placeholder="City" required autocomplete="address-level2">
+                        </div>
+                        <div class="form-group form-group-half">
+                            <label for="checkoutZip">Zip / Postal</label>
+                            <input type="text" id="checkoutZip" placeholder="10001" required autocomplete="postal-code">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutCountryInput">Country</label>
+                        <input type="text" id="checkoutCountryInput" placeholder="Country" required autocomplete="country-name">
+                    </div>
+                </div>
+            </div>
 
-                <div style="margin-top: 20px;">
+            <!-- 2. Order Total -->
+            <div class="accordion-section" id="accordionTotals">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionTotalsBody">
+                    <span>Order Total</span>
+                    <span class="accordion-arrow">▸</span>
+                </div>
+                <div class="accordion-body" id="accordionTotalsBody">
                     <div class="summary-row">
                         <span>Subtotal</span>
                         <span id="checkoutSubtotal"></span>
@@ -204,75 +268,71 @@
                         <span id="checkoutTotal"></span>
                     </div>
                 </div>
+            </div>
 
-                <div class="form-group" style="margin-top: 20px;">
-                    <label for="checkoutCountry">Shipping Country</label>
-                    <select id="checkoutCountry">
-                        <option value="">Select country</option>
-                    </select>
+            <!-- 3. Discount Code -->
+            <div class="accordion-section" id="accordionDiscount">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionDiscountBody">
+                    <span>Discount Code</span>
+                    <span class="accordion-arrow">▸</span>
                 </div>
-
-                <div class="form-group">
-                    <label for="checkoutShippingSelect">Shipping Method</label>
-                    <select id="checkoutShippingSelect">
-                        <option value="standard">Standard</option>
-                        <option value="express">Express</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="checkoutDiscountCode">Discount Code</label>
-                    <input type="text" id="checkoutDiscountCode" placeholder="Optional">
+                <div class="accordion-body" id="accordionDiscountBody">
+                    <div class="form-group">
+                        <input type="text" id="checkoutDiscountCode" placeholder="Enter code">
+                    </div>
                 </div>
             </div>
 
-            <div class="checkout-form">
-                <div class="form-group">
-                    <label for="checkoutEmail">Email</label>
-                    <input type="email" id="checkoutEmail" placeholder="you@example.com" required>
+            <!-- 4. Payment Method -->
+            <div class="accordion-section" id="accordionPayment">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionPaymentBody">
+                    <span>Payment Method</span>
+                    <span class="accordion-arrow">▸</span>
                 </div>
-                <div class="form-group">
-                    <label for="checkoutName">Full Name</label>
-                    <input type="text" id="checkoutName" placeholder="John Doe" required>
+                <div class="accordion-body" id="accordionPaymentBody">
+                    <div class="payment-method-options" id="paymentMethodOptions">
+                        <label class="payment-method-option selected">
+                            <input type="radio" name="paymentProvider" value="paystack" checked> Card / Bank via Paystack
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="flutterwave"> Card / Bank via Flutterwave
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="bank_transfer"> Direct Bank Transfer
+                        </label>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="checkoutPhone">Phone</label>
-                    <input type="tel" id="checkoutPhone" placeholder="+1 555 000 0000">
-                </div>
-                <div class="form-group">
-                    <label for="checkoutAddress">Address</label>
-                    <input type="text" id="checkoutAddress" placeholder="Street address">
-                </div>
+            </div>
 
-                <div class="payment-method-options" id="paymentMethodOptions">
-                    <label class="payment-method-option selected">
-                        <input type="radio" name="paymentProvider" value="paystack" checked> Card / Bank via Paystack
-                    </label>
-                    <label class="payment-method-option">
-                        <input type="radio" name="paymentProvider" value="flutterwave"> Card / Bank via Flutterwave
-                    </label>
-                    <label class="payment-method-option">
-                        <input type="radio" name="paymentProvider" value="bank_transfer"> Direct Bank Transfer
-                    </label>
-                </div>
+            <button class="place-order-btn" data-action="place-order" type="button">Place Order</button>
+        </div>
 
-                <button class="place-order-btn" data-action="place-order" type="button">Place Order</button>
+            <!-- Bank transfer details (hidden until selected) -->
+            <div class="bank-details-panel" id="bankDetailsPanel">
+                <h4>Local Bank Account (NGN)</h4>
+                <div class="bank-block" id="bankLocalDetails"></div>
+                <h4>Domiciliary Account (USD)</h4>
+                <div class="bank-block" id="bankDomDetails"></div>
+                <p style="font-size: 11px; margin: 10px 0;">Use reference <strong id="bankRefNumber"></strong>, then send proof below.</p>
+                <button class="whatsapp-proof-btn" id="whatsappProofBtn" type="button">Send Proof via WhatsApp</button>
+            </div>
 
-                <div class="bank-details-panel" id="bankDetailsPanel">
-                    <h4>Local Bank Account (NGN)</h4>
-                    <div class="bank-block" id="bankLocalDetails"></div>
-                    <h4>Domiciliary Account (USD)</h4>
-                    <div class="bank-block" id="bankDomDetails"></div>
-                    <p style="font-size: 11px; margin: 10px 0;">Use reference <strong id="bankRefNumber"></strong>, then send proof below.</p>
-                    <button class="whatsapp-proof-btn" id="whatsappProofBtn" type="button">Send Proof via WhatsApp</button>
-                </div>
-
-                <div class="checkout-legal">
-                    <a href="terms.html">Terms</a>
-                    <a href="privacy.html">Privacy</a>
-                </div>
+            <!-- Terms / Privacy (modal trigger) -->
+            <div class="checkout-legal">
+                <a href="#" data-action="show-terms" id="termsLink">Terms</a>
+                <a href="#" data-action="show-privacy" id="privacyLink">Privacy</a>
             </div>
         </div>
+    </div>
+
+    <!-- Terms / Privacy modal -->
+    <div class="legal-modal-overlay" id="legalModalOverlay" data-action="close-legal-modal"></div>
+    <div class="legal-modal" id="legalModal" role="dialog" aria-modal="true">
+        <div class="legal-modal-header">
+            <h3 id="legalModalTitle">Terms</h3>
+            <span class="close-legal-modal" data-action="close-legal-modal" role="button" tabindex="0" aria-label="Close">←</span>
+        </div>
+        <div class="legal-modal-body" id="legalModalBody"></div>
     </div>
 </body>
 </html>
