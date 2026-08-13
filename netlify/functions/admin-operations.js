@@ -218,7 +218,9 @@ export const handler = async (event) => {
                 const { data: products } = await supabase
                     .from('products')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .eq('is_active', true)
+                    .order('sort_order', { ascending: true })
+                    .order('created_at', { ascending: true });
                 result = products || [];
                 break;
             }
