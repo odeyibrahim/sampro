@@ -4,7 +4,7 @@ class HybridApp {
         this.currentIndex = 0;
         this.savedItems = new Set();
         this.selectedCurrency = 'NGN';
-        this.exchangeRates = { NGN: 1, USD: 0.000667, EUR: 0.000613, GBP: 0.000527 };
+        this.exchangeRates = { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1500 };
         this.cart = [];  // [{ productId, quantity, addedAt }]
         this.cartOpen = false;
         this.checkoutRevealed = false;
@@ -287,15 +287,15 @@ class HybridApp {
             }
         }
 
-        // Fallback defaults (amounts in NGN)
-        if (currency === 'USD' || currency === 'EUR' || currency === 'GBP') {
+        // Fallback defaults
+        if (currency === 'NGN') {
             return isLocal
-                ? { cost: 7, estimated_days: '3-5' }
-                : { cost: 25, estimated_days: '1-2 weeks' };
+                ? { cost: 5000, estimated_days: '3-5' }
+                : { cost: 15000, estimated_days: '1-2 weeks' };
         }
         return isLocal
-            ? { cost: 5000, estimated_days: '3-5' }
-            : { cost: 15000, estimated_days: '1-2 weeks' };
+            ? { cost: 7, estimated_days: '3-5' }
+            : { cost: 25, estimated_days: '1-2 weeks' };
     }
 
     getTaxRate() {
@@ -768,9 +768,9 @@ class HybridApp {
             // Only use fallback data on initial load, not on admin sync refreshes
             if (!options.silent) {
                 this.products = [
-                    { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 67500, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
-                    { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 292500, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
-                    { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 12750000, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
+                    { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
+                    { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
+                    { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
                 ];
             }
         }
@@ -1003,10 +1003,10 @@ class HybridApp {
         });
     }
 
-    formatPrice(nativeAmount) {
+    formatPrice(usd) {
         const rate = this.exchangeRates[this.selectedCurrency] || 1;
-        const symbols = { NGN: '₦', USD: '$', EUR: '€', GBP: '£' };
-        const value = nativeAmount * rate;
+        const symbols = { USD: '$', EUR: '€', GBP: '£', NGN: '₦' };
+        const value = usd * rate;
         if (this.selectedCurrency === 'NGN') {
             return symbols[this.selectedCurrency] + value.toFixed(0);
         }
@@ -1014,7 +1014,7 @@ class HybridApp {
     }
 
     selectCurrency(currency) {
-        if (!['NGN', 'USD', 'EUR', 'GBP'].includes(currency)) return;
+        if (!['USD', 'EUR', 'GBP', 'NGN'].includes(currency)) return;
         this.selectedCurrency = currency;
         localStorage.setItem('vgallery_currency', this.selectedCurrency);
         if (this.el.currencyDisplay) this.el.currencyDisplay.value = this.selectedCurrency;
@@ -1321,15 +1321,14 @@ class HybridApp {
         const providerInput = document.querySelector('input[name="paymentProvider"]:checked');
         const paymentProvider = providerInput ? providerInput.value : 'paystack';
         const currency = paymentProvider === 'flutterwave' ? this.selectedCurrency : 'NGN';
-        const currencyRate = this.exchangeRates[currency] || 1;
 
-        // Build items array — convert base_price (NGN) to payment currency
+        // Build items array
         const items = this.cart.map(function (item) {
             const p = app._findProductById(item.productId);
             return {
                 productId: item.productId,
                 quantity: item.quantity,
-                unitPrice: p ? Math.round(p.base_price * currencyRate * 100) / 100 : 0
+                unitPrice: p ? p.base_price : 0
             };
         });
 
