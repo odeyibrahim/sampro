@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendOrderReceivedEmail } from './_lib/email.js';
 import { getSettings } from './_lib/settings.js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 const VALID_PROVIDERS = ['paystack', 'flutterwave', 'bank_transfer'];
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -19,6 +21,13 @@ export const handler = async (event) => {
             process.env.VITE_SUPABASE_URL,
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
+
+        // SECURITY: Rate limit — 10 order attempts per IP per 10 minutes
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'initialize-payment', 10, 10);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many order attempts. Try again later.' }) };
+        }
 
         let body = {};
         try {
@@ -58,6 +67,14 @@ export const handler = async (event) => {
         const provider = VALID_PROVIDERS.includes(paymentProvider) ? paymentProvider : 'paystack';
         const orderCurrency = provider === 'flutterwave' && currency === 'USD' ? 'USD' : (currency || 'NGN');
 
+        // SECURITY: Rate limit discount code attempts — 20 per IP per 10 minutes
+        if (discountCode) {
+            const discountAllowed = await rateLimit(supabase, ip, 'discount-attempt', 20, 10);
+            if (!discountAllowed) {
+                return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many discount attempts. Try again later.' }) };
+            }
+        }
+
         // --- Create the order server-side (server computes the total) ---
         const { data: orderData, error: orderError } = await supabase.rpc('create_pending_order', {
             p_customer_email: email,
@@ -93,9 +110,6 @@ export const handler = async (event) => {
         if (provider === 'bank_transfer') {
             await supabase.rpc('set_payment_reference', { p_order_id: order_id, p_reference: order_number });
 
-            // whatsapp_number and store_name are editable in Admin → Settings
-            // without a redeploy; env vars remain the fallback for a fresh
-            // install where nothing's been set yet.
             const settings = await getSettings(supabase);
             const whatsappNumber = settings.whatsapp_number || process.env.WHATSAPP_NUMBER || '';
             const storeName = settings.store_name || 'V. Gallery';
@@ -114,8 +128,6 @@ export const handler = async (event) => {
                 }
             };
 
-            // Best-effort — sendOrderReceivedEmail never throws (see _lib/email.js),
-            // so a misconfigured/unreachable email provider can't block the order.
             await sendOrderReceivedEmail({
                 customer_email: email,
                 customer_name: name,
@@ -147,7 +159,7 @@ export const handler = async (event) => {
         // PAYSTACK
         // ============================================================
         if (provider === 'paystack') {
-            const amountInSubunit = Math.round(parseFloat(amount) * 100); // kobo / cents
+            const amountInSubunit = Math.round(parseFloat(amount) * 100);
 
             const paymentResponse = await fetch('https://api.paystack.co/transaction/initialize', {
                 method: 'POST',
@@ -200,7 +212,7 @@ export const handler = async (event) => {
                 },
                 body: JSON.stringify({
                     tx_ref: order_number,
-                    amount: amount, // Flutterwave expects the major unit (e.g. 45.00), not kobo/cents
+                    amount: amount,
                     currency: orderCurrency,
                     redirect_url: `${siteUrl}/payment-callback.html?provider=flutterwave&reference=${order_number}`,
                     customer: { email, name, phonenumber: phone || '' },
