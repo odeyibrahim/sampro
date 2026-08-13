@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
+    // Empty string if SITE_URL is not set — browser will block cross-origin requests.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -16,6 +19,13 @@ export const handler = async (event) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // SECURITY: Rate limit — 50 likes per IP per hour
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'toggle-like', 50, 60);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
+
         let requestBody = {};
         try {
             requestBody = event.body ? JSON.parse(event.body) : {};
@@ -27,6 +37,11 @@ export const handler = async (event) => {
 
         if (!productId || !sessionId) {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Product ID and Session ID required' }) };
+        }
+
+        // SECURITY: Validate session_id length to prevent abuse via absurdly long strings
+        if (sessionId.length > 128) {
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid session ID' }) };
         }
 
         const { data: existing } = await supabase
