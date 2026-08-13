@@ -3,7 +3,7 @@ class HybridApp {
         this.products = [];
         this.currentIndex = 0;
         this.savedItems = new Set();
-        this.selectedCurrency = 'NGN';
+        this.selectedCurrency = 'USD';
         this.exchangeRates = { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1500 };
         this.cart = [];  // [{ productId, quantity, addedAt }]
         this.cartOpen = false;
@@ -1003,15 +1003,10 @@ class HybridApp {
         });
     }
 
-    formatPrice(amount) {
-        // Prices in the DB are in the store's base currency (NGN).
-        // Convert to the selected display currency using exchange rates.
-        // e.g. NGN 8500 displayed in NGN → 8500 × (1500/1500) = ₦8,500
-        // e.g. NGN 8500 displayed in USD → 8500 × (1/1500) = $5.67
-        const storeRate = this.exchangeRates['NGN'] || 1;
-        const displayRate = this.exchangeRates[this.selectedCurrency] || 1;
-        const value = amount * (displayRate / storeRate);
+    formatPrice(usd) {
+        const rate = this.exchangeRates[this.selectedCurrency] || 1;
         const symbols = { USD: '$', EUR: '€', GBP: '£', NGN: '₦' };
+        const value = usd * rate;
         if (this.selectedCurrency === 'NGN') {
             return symbols[this.selectedCurrency] + value.toFixed(0);
         }
