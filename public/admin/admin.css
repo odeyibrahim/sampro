@@ -4,12 +4,38 @@
     box-sizing: border-box;
 }
 
+/* Prevent pinch-to-zoom and iOS auto-zoom on inputs */
+/* Labels, placeholders, and UI text stay at their natural small sizes */
+@media (max-width: 768px) {
+    body.admin-dashboard-body .edit-section input,
+    body.admin-dashboard-body .edit-section textarea,
+    body.admin-dashboard-body .edit-section select,
+    body.admin-dashboard-body .accordion-body .form-group input,
+    body.admin-dashboard-body .accordion-body .form-group textarea,
+    body.admin-dashboard-body .accordion-body .form-group select,
+    body.admin-dashboard-body .catalog-panel .form-group input,
+    body.admin-dashboard-body .catalog-panel .form-group textarea,
+    body.admin-dashboard-body .catalog-panel .form-group select {
+        font-size: 16px !important;
+    }
+    body.admin-dashboard-body .edit-section input::placeholder,
+    body.admin-dashboard-body .edit-section textarea::placeholder,
+    body.admin-dashboard-body .accordion-body .form-group input::placeholder,
+    body.admin-dashboard-body .catalog-panel .form-group input::placeholder {
+        font-size: 12px !important;
+    }
+}
+
 body.admin-dashboard-body {
-    font-family: 'Roboto Mono', monospace;
-    background: var(--color-surface, #ffffff);
-    color: var(--color-primary, #000);
-    line-height: 1.5;
-    transition: background 0.4s ease, color 0.4s ease;
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+}
+
+body.admin-dashboard-body * {
+    touch-action: manipulation;
 }
 
 /* ---------- Dark Mode (class-based toggle) ---------- */
