@@ -1,12 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 // Public endpoint — no auth required. Returns active shipping
 // zones grouped by country so the checkout form can populate a
 // country dropdown and show per-method costs.
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -20,6 +22,14 @@ export const handler = async (event) => {
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // SECURITY: Rate limit — 60 requests per IP per minute on public GET
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'get-shipping-zones', 60, 1);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
+
+        // SECURITY: Explicit column select — only public-facing columns
         const { data: zones, error } = await supabase
             .from('shipping_zones')
             .select('country_code, country_name, method, currency, cost, estimated_days')
@@ -37,11 +47,9 @@ export const handler = async (event) => {
         const zoneMap = {};
 
         for (const z of (zones || [])) {
-            // Deduplicate: only add each country once
             if (!countryMap[z.country_code]) {
                 countryMap[z.country_code] = z.country_name;
             }
-            // Key: country_code + ':' + currency
             const key = z.country_code + ':' + z.currency;
             if (!zoneMap[key]) zoneMap[key] = {};
             zoneMap[key][z.method] = {
@@ -50,12 +58,10 @@ export const handler = async (event) => {
             };
         }
 
-        // Build the countries array (sorted, ROW last)
         const countries = Object.keys(countryMap)
             .filter(c => c !== 'ROW')
             .sort((a, b) => countryMap[a].localeCompare(countryMap[b]))
             .map(code => ({ code, name: countryMap[code] }));
-        // ROW always at the end
         if (countryMap['ROW']) {
             countries.push({ code: 'ROW', name: countryMap['ROW'] });
         }
