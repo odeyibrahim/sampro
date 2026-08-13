@@ -5,11 +5,15 @@ class HybridApp {
         this.savedItems = new Set();
         this.selectedCurrency = 'USD';
         this.exchangeRates = { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1500 };
-        this.checkoutQuantity = 1;
+        this.cart = [];  // [{ productId, quantity, addedAt }]
+        this.cartOpen = false;
+        this.checkoutRevealed = false;
         this.shippingZones = {};  // { 'NG:NGN': { standard: { cost, estimated_days }, express: ... } }
         this.shippingCountries = [];  // [{ code, name }]
         this.selectedCountry = '';
         this.ratesSource = 'fallback';  // 'live' | 'cached' | 'manual' | 'fallback'
+        this.storeCountryCode = '';  // Store's base country (from admin settings)
+        this.localTaxRate = 0.075;  // Default 7.5%, overridden by admin settings
         // Display labels for internal type values.
         // Used in grid items and anywhere type is shown to visitors.
         // 'text' is omitted — text products are identified by media_kind,
@@ -30,15 +34,18 @@ class HybridApp {
         this.lastBankOrder = null;
         this.gridDetailsVisible = true;
         this.doubleTapTimer = null;
+        this._activeCollection = null;
         this.deferredInstallPrompt = null;
         this.sessionId = localStorage.getItem('session_id') || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
         localStorage.setItem('session_id', this.sessionId);
+        this._loadCart();
         this.init();
     }
 
     async init() {
         this.bindElements();
         await this.loadProducts();
+        this._updateCartBadge();
         this.loadSaved();
         this.loadCurrency();
         this.fetchCurrencyRates();
@@ -46,6 +53,7 @@ class HybridApp {
         this.setupEvents();
         this.setupSwipe();
         this.setupPwa();
+        this.setupAdminSync();
         this.updateOfflineBanner();
         this.loadStoreSettings();
         const enterBtn = document.getElementById('enterGalleryBtn');
@@ -93,6 +101,14 @@ class HybridApp {
             }
             // Apply backdrop / background customisation from admin settings
             this.applyBackdropSettings(settings);
+            // Store base country for shipping calculations
+            if (settings.store_country) {
+                this.storeCountryCode = settings.store_country.toLowerCase();
+            }
+            // Store local tax rate (percentage, e.g. 7.5 means 7.5%)
+            if (settings.local_tax_rate !== undefined && settings.local_tax_rate !== null) {
+                this.localTaxRate = parseFloat(settings.local_tax_rate) / 100;
+            }
             // Store live_rates_enabled for the currency fetch
             this._liveRatesEnabled = settings.live_rates_enabled !== false;
             // If live rates are disabled, admin rates already loaded above are the final word
@@ -120,7 +136,7 @@ class HybridApp {
                 this.ratesSource = data.source || 'fallback';
                 this.updateDisplay();
                 if (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) {
-                    this.updateCheckoutTotal();
+                    this.updateCheckoutTotals();
                 }
             }
         } catch (e) {
@@ -136,48 +152,333 @@ class HybridApp {
             if (data) {
                 this.shippingZones = data.zones || {};
                 this.shippingCountries = data.countries || [];
-                this.populateCountryDropdown();
             }
         } catch (e) {
             // silent — fallback shipping still works
         }
     }
 
-    populateCountryDropdown() {
-        const select = document.getElementById('checkoutCountry');
-        if (!select || this.shippingCountries.length === 0) return;
-        // Keep current selection if valid
-        const current = this.selectedCountry;
-        select.innerHTML = '<option value="">Select country</option>';
-        this.shippingCountries.forEach(function (c) {
-            const opt = document.createElement('option');
-            opt.value = c.code;
-            opt.textContent = c.name;
-            select.appendChild(opt);
-        });
-        // Restore previous selection
-        if (current) select.value = current;
+    // ====== Mini-cart system ======
+
+    _loadCart() {
+        try {
+            const saved = localStorage.getItem('vgallery_cart');
+            if (saved) this.cart = JSON.parse(saved);
+        } catch (e) {}
     }
 
-    getShippingCostForDisplay() {
-        // Returns { cost, estimated_days } based on selected country + method + currency.
-        // Falls back to hardcoded defaults if zones not loaded yet.
-        const method = document.getElementById('checkoutShippingSelect')?.value || 'standard';
-        const country = this.selectedCountry || 'ROW';
-        const currency = this.selectedCurrency;
-        const key = country + ':' + currency;
-        const rowKey = 'ROW:' + currency;
+    _saveCart() {
+        try {
+            localStorage.setItem('vgallery_cart', JSON.stringify(this.cart));
+        } catch (e) {}
+    }
 
-        const zone = this.shippingZones[key] || this.shippingZones[rowKey];
-        if (zone && zone[method]) {
-            return zone[method];
+    _cartCount() {
+        return this.cart.reduce(function (sum, item) { return sum + item.quantity; }, 0);
+    }
+
+    _findCartItem(productId) {
+        for (let i = 0; i < this.cart.length; i++) {
+            if (this.cart[i].productId === productId) return this.cart[i];
         }
-        // Fallback: use the currency-mapped hardcoded rates
-        // These are in the DISPLAY currency (not NGN hardcodes)
+        return null;
+    }
+
+    _findProductById(id) {
+        for (let i = 0; i < this.products.length; i++) {
+            if (this.products[i].product_id === id) return this.products[i];
+        }
+        return null;
+    }
+
+    addToCart() {
+        const p = this.products[this.currentIndex];
+        if (!p || p.stock <= 0) {
+            this.showNotification('Sold out');
+            return;
+        }
+        const existing = this._findCartItem(p.product_id);
+        if (existing) {
+            if (existing.quantity < p.stock) {
+                existing.quantity++;
+                this.showNotification(p.title + ' quantity updated');
+            } else {
+                this.showNotification('Max stock reached');
+                return;
+            }
+        } else {
+            this.cart.push({ productId: p.product_id, quantity: 1, addedAt: Date.now() });
+            this.showNotification(p.title + ' added to cart');
+        }
+        this._saveCart();
+        this._updateCartBadge();
+        // Open cart panel so user sees the item
+        this.openCart();
+    }
+
+    removeFromCart(productId) {
+        this.cart = this.cart.filter(function (item) { return item.productId !== productId; });
+        this._saveCart();
+        this._updateCartBadge();
+        this.renderCartItems();
+    }
+
+    updateCartQty(productId, delta) {
+        const item = this._findCartItem(productId);
+        const p = this._findProductById(productId);
+        if (!item || !p) return;
+        const newQty = item.quantity + delta;
+        if (newQty < 1) {
+            this.removeFromCart(productId);
+            return;
+        }
+        if (newQty > p.stock) {
+            this.showNotification('Max stock reached');
+            return;
+        }
+        item.quantity = newQty;
+        this._saveCart();
+        this.renderCartItems();
+    }
+
+    _updateCartBadge() {
+        const btn = this.el.cartButton;
+        if (!btn) return;
+        const count = this._cartCount();
+        // Remove old badge
+        const old = btn.querySelector('.cart-badge');
+        if (old) old.remove();
+        if (count > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'cart-badge';
+            badge.textContent = count > 9 ? '9+' : count;
+            btn.appendChild(badge);
+        }
+    }
+
+    getCartSubtotal() {
+        let subtotal = 0;
+        for (let i = 0; i < this.cart.length; i++) {
+            const p = this._findProductById(this.cart[i].productId);
+            if (p) subtotal += p.base_price * this.cart[i].quantity;
+        }
+        return subtotal;
+    }
+
+    getShippingInfo() {
+        // Determine shipping based on address country vs store country
+        const countryInput = document.getElementById('checkoutCountryInput');
+        const customerCountry = (countryInput && countryInput.value.trim().toLowerCase()) || '';
+        const storeCountry = (this.storeCountryCode || 'nigeria').toLowerCase();
+        const isLocal = customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1;
+        const currency = this.selectedCurrency;
+
+        // Try zones first
+        if (this.shippingZones && Object.keys(this.shippingZones).length > 0 && customerCountry) {
+            // Find a matching zone key
+            const keys = Object.keys(this.shippingZones);
+            for (let i = 0; i < keys.length; i++) {
+                if (keys[i].indexOf(':') !== -1 && keys[i].toLowerCase().indexOf(customerCountry) !== -1) {
+                    const zone = this.shippingZones[keys[i]];
+                    if (zone.standard) return zone.standard;
+                    const firstMethod = Object.keys(zone)[0];
+                    if (firstMethod) return zone[firstMethod];
+                }
+            }
+        }
+
+        // Fallback defaults
         if (currency === 'NGN') {
-            return { cost: method === 'express' ? 12000 : 5000, estimated_days: method === 'express' ? '1-2' : '3-5' };
+            return isLocal
+                ? { cost: 5000, estimated_days: '3-5' }
+                : { cost: 15000, estimated_days: '1-2 weeks' };
         }
-        return { cost: method === 'express' ? 15 : 7, estimated_days: method === 'express' ? '2-3' : '5-7' };
+        return isLocal
+            ? { cost: 7, estimated_days: '3-5' }
+            : { cost: 25, estimated_days: '1-2 weeks' };
+    }
+
+    getTaxRate() {
+        const countryInput = document.getElementById('checkoutCountryInput');
+        const customerCountry = (countryInput && countryInput.value.trim().toLowerCase()) || '';
+        const storeCountry = (this.storeCountryCode || 'nigeria').toLowerCase();
+        if (customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1) return this.localTaxRate;
+        return 0;
+    }
+
+    openCart() {
+        this.cartOpen = true;
+        this.renderCartItems();
+        this.el.checkoutPanel.classList.add('active');
+        this.el.checkoutOverlay.classList.add('active');
+    }
+
+    closeCart() {
+        this.cartOpen = false;
+        this.checkoutRevealed = false;
+        this.el.checkoutPanel.classList.remove('active');
+        this.el.checkoutOverlay.classList.remove('active');
+        // Reset accordion state
+        const accordion = document.getElementById('checkoutAccordion');
+        if (accordion) accordion.style.display = 'none';
+        const revealBtn = document.getElementById('checkoutRevealBtn');
+        if (revealBtn) revealBtn.style.display = 'none';
+        // Collapse all accordion bodies
+        document.querySelectorAll('.accordion-body').forEach(function (body) {
+            body.style.maxHeight = null;
+            body.classList.remove('open');
+        });
+        document.querySelectorAll('.accordion-arrow').forEach(function (arrow) {
+            arrow.textContent = '▸';
+        });
+    }
+
+    renderCartItems() {
+        const listEl = document.getElementById('cartItemsList');
+        const emptyEl = document.getElementById('cartEmpty');
+        const subtotalEl = document.getElementById('cartSubtotal');
+        const itemsSection = document.getElementById('cartItemsSection');
+        const revealBtn = document.getElementById('checkoutRevealBtn');
+
+        if (!listEl) return;
+
+        if (this.cart.length === 0) {
+            listEl.innerHTML = '';
+            if (itemsSection) itemsSection.style.display = 'none';
+            if (emptyEl) emptyEl.style.display = 'block';
+            if (revealBtn) revealBtn.style.display = 'none';
+            // Hide checkout accordion when cart becomes empty
+            const accordion = document.getElementById('checkoutAccordion');
+            if (accordion) accordion.style.display = 'none';
+            this.checkoutRevealed = false;
+            return;
+        }
+
+        if (itemsSection) itemsSection.style.display = 'block';
+        if (emptyEl) emptyEl.style.display = 'none';
+        if (revealBtn) revealBtn.style.display = 'block';
+
+        let html = '';
+        for (let i = 0; i < this.cart.length; i++) {
+            const item = this.cart[i];
+            const p = this._findProductById(item.productId);
+            if (!p) continue;
+            const thumbHtml = p.image_url
+                ? '<img src="' + Utils.escapeAttr(p.image_url) + '" alt="' + Utils.escapeAttr(p.title) + '">'
+                : '<div class="cart-item-text-thumb">Text</div>';
+            html += '<div class="cart-item" data-product-id="' + Utils.escapeAttr(p.product_id) + '">' +
+                '<div class="cart-item-thumb">' + thumbHtml + '</div>' +
+                '<div class="cart-item-details">' +
+                    '<div class="cart-item-title">' + Utils.escapeHtml(p.title) + '</div>' +
+                    '<div class="cart-item-price">' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div>' +
+                    '<div class="cart-item-qty">' +
+                        '<button class="quantity-btn" data-action="cart-qty-dec" data-pid="' + Utils.escapeAttr(p.product_id) + '" type="button" aria-label="Decrease quantity">−</button>' +
+                        '<span class="cart-qty-value">' + item.quantity + '</span>' +
+                        '<button class="quantity-btn" data-action="cart-qty-inc" data-pid="' + Utils.escapeAttr(p.product_id) + '" type="button" aria-label="Increase quantity">+</button>' +
+                    '</div>' +
+                '</div>' +
+                '<button class="cart-item-remove" data-action="cart-remove" data-pid="' + Utils.escapeAttr(p.product_id) + '" type="button" aria-label="Remove">✕</button>' +
+            '</div>';
+        }
+        listEl.innerHTML = html;
+
+        if (subtotalEl) subtotalEl.innerText = this.formatPrice(this.getCartSubtotal());
+
+        // If checkout was already revealed, update totals there too
+        if (this.checkoutRevealed) this.updateCheckoutTotals();
+    }
+
+    revealCheckout() {
+        if (this.cart.length === 0) return;
+        this.checkoutRevealed = true;
+        const accordion = document.getElementById('checkoutAccordion');
+        if (accordion) {
+            accordion.style.display = 'block';
+            // Open shipping section first (user fills address, then totals auto-calculate)
+            this.toggleAccordion('accordionShippingBody');
+        }
+        const revealBtn = document.getElementById('checkoutRevealBtn');
+        if (revealBtn) revealBtn.style.display = 'none';
+        this.updateCheckoutTotals();
+    }
+
+    toggleAccordion(bodyId) {
+        const body = document.getElementById(bodyId);
+        if (!body) return;
+        const section = body.closest('.accordion-section');
+        const arrow = section ? section.querySelector('.accordion-arrow') : null;
+        if (body.classList.contains('open')) {
+            body.style.maxHeight = null;
+            body.classList.remove('open');
+            if (arrow) arrow.textContent = '▸';
+        } else {
+            body.classList.add('open');
+            body.style.maxHeight = body.scrollHeight + 'px';
+            if (arrow) arrow.textContent = '▾';
+        }
+    }
+
+    updateCheckoutTotals() {
+        const subtotal = this.getCartSubtotal();
+        const shippingInfo = this.getShippingInfo();
+        const shipping = shippingInfo.cost || 0;
+        const taxRate = this.getTaxRate();
+        const tax = Math.round(subtotal * taxRate * 100) / 100;
+        const total = subtotal + shipping + tax;
+
+        const subtotalEl = document.getElementById('checkoutSubtotal');
+        const shippingEl = document.getElementById('checkoutShipping');
+        const taxEl = document.getElementById('checkoutTax');
+        const totalEl = document.getElementById('checkoutTotal');
+
+        if (subtotalEl) subtotalEl.innerText = this.formatPrice(subtotal);
+        if (shippingEl) {
+            let shipLabel = this.formatPrice(shipping);
+            if (shippingInfo.estimated_days) {
+                shipLabel += ' (' + shippingInfo.estimated_days + ')';
+            }
+            shippingEl.innerText = shipLabel;
+        }
+        if (taxEl) taxEl.innerText = this.formatPrice(tax);
+        if (totalEl) totalEl.innerText = this.formatPrice(total);
+    }
+
+    showLegalModal(type) {
+        const overlay = document.getElementById('legalModalOverlay');
+        const modal = document.getElementById('legalModal');
+        const title = document.getElementById('legalModalTitle');
+        const body = document.getElementById('legalModalBody');
+        if (!overlay || !modal || !title || !body) return;
+
+        if (type === 'terms') {
+            title.textContent = 'Terms of Service';
+            body.innerHTML = '<div class="legal-poem">' +
+                '<p>By placing an order through V. Gallery, you enter into an agreement governed by these terms. Please read carefully before proceeding.</p>' +
+                '<p>All products are described as accurately as possible; however, original artworks and handmade items may carry slight, unique variations — each piece is singular by nature.</p>' +
+                '<p>Digital prints are produced on archival-quality paper, designed to preserve colour and detail for generations.</p>' +
+                '<p>Orders are processed within one to three business days. Shipping times vary by destination — local deliveries typically arrive within three to five business days, while international orders may take one to two weeks.</p>' +
+                '<p>Returns are accepted within seven days of delivery, and only for items that arrive damaged or incorrect. Refunds are processed to the original payment method within five to ten business days.</p>' +
+                '<p>V. Gallery reserves the right to refuse service at its discretion. All content, images, and designs displayed on this platform are the intellectual property of V. Gallery and may not be reproduced, distributed, or used without written permission.</p>' +
+                '</div>';
+        } else {
+            title.textContent = 'Privacy Policy';
+            body.innerHTML = '<div class="legal-poem">' +
+                '<p>V. Gallery collects only the information necessary to process your order — your name, email, shipping address, and payment details.</p>' +
+                '<p>Payment information is handled securely through our providers, Paystack and Flutterwave, and is never stored on our servers. We do not sell, share, or distribute your personal data to third parties for marketing purposes.</p>' +
+                '<p>Your email may be used solely to send order updates and nothing more. We employ industry-standard security measures to safeguard your information at every step.</p>' +
+                '<p>By using this site, you consent to the collection and use of your information as described herein. You may request the deletion of your data at any time by contacting us directly.</p>' +
+                '</div>';
+        }
+
+        overlay.classList.add('active');
+        modal.classList.add('active');
+    }
+
+    closeLegalModal() {
+        const overlay = document.getElementById('legalModalOverlay');
+        const modal = document.getElementById('legalModal');
+        if (overlay) overlay.classList.remove('active');
+        if (modal) modal.classList.remove('active');
     }
 
     applyBackdropSettings(settings) {
@@ -293,7 +594,11 @@ class HybridApp {
     _pushProductUrl() {
         const p = this.products[this.currentIndex];
         if (!p) return;
-        const slug = p.slug;
+        // Use slug if set, otherwise derive one from the title
+        let slug = p.slug;
+        if (!slug && p.title) {
+            slug = p.title.toLowerCase().trim().replace(/[\s\W]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
         const url = slug ? '/product/' + encodeURIComponent(slug) : '/';
         const title = p.title ? (p.title + ' · ' + document.title.split('·').pop().trim()) : document.title;
         if (window.location.pathname !== url) {
@@ -381,7 +686,7 @@ class HybridApp {
         const saved = localStorage.getItem('vgallery_currency');
         if (saved) {
             this.selectedCurrency = saved;
-            if (this.el.currencyDisplay) this.el.currencyDisplay.textContent = saved;
+            if (this.el.currencyDisplay) this.el.currencyDisplay.value = saved;
         }
     }
 
@@ -440,22 +745,34 @@ class HybridApp {
         };
     }
 
-    async loadProducts() {
-        this.showLoading(true);
+    async loadProducts(options) {
+        options = options || {};
+        this.showLoading(!options.silent);
         try {
-            const response = await fetch('/.netlify/functions/get-products');
+            const url = '/.netlify/functions/get-products' + (options.noCache ? '?_t=' + Date.now() : '');
+            const response = await fetch(url);
             const data = await response.json();
             if (data && data.length > 0) {
                 this.products = data;
+                // Sort by sort_order for correct page sequence
+                this.products.sort(function(a, b) {
+                    var oa = (a.sort_order || 0);
+                    var ob = (b.sort_order || 0);
+                    if (oa !== ob) return oa - ob;
+                    return (a.created_at || 0) - (b.created_at || 0);
+                });
             } else {
                 throw new Error('No products from API');
             }
         } catch (e) {
-            this.products = [
-                { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
-                { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
-                { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
-            ];
+            // Only use fallback data on initial load, not on admin sync refreshes
+            if (!options.silent) {
+                this.products = [
+                    { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
+                    { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
+                    { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
+                ];
+            }
         }
         this._routeFromUrl();
         this.updateDisplay();
@@ -476,6 +793,10 @@ class HybridApp {
 
         // Cancel any pending transition timer to prevent stale callbacks
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+
+        // Update variations FIRST so renderVariationDots uses current product's data
+        this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
 
         // Render immediately — no opacity transition to prevent text-disappearing glitch
         this.renderMedia(p);
@@ -512,7 +833,6 @@ class HybridApp {
             }
         }
 
-        this.currentVariations = p.variations || [];
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -693,15 +1013,14 @@ class HybridApp {
         return symbols[this.selectedCurrency] + value.toFixed(2);
     }
 
-    cycleCurrency() {
-        const currencies = ['USD', 'EUR', 'GBP', 'NGN'];
-        const idx = (currencies.indexOf(this.selectedCurrency) + 1) % currencies.length;
-        this.selectedCurrency = currencies[idx];
+    selectCurrency(currency) {
+        if (!['USD', 'EUR', 'GBP', 'NGN'].includes(currency)) return;
+        this.selectedCurrency = currency;
         localStorage.setItem('vgallery_currency', this.selectedCurrency);
-        if (this.el.currencyDisplay) this.el.currencyDisplay.textContent = this.selectedCurrency;
+        if (this.el.currencyDisplay) this.el.currencyDisplay.value = this.selectedCurrency;
         this.updateDisplay();
         if (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) {
-            this.updateCheckoutTotal();
+            this.updateCheckoutTotals();
         }
     }
 
@@ -709,21 +1028,38 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (p && (p.media_kind === 'text' || p.type === 'text')) return;
 
+        const frame = this.el.productFrame;
+        const isExpanded = frame && frame.classList.contains('expanded');
+
         if (this.doubleTapTimer) {
             clearTimeout(this.doubleTapTimer);
             this.doubleTapTimer = null;
+            if (isExpanded) {
+                // Double-tap in expanded mode: close expanded view
+                this.toggleExpand();
+                return;
+            }
             this.toggleExpand();
             return;
         }
         this.doubleTapTimer = setTimeout(() => {
             this.doubleTapTimer = null;
-            // If the product has variations, cycle to the next image instead of zooming
-            const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
-            if (allImages.length > 1) {
-                const next = (this.variationIndex + 1) % allImages.length;
-                this.showVariation(next);
+            if (isExpanded) {
+                // Single tap in expanded mode: cycle to next image
+                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                if (allImages.length > 1) {
+                    const next = (this.variationIndex + 1) % allImages.length;
+                    this.showVariation(next);
+                }
             } else {
-                this.toggleZoom();
+                // Normal mode: if variations exist, cycle image; else zoom
+                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                if (allImages.length > 1) {
+                    const next = (this.variationIndex + 1) % allImages.length;
+                    this.showVariation(next);
+                } else {
+                    this.toggleZoom();
+                }
             }
         }, 280);
     }
@@ -743,13 +1079,23 @@ class HybridApp {
             frame.classList.remove('expanded');
             document.body.style.overflow = '';
             this.el.splitContainer.classList.remove('fullview-active');
+            this.expandedActive = false;
+            // Remove expanded thumbnails
+            this.removeExpandedThumbnails();
             const p = this.products[this.currentIndex];
             if (p) this.renderFrame(p);
         } else {
             frame.classList.add('expanded');
             document.body.style.overflow = 'hidden';
             this.el.splitContainer.classList.add('fullview-active');
+            this.expandedActive = true;
+            // Show expanded thumbnails
+            this.renderExpandedThumbnails();
         }
+    }
+
+    _isExpanded() {
+        return this.el.productFrame && this.el.productFrame.classList.contains('expanded');
     }
 
     // Renders persistent variation indicator dots below the product frame.
@@ -814,6 +1160,12 @@ class HybridApp {
         };
         updateDots('.pv-dot');
         updateDots('.variation-dots .dot');
+
+        // Update expanded thumbnails active state
+        const thumbs = document.querySelectorAll('.expanded-thumb');
+        for (let j = 0; j < thumbs.length; j++) {
+            thumbs[j].classList.toggle('active', j === idx);
+        }
     }
 
     removeZoom() {
@@ -897,72 +1249,6 @@ class HybridApp {
         this.el.shareOverlay.classList.remove('active');
     }
 
-    openCheckout() {
-        const p = this.products[this.currentIndex];
-        if (p.stock <= 0) {
-            this.showNotification('Sold out');
-            return;
-        }
-        this.checkoutQuantity = 1;
-        this.selectedPaymentProvider = 'paystack';
-        if (this.el.bankDetailsPanel) this.el.bankDetailsPanel.classList.remove('active');
-        document.querySelectorAll('input[name="paymentProvider"]').forEach(r => { r.checked = r.value === 'paystack'; });
-        document.querySelectorAll('.payment-method-option').forEach(o => o.classList.toggle('selected', o.querySelector('input').value === 'paystack'));
-
-        const previewDiv = document.getElementById('checkoutProductPreview');
-        if (previewDiv) {
-            const thumbHtml = p.image_url
-                ? '<img src="' + Utils.escapeAttr(p.image_url) + '" style="width:70px; height:70px; object-fit:cover; border-radius:4px;">'
-                : '<div style="width:70px; height:70px; border-radius:4px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; font-size:11px; color:#888;">Text</div>';
-            previewDiv.innerHTML = '<div class="order-item" style="display:flex; gap:15px; align-items:center;">' + thumbHtml + '<div><div class="order-item-title">' + Utils.escapeHtml(p.title) + '</div><div class="order-item-price">' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div></div></div>';
-        }
-        const qtySpan = document.getElementById('checkoutQuantity');
-        if (qtySpan) qtySpan.innerText = '1';
-        this.updateCheckoutTotal();
-        this.el.checkoutPanel.classList.add('active');
-        this.el.checkoutOverlay.classList.add('active');
-    }
-
-    closeCheckout() {
-        this.el.checkoutPanel.classList.remove('active');
-        this.el.checkoutOverlay.classList.remove('active');
-    }
-
-    updateQuantity(delta) {
-        const p = this.products[this.currentIndex];
-        const newQty = this.checkoutQuantity + delta;
-        if (newQty >= 1 && newQty <= p.stock) {
-            this.checkoutQuantity = newQty;
-            const qtySpan = document.getElementById('checkoutQuantity');
-            if (qtySpan) qtySpan.innerText = this.checkoutQuantity;
-            this.updateCheckoutTotal();
-        }
-    }
-
-    updateCheckoutTotal() {
-        const p = this.products[this.currentIndex];
-        const shippingInfo = this.getShippingCostForDisplay();
-        const shipping = shippingInfo.cost || 0;
-
-        const subtotal = p.base_price * this.checkoutQuantity;
-        // Tax display: server computes actual tax, but show a reasonable
-        // estimate here. Use 0 since server handles it.
-        const tax = 0;
-        const total = subtotal + shipping + tax;
-
-        if (this.el.checkoutSubtotal) this.el.checkoutSubtotal.innerText = this.formatPrice(subtotal);
-        if (this.el.checkoutShipping) {
-            var shipLabel = this.formatPrice(shipping);
-            if (shippingInfo.estimated_days) {
-                shipLabel += ' (' + shippingInfo.estimated_days + ' days)';
-            }
-            this.el.checkoutShipping.innerText = shipLabel;
-        }
-        if (this.el.checkoutTax) this.el.checkoutTax.innerText = this.formatPrice(tax);
-        const totalSpan = document.getElementById('checkoutTotal');
-        if (totalSpan) totalSpan.innerText = this.formatPrice(total);
-    }
-
     selectPaymentProvider(provider) {
         this.selectedPaymentProvider = provider;
         document.querySelectorAll('.payment-method-option').forEach(o => {
@@ -1008,18 +1294,43 @@ class HybridApp {
     }
 
     async processPayment() {
-        const p = this.products[this.currentIndex];
-        const email = document.getElementById('checkoutEmail').value;
-        const name = document.getElementById('checkoutName').value;
+        if (this.cart.length === 0) {
+            this.showNotification('Cart is empty');
+            return;
+        }
 
-        if (!email || !name) {
-            this.showNotification('Please fill email and name');
+        // Validate shipping info
+        const email = document.getElementById('checkoutEmail').value.trim();
+        const phone = document.getElementById('checkoutPhone').value.trim();
+        const name = document.getElementById('checkoutName').value.trim();
+        const address = document.getElementById('checkoutAddress').value.trim();
+        const city = document.getElementById('checkoutCity').value.trim();
+        const zip = document.getElementById('checkoutZip').value.trim();
+        const country = document.getElementById('checkoutCountryInput').value.trim();
+
+        if (!email || !phone || !name || !address || !city || !zip || !country) {
+            this.showNotification('Please fill all required shipping fields');
+            // Open shipping accordion if not open
+            const shippingBody = document.getElementById('accordionShippingBody');
+            if (shippingBody && !shippingBody.classList.contains('open')) {
+                this.toggleAccordion('accordionShippingBody');
+            }
             return;
         }
 
         const providerInput = document.querySelector('input[name="paymentProvider"]:checked');
         const paymentProvider = providerInput ? providerInput.value : 'paystack';
         const currency = paymentProvider === 'flutterwave' ? this.selectedCurrency : 'NGN';
+
+        // Build items array
+        const items = this.cart.map(function (item) {
+            const p = app._findProductById(item.productId);
+            return {
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: p ? p.base_price : 0
+            };
+        });
 
         this.showLoading(true);
         try {
@@ -1029,19 +1340,26 @@ class HybridApp {
                 body: JSON.stringify({
                     email: email,
                     name: name,
-                    phone: document.getElementById('checkoutPhone')?.value || '',
-                    productId: p.product_id,
-                    quantity: this.checkoutQuantity,
-                    shippingMethod: document.getElementById('checkoutShippingSelect')?.value || 'standard',
-                    address: document.getElementById('checkoutAddress')?.value || '',
-                    city: '',
-                    zip: '',
+                    phone: phone,
+                    items: items,
+                    address: address,
+                    city: city,
+                    zip: zip,
+                    country: country,
                     paymentProvider: paymentProvider,
                     currency: currency,
-                    discountCode: document.getElementById('checkoutDiscountCode')?.value?.trim() || '',
-                    country: this.selectedCountry || ''
+                    discountCode: document.getElementById('checkoutDiscountCode')?.value?.trim() || ''
                 })
             });
+
+            if (!response.ok) {
+                let errMsg = 'Payment failed (server error ' + response.status + ')';
+                try {
+                    const errData = await response.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) {}
+                throw new Error(errMsg);
+            }
 
             const data = await response.json();
 
@@ -1063,7 +1381,11 @@ class HybridApp {
                 window.location.href = data.authorization_url;
             } else {
                 this.showNotification('Order created! Order #: ' + data.order_number);
-                this.closeCheckout();
+                // Clear cart on success
+                this.cart = [];
+                this._saveCart();
+                this._updateCartBadge();
+                this.closeCart();
             }
         } catch (e) {
             this.showNotification(e.message);
@@ -1073,14 +1395,27 @@ class HybridApp {
     }
 
     openGrid() {
+        // Close expanded view if active to prevent glitch
+        if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) {
+            this.el.productFrame.classList.remove('expanded');
+            this.el.splitContainer.classList.remove('fullview-active');
+            this.expandedActive = false;
+            this.removeExpandedThumbnails();
+        }
+        this.zoomActive = false;
+        this._detectContextLabel();
         this.renderGrid('all');
         this.el.gridOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+        this._setupCollectionDropdown();
     }
 
     closeGrid() {
         this.el.gridOverlay.classList.remove('active');
         document.body.style.overflow = '';
+        // Close collection dropdown if open
+        const dd = document.getElementById('collectionDropdown');
+        if (dd) dd.classList.remove('open');
     }
 
     toggleGridDetails() {
@@ -1092,8 +1427,14 @@ class HybridApp {
 
     renderGrid(filter) {
         let filtered = this.products;
-        if (filter === 'saved') {
+        if (filter === 'context') {
+            // Context tab = saved/favourited items
             filtered = this.products.filter(p => this.savedItems.has(p.product_id));
+        } else if (filter === 'collection') {
+            // Filter by collection name (set via _activeCollection)
+            if (this._activeCollection) {
+                filtered = this.products.filter(p => (p.collection || '').trim() === this._activeCollection);
+            }
         } else if (filter !== 'all') {
             filtered = this.products.filter(p => p.type === filter);
         }
@@ -1114,7 +1455,6 @@ class HybridApp {
             const showPrice = p.show_price !== false;
             const isSaved = this.savedItems.has(p.product_id);
             
-            // Restored grid-item-title, grid-item-price, and grid-item-meta (type + saved)
             const typeLabel = this.TYPE_LABELS[p.type] || '';
             html += '<div class="grid-item" data-action="view-product" data-id="' + Utils.escapeAttr(p.product_id) + '" tabindex="0" role="button">' +
                 thumb +
@@ -1130,10 +1470,123 @@ class HybridApp {
         }
         if (this.el.gridContainer) this.el.gridContainer.innerHTML = html;
 
-        const filterBtns = document.querySelectorAll('.filter-btn');
+        // Update filter button active states
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         for (let i = 0; i < filterBtns.length; i++) {
             filterBtns[i].classList.toggle('active', filterBtns[i].dataset.filter === filter);
         }
+        // Update collection button state
+        const collBtn = document.getElementById('collectionFilterBtn');
+        if (collBtn) collBtn.classList.toggle('active', filter === 'collection' && !!this._activeCollection);
+        // Update collection option states
+        const collOptions = document.querySelectorAll('.collection-option');
+        for (let i = 0; i < collOptions.length; i++) {
+            collOptions[i].classList.toggle('active', collOptions[i].dataset.collection === this._activeCollection);
+        }
+    }
+
+    // Detect dominant product type to set context tab label
+    _detectContextLabel() {
+        const ctxBtn = document.getElementById('contextFilterBtn');
+        if (!ctxBtn) return;
+        const counts = { merch: 0, craft: 0, original: 0, print: 0 };
+        this.products.forEach(p => {
+            if (p.media_kind === 'text') { /* text products don't count for closet/curation */ }
+            else if (counts[p.type] !== undefined) counts[p.type]++;
+        });
+        const total = Object.values(counts).reduce((a, b) => a + b, 0);
+        const textCount = this.products.filter(p => p.media_kind === 'text').length;
+        
+        if (textCount > total) {
+            ctxBtn.textContent = 'Diary';
+        } else {
+            const merchTotal = (counts.merch || 0) + (counts.craft || 0);
+            const artTotal = (counts.original || 0) + (counts.print || 0);
+            if (merchTotal > artTotal) {
+                ctxBtn.textContent = 'Closet';
+            } else {
+                ctxBtn.textContent = 'Curation';
+            }
+        }
+    }
+
+    // Populate collection dropdown from actual product collection names
+    _populateCollectionDropdown() {
+        const dropdown = document.getElementById('collectionDropdown');
+        if (!dropdown) return;
+        
+        // Keep the label, remove old options
+        const label = dropdown.querySelector('.collection-dropdown-label');
+        dropdown.innerHTML = '';
+        if (label) dropdown.appendChild(label);
+        
+        // Get unique collection names from products
+        const collections = {};
+        this.products.forEach(p => {
+            if (p.collection && p.collection.trim()) {
+                collections[p.collection.trim()] = (collections[p.collection.trim()] || 0) + 1;
+            }
+        });
+        
+        const names = Object.keys(collections).sort();
+        if (names.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #888;';
+            emptyMsg.textContent = 'No collections yet. Set a collection name in admin for each product.';
+            dropdown.appendChild(emptyMsg);
+            return;
+        }
+        
+        names.forEach(name => {
+            const btn = document.createElement('button');
+            btn.className = 'collection-option';
+            btn.type = 'button';
+            btn.dataset.collection = name;
+            btn.textContent = name + ' (' + collections[name] + ')';
+            dropdown.appendChild(btn);
+        });
+    }
+
+    // Setup collection dropdown toggle and option clicks
+    _setupCollectionDropdown() {
+        const collBtn = document.getElementById('collectionFilterBtn');
+        const dropdown = document.getElementById('collectionDropdown');
+        if (!collBtn || !dropdown) return;
+
+        // Populate dropdown with current collection names
+        this._populateCollectionDropdown();
+
+        // Toggle dropdown on click
+        collBtn.onclick = (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        };
+
+        // Close dropdown when clicking outside
+        const closeDropdown = (e) => {
+            if (!dropdown.contains(e.target) && e.target !== collBtn) {
+                dropdown.classList.remove('open');
+            }
+        };
+        document.addEventListener('click', closeDropdown);
+
+        // Collection option clicks
+        const options = dropdown.querySelectorAll('.collection-option');
+        options.forEach(opt => {
+            opt.onclick = (e) => {
+                e.stopPropagation();
+                const coll = opt.dataset.collection;
+                if (this._activeCollection === coll) {
+                    // Deselect — show all
+                    this._activeCollection = null;
+                    this.renderGrid('all');
+                } else {
+                    this._activeCollection = coll;
+                    this.renderGrid('collection');
+                }
+                dropdown.classList.remove('open');
+            };
+        });
     }
 
     viewProduct(productId) {
@@ -1151,6 +1604,9 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (!p) return;
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+        // Update variations FIRST so dots use current product data
+        this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
         // Remove transitioning class immediately (no fade)
         if (this.el.infoContainer) this.el.infoContainer.classList.remove('transitioning');
         this.renderMedia(p);
@@ -1179,7 +1635,6 @@ class HybridApp {
                 else { this.el.stockBadge.textContent = ''; }
             }
         }
-        this.currentVariations = p.variations || [];
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -1240,9 +1695,11 @@ class HybridApp {
     }
 
     isModalOpen() {
+        const legalModal = document.getElementById('legalModal');
         return (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) ||
                (this.el.gridOverlay && this.el.gridOverlay.classList.contains('active')) ||
-               (this.el.shareOverlay && this.el.shareOverlay.classList.contains('active'));
+               (this.el.shareOverlay && this.el.shareOverlay.classList.contains('active')) ||
+               (legalModal && legalModal.classList.contains('active'));
     }
 
     setupEvents() {
@@ -1252,15 +1709,19 @@ class HybridApp {
         if (this.el.prevBtn) this.el.prevBtn.onclick = () => this.prevProduct();
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
-        if (this.el.cartButton) this.el.cartButton.onclick = () => this.openCheckout();
-        if (this.el.currencyDisplay) this.el.currencyDisplay.onclick = () => this.cycleCurrency();
+        if (this.el.cartButton) this.el.cartButton.onclick = () => this.addToCart();
+        if (this.el.currencyDisplay) {
+            this.el.currencyDisplay.addEventListener('change', () => {
+                this.selectCurrency(this.el.currencyDisplay.value);
+            });
+        }
         document.querySelectorAll('[data-action="close-grid"]').forEach(function(el) {
             el.onclick = function() { app.closeGrid(); };
             el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeGrid(); } };
         });
         document.querySelectorAll('[data-action="close-checkout"]').forEach(function(el) {
-            el.onclick = function() { app.closeCheckout(); };
-            el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeCheckout(); } };
+            el.onclick = function() { app.closeCart(); };
+            el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeCart(); } };
         });
         if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
@@ -1294,31 +1755,46 @@ class HybridApp {
         const gridIcon = document.getElementById('gridIconTop');
         if (gridIcon) gridIcon.onclick = () => this.openGrid();
 
-        const shippingSelect = document.getElementById('checkoutShippingSelect');
-        if (shippingSelect) shippingSelect.onchange = () => this.updateCheckoutTotal();
+        // Address fields trigger shipping/tax recalculation
+        const addressFields = ['checkoutCountryInput', 'checkoutZip', 'checkoutCity'];
+        addressFields.forEach(function(fieldId) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.addEventListener('input', function() {
+                    if (app.checkoutRevealed) app.updateCheckoutTotals();
+                });
+            }
+        });
 
-        const countrySelect = document.getElementById('checkoutCountry');
-        if (countrySelect) countrySelect.onchange = () => {
-            this.selectedCountry = countrySelect.value;
-            this.updateCheckoutTotal();
-        };
+        // Discount code triggers recalc
+        const discountInput = document.getElementById('checkoutDiscountCode');
+        if (discountInput) {
+            discountInput.addEventListener('input', function() {
+                if (app.checkoutRevealed) app.updateCheckoutTotals();
+            });
+        }
 
         document.querySelectorAll('input[name="paymentProvider"]').forEach(radio => {
             radio.addEventListener('change', (e) => this.selectPaymentProvider(e.target.value));
         });
 
-        const filterBtns = document.querySelectorAll('.filter-btn');
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         for (let i = 0; i < filterBtns.length; i++) {
-            filterBtns[i].onclick = () => this.filterGrid(filterBtns[i].dataset.filter);
+            filterBtns[i].onclick = () => {
+                const f = filterBtns[i].dataset.filter;
+                this._activeCollection = null; // Reset collection when clicking All/Context
+                this.filterGrid(f);
+            };
         }
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                this.closeCheckout();
+                this.closeCart();
                 this.closeGrid();
                 this.closeShare();
+                this.closeLegalModal();
             }
-            if (!this.isModalOpen()) {
+            if (!this.isModalOpen() && !this._isExpanded()) {
                 if (e.key === 'ArrowRight') this.nextProduct();
                 if (e.key === 'ArrowLeft') this.prevProduct();
                 if (e.key === 's' || e.key === 'S') this.toggleSave();
@@ -1334,22 +1810,42 @@ class HybridApp {
                     this.closeGrid();
                     break;
                 case 'close-checkout-overlay':
-                    if (e.target === target) this.closeCheckout();
+                    if (e.target === target) this.closeCart();
                     break;
-                case 'qty-dec':
-                    this.updateQuantity(-1);
+                case 'cart-qty-dec':
+                    this.updateCartQty(target.dataset.pid, -1);
                     break;
-                case 'qty-inc':
-                    this.updateQuantity(1);
+                case 'cart-qty-inc':
+                    this.updateCartQty(target.dataset.pid, 1);
+                    break;
+                case 'cart-remove':
+                    this.removeFromCart(target.dataset.pid);
+                    break;
+                case 'reveal-checkout':
+                    this.revealCheckout();
+                    break;
+                case 'toggle-accordion':
+                    this.toggleAccordion(target.dataset.target);
                     break;
                 case 'place-order':
                     this.processPayment();
                     break;
                 case 'close-checkout':
-                    this.closeCheckout();
+                    this.closeCart();
                     break;
                 case 'view-product':
                     this.viewProduct(target.dataset.id);
+                    break;
+                case 'show-terms':
+                    e.preventDefault();
+                    this.showLegalModal('terms');
+                    break;
+                case 'show-privacy':
+                    e.preventDefault();
+                    this.showLegalModal('privacy');
+                    break;
+                case 'close-legal-modal':
+                    this.closeLegalModal();
                     break;
             }
         });
@@ -1368,12 +1864,14 @@ class HybridApp {
         let startY = 0;
         document.addEventListener('touchstart', (e) => {
             if (this.isModalOpen()) return;
+            if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         }, { passive: true });
         
         document.addEventListener('touchend', (e) => {
             if (this.isModalOpen()) return;
+            if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) return;
             const diffX = e.changedTouches[0].clientX - startX;
             const diffY = e.changedTouches[0].clientY - startY;
             if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
@@ -1384,6 +1882,68 @@ class HybridApp {
                 }
             }
         }, { passive: true });
+    }
+
+    // Expanded mode thumbnails
+    renderExpandedThumbnails() {
+        this.removeExpandedThumbnails();
+        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        if (allImages.length <= 1) return;
+
+        const container = document.createElement('div');
+        container.className = 'expanded-thumbnails';
+        container.id = 'expandedThumbnails';
+
+        allImages.forEach((url, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'expanded-thumb' + (idx === this.variationIndex ? ' active' : '');
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Image ' + (idx + 1);
+            img.loading = 'lazy';
+            thumb.appendChild(img);
+            thumb.onclick = (e) => { e.stopPropagation(); this.showVariation(idx); };
+            container.appendChild(thumb);
+        });
+
+        this.el.productFrame.appendChild(container);
+    }
+
+    removeExpandedThumbnails() {
+        const existing = document.getElementById('expandedThumbnails');
+        if (existing) existing.remove();
+    }
+
+    // Real-time sync with admin panel
+    setupAdminSync() {
+        try {
+            const bc = new BroadcastChannel('vgallery_admin');
+            bc.onmessage = (e) => {
+                if (e.data && e.data.type) this.handleAdminChange(e.data.type);
+            };
+        } catch(e) {}
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'vgallery_admin_event') {
+                try {
+                    const data = JSON.parse(e.newValue);
+                    if (data && data.type) this.handleAdminChange(data.type);
+                } catch(err) {}
+            }
+        });
+    }
+
+    async handleAdminChange(type) {
+        // Small delay to let Supabase propagate the write
+        await new Promise(r => setTimeout(r, 500));
+        if (type === 'products_updated') {
+            await this.loadProducts({ silent: true, noCache: true });
+            this.showNotification('Products updated');
+        } else if (type === 'settings_updated') {
+            await this.loadStoreSettings();
+            await this.fetchCurrencyRates();
+            this.showNotification('Settings updated');
+        }
     }
 }
 
