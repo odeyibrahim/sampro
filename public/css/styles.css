@@ -219,7 +219,6 @@ body {
     line-height: 1.6;
     color: var(--color-gray-dark);
     margin-bottom: 40px;
-    font-style: italic;
     white-space: pre-line;
 }
 .intro-signature {
@@ -397,6 +396,44 @@ body {
 }
 .product-frame.expanded.has-frame { border: none; padding: 0; }
 
+/* Expanded thumbnails strip */
+.expanded-thumbnails {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 10;
+    background: linear-gradient(transparent, rgba(0,0,0,0.4));
+}
+.expanded-thumb {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.expanded-thumb.active {
+    border-color: #fff;
+    opacity: 1;
+}
+.expanded-thumb:hover {
+    opacity: 0.9;
+}
+.expanded-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .split-container.fullview-active .info-half,
 .split-container.fullview-active .bottom-nav {
     display: none;
@@ -447,7 +484,6 @@ body {
     padding: 40px;
     font-size: clamp(18px, 4vh, 32px);
     line-height: 1.6;
-    font-style: italic;
     overflow-y: auto;
     position: relative;
     z-index: 1;
@@ -608,16 +644,25 @@ body {
     font-size: 10px;
     color: var(--color-gray);
     font-family: 'Roboto Mono', monospace;
-    padding: 3px 7px;
+    padding: 3px 5px;
     border: 1px solid var(--color-gray-light);
     border-radius: 4px;
     cursor: pointer;
     background: none;
     transition: all 0.2s;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    outline: none;
 }
-.action-row .currency-selector:hover {
+.action-row .currency-selector:hover,
+.action-row .currency-selector:focus {
     border-color: var(--color-primary);
     color: var(--color-primary);
+}
+.action-row .currency-selector option {
+    background: #fff;
+    color: #000;
 }
 
 /* ---------- Bottom nav ---------- */
@@ -796,7 +841,6 @@ body {
     color: var(--color-gray);
     text-align: center;
     padding: 12px;
-    font-style: italic;
 }
 
 /* ---------- Checkout ---------- */
