@@ -33,7 +33,7 @@
              ════════════════════════════════════════════ -->
         <div class="admin-section active" id="adminOverview">
             <div class="admin-stats">
-                <div class="stat-card"><div class="stat-value" id="totalRevenue">₦0</div><div class="stat-label">Revenue</div></div>
+                <div class="stat-card"><div class="stat-value" id="totalRevenue">&#8358;0</div><div class="stat-label">Revenue</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalOrders">0</div><div class="stat-label">Orders</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Products</div></div>
                 <div class="stat-card"><div class="stat-value" id="totalCustomers">0</div><div class="stat-label">Customers</div></div>
@@ -248,14 +248,14 @@
                         <span>Currency Exchange Rates</span><span class="accordion-arrow">▼</span>
                     </div>
                     <div class="accordion-body">
-                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Rates relative to 1 NGN. The frontend shows a currency dropdown. Toggle live rates below to auto-fetch from ECB.</p>
+                    <p style="font-size:11px; color:#888; margin-bottom:10px;">Rates relative to 1 USD. The frontend shows a currency dropdown. Toggle live rates below to auto-fetch from ECB.</p>
                     <div class="row-2">
-                        <div class="form-group"><label>USD Rate</label><input type="number" id="rateUSD" value="0.000667" step="0.000001" min="0"></div>
-                        <div class="form-group"><label>EUR Rate</label><input type="number" id="rateEUR" value="0.000613" step="0.000001" min="0"></div>
+                        <div class="form-group"><label>EUR Rate</label><input type="number" id="rateEUR" value="0.92" step="0.01" min="0"></div>
+                        <div class="form-group"><label>GBP Rate</label><input type="number" id="rateGBP" value="0.79" step="0.01" min="0"></div>
                     </div>
                     <div class="row-2">
-                        <div class="form-group"><label>GBP Rate</label><input type="number" id="rateGBP" value="0.000527" step="0.000001" min="0"></div>
-                        <div class="form-group"><label>NGN Rate</label><input type="number" id="rateNGN" value="1" step="0.01" min="0" disabled style="opacity:0.5;"></div>
+                        <div class="form-group"><label>NGN Rate</label><input type="number" id="rateNGN" value="1500" step="1" min="0"></div>
+                        <div class="form-group"><label>USD Rate</label><input type="number" id="rateUSD" value="1" step="0.01" min="0" disabled style="opacity:0.5;"></div>
                     </div>
                     <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding:8px 0; border-top:1px solid var(--border-color, #eee);">
                         <label style="font-size:12px; font-weight:500;">Live rates</label>
@@ -300,16 +300,16 @@
                     <div class="accordion-body">
                     <p style="font-size:11px; color:#888; margin-bottom:10px;">Used when no shipping zone matches. Zone-based shipping above takes priority.</p>
                     <div class="row-2">
-                        <div class="form-group"><label>Local Standard (₦)</label><input type="number" id="localStdShipping" value="5000" step="100"></div>
-                        <div class="form-group"><label>Local Express (₦)</label><input type="number" id="localExpShipping" value="12000" step="100"></div>
+                        <div class="form-group"><label>Local Standard (&#8358;)</label><input type="number" id="localStdShipping" value="5000" step="100"></div>
+                        <div class="form-group"><label>Local Express (&#8358;)</label><input type="number" id="localExpShipping" value="12000" step="100"></div>
                     </div>
                     <div class="row-2">
-                        <div class="form-group"><label>International Standard (₦)</label><input type="number" id="intlStdShipping" value="15000" step="100"></div>
-                        <div class="form-group"><label>International Express (₦)</label><input type="number" id="intlExpShipping" value="35000" step="100"></div>
+                        <div class="form-group"><label>International Standard (&#8358;)</label><input type="number" id="intlStdShipping" value="15000" step="100"></div>
+                        <div class="form-group"><label>International Express (&#8358;)</label><input type="number" id="intlExpShipping" value="35000" step="100"></div>
                     </div>
                     <div class="row-2">
-                        <div class="form-group"><label>Local USD Standard</label><input type="number" id="localStdNGN" value="7" step="0.01"></div>
-                        <div class="form-group"><label>Local USD Express</label><input type="number" id="localExpNGN" value="15" step="0.01"></div>
+                        <div class="form-group"><label>Local NGN Standard</label><input type="number" id="localStdNGN" value="5000" step="100"></div>
+                        <div class="form-group"><label>Local NGN Express</label><input type="number" id="localExpNGN" value="12000" step="100"></div>
                     </div>
                     <div class="form-group">
                         <label>WhatsApp Number</label>
