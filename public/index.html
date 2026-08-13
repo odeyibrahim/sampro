@@ -161,10 +161,18 @@
         <div class="grid-header">
             <div class="grid-filters">
                 <button class="filter-btn active" data-filter="all" type="button">All</button>
-                <button class="filter-btn" data-filter="original" type="button">Originals</button>
-                <button class="filter-btn" data-filter="print" type="button">Prints</button>
-                <button class="filter-btn" data-filter="merch" type="button">Products</button>
-                <button class="filter-btn" data-filter="saved" type="button">♡ Saved</button>
+                <div class="filter-btn-collection-wrap">
+                    <button class="filter-btn" id="collectionFilterBtn" type="button">Collections</button>
+                    <div class="collection-dropdown" id="collectionDropdown">
+                        <div class="collection-dropdown-label">Filter by type</div>
+                        <button class="collection-option" data-collection="original" type="button">Originals</button>
+                        <button class="collection-option" data-collection="print" type="button">Prints</button>
+                        <button class="collection-option" data-collection="merch" type="button">Products</button>
+                        <button class="collection-option" data-collection="craft" type="button">Handmade</button>
+                        <button class="collection-option" data-collection="text" type="button">Writings</button>
+                    </div>
+                </div>
+                <button class="filter-btn" data-filter="context" type="button" id="contextFilterBtn">Closet</button>
                 <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">👁</button>
             </div>
             <span class="close-grid-btn" data-action="close-grid" role="button" tabindex="0" aria-label="Close grid">←</span>
