@@ -1,8 +1,10 @@
-const CACHE_NAME = 'vgallery-cache-v3';
+// V. Gallery Service Worker v3
+const CACHE_NAME = 'vgallery-cache-v5';
 const PRECACHE_URLS = [
     '/',
-    '/styles.css',
-    '/app.js',
+    '/css/styles.css',
+    '/js/utils.js',
+    '/js/app.js',
     '/manifest.json'
 ];
 
