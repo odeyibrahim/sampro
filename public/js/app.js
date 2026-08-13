@@ -4,7 +4,7 @@ class HybridApp {
         this.currentIndex = 0;
         this.savedItems = new Set();
         this.selectedCurrency = 'NGN';
-        this.exchangeRates = { USD: 1, EUR: 0.92, GBP: 0.79, NGN: 1500 };
+        this.exchangeRates = { NGN: 1, USD: 0.000667, EUR: 0.000613, GBP: 0.000527 };
         this.cart = [];  // [{ productId, quantity, addedAt }]
         this.cartOpen = false;
         this.checkoutRevealed = false;
