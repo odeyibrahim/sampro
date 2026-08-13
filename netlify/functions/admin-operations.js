@@ -673,13 +673,13 @@ export const handler = async (event) => {
 
             case 'refresh_currency_rates': {
                 try {
-                    const resp = await fetch('https://api.frankfurter.app/latest?from=USD', {
+                    const resp = await fetch('https://api.frankfurter.app/latest?from=NGN', {
                         signal: AbortSignal.timeout(5000)
                     });
                     if (resp.ok) {
                         const fdata = await resp.json();
                         if (fdata && fdata.rates) {
-                            const liveRates = JSON.stringify({ USD: 1, ...fdata.rates });
+                            const liveRates = JSON.stringify({ NGN: 1, ...fdata.rates });
                             const now = new Date().toISOString();
                             await supabase.from('settings').upsert([
                                 { key: 'live_rates_data', value: liveRates, updated_at: now },
