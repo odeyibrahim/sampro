@@ -70,7 +70,9 @@ function productFieldsFromData(data, { excludeShare, excludeSlug } = {}) {
         video_loop: data.video_loop !== false,
         video_muted: data.video_muted !== false,
         tags: Array.isArray(data.tags) ? data.tags : [],
-        is_featured: !!data.is_featured
+        is_featured: !!data.is_featured,
+        collection: data.collection || null,
+        sort_order: parseInt(data.sort_order) || 0
     };
     if (!excludeShare) {
         fields.show_share = !!data.show_share;
@@ -751,6 +753,36 @@ export const handler = async (event) => {
                     }
                 } catch (e) {
                     result = { success: false, error: 'Fetch failed: ' + e.message };
+                }
+                break;
+            }
+
+            // ------------------------------------------------------
+            // REORDER PRODUCTS — drag-to-sort save
+            // ------------------------------------------------------
+            case 'reorder_products': {
+                const order = data.order;
+                if (!Array.isArray(order) || order.length === 0) {
+                    result = { error: 'No order data provided' };
+                    break;
+                }
+                try {
+                    // Update sort_order for each product
+                    const promises = order.map(item => {
+                        return supabase
+                            .from('products')
+                            .update({ sort_order: item.sort_order })
+                            .eq('product_id', item.product_id);
+                    });
+                    const results = await Promise.all(promises);
+                    const hasError = results.some(r => r.error);
+                    if (hasError) {
+                        result = { error: 'Some updates failed' };
+                    } else {
+                        result = { success: true, updated: order.length };
+                    }
+                } catch (e) {
+                    result = { error: e.message };
                 }
                 break;
             }
