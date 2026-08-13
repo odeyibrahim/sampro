@@ -1348,6 +1348,15 @@ class HybridApp {
                 })
             });
 
+            if (!response.ok) {
+                let errMsg = 'Payment failed (server error ' + response.status + ')';
+                try {
+                    const errData = await response.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) {}
+                throw new Error(errMsg);
+            }
+
             const data = await response.json();
 
             if (!data.success) {
