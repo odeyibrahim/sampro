@@ -209,6 +209,8 @@
 
     function applySettingsForm(settings) {
         if (settings.store_name) document.getElementById('storeName').value = settings.store_name;
+        if (settings.store_country) document.getElementById('storeCountry').value = settings.store_country;
+        if (settings.local_tax_rate !== undefined) document.getElementById('localTaxRate').value = settings.local_tax_rate;
         if (settings.ship_std) document.getElementById('localStdShipping').value = settings.ship_std;
         if (settings.ship_exp) document.getElementById('localExpShipping').value = settings.ship_exp;
         if (settings.ship_intl_std) document.getElementById('intlStdShipping').value = settings.ship_intl_std;
@@ -581,6 +583,8 @@
         });
         var data = {
             store_name: document.getElementById('storeName').value.trim() || 'V. Gallery',
+            store_country: document.getElementById('storeCountry').value.trim() || 'Nigeria',
+            local_tax_rate: parseFloat(document.getElementById('localTaxRate').value) || 0,
             exchange_rates: exchangeRates,
             ship_std: parseFloat(document.getElementById('localStdShipping').value) || 0,
             ship_exp: parseFloat(document.getElementById('localExpShipping').value) || 0,
