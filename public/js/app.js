@@ -442,10 +442,12 @@ class HybridApp {
         };
     }
 
-    async loadProducts() {
-        this.showLoading(true);
+    async loadProducts(options) {
+        options = options || {};
+        this.showLoading(!options.silent);
         try {
-            const response = await fetch('/.netlify/functions/get-products');
+            const url = '/.netlify/functions/get-products' + (options.noCache ? '?_t=' + Date.now() : '');
+            const response = await fetch(url);
             const data = await response.json();
             if (data && data.length > 0) {
                 this.products = data;
@@ -453,11 +455,14 @@ class HybridApp {
                 throw new Error('No products from API');
             }
         } catch (e) {
-            this.products = [
-                { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
-                { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
-                { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
-            ];
+            // Only use fallback data on initial load, not on admin sync refreshes
+            if (!options.silent) {
+                this.products = [
+                    { product_id: '1', title: 'Archive Tee', author: 'V.', description: '100% cotton, screen printed by hand.\nLimited edition.', type: 'merch', base_price: 45, stock: 10, orientation: 'square', image_url: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', variations: [] },
+                    { product_id: '2', title: 'Desert Landscape', author: 'V.', description: 'Archival photograph from the high desert.\nSigned and numbered.', type: 'print', base_price: 195, stock: 5, orientation: 'landscape', image_url: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800', variations: ['https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800'] },
+                    { product_id: '3', title: 'Silent Currents', author: 'V.', description: 'Original mixed media on canvas, 2024.\nA unique piece.', type: 'original', base_price: 8500, stock: 1, orientation: 'portrait', image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800', variations: [] }
+                ];
+            }
         }
         this._routeFromUrl();
         this.updateDisplay();
@@ -478,6 +483,10 @@ class HybridApp {
 
         // Cancel any pending transition timer to prevent stale callbacks
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+
+        // Update variations FIRST so renderVariationDots uses current product's data
+        this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
 
         // Render immediately — no opacity transition to prevent text-disappearing glitch
         this.renderMedia(p);
@@ -514,8 +523,6 @@ class HybridApp {
             }
         }
 
-        this.currentVariations = p.variations || [];
-        this.variationIndex = 0;
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -762,6 +769,7 @@ class HybridApp {
             frame.classList.remove('expanded');
             document.body.style.overflow = '';
             this.el.splitContainer.classList.remove('fullview-active');
+            this.expandedActive = false;
             // Remove expanded thumbnails
             this.removeExpandedThumbnails();
             const p = this.products[this.currentIndex];
@@ -770,6 +778,7 @@ class HybridApp {
             frame.classList.add('expanded');
             document.body.style.overflow = 'hidden';
             this.el.splitContainer.classList.add('fullview-active');
+            this.expandedActive = true;
             // Show expanded thumbnails
             this.renderExpandedThumbnails();
         }
@@ -1110,6 +1119,7 @@ class HybridApp {
         if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) {
             this.el.productFrame.classList.remove('expanded');
             this.el.splitContainer.classList.remove('fullview-active');
+            this.expandedActive = false;
             this.removeExpandedThumbnails();
         }
         this.zoomActive = false;
@@ -1141,13 +1151,9 @@ class HybridApp {
             // Context tab = saved/favourited items
             filtered = this.products.filter(p => this.savedItems.has(p.product_id));
         } else if (filter === 'collection') {
-            // Handled by _activeCollection
+            // Filter by collection name (set via _activeCollection)
             if (this._activeCollection) {
-                if (this._activeCollection === 'text') {
-                    filtered = this.products.filter(p => p.media_kind === 'text');
-                } else {
-                    filtered = this.products.filter(p => p.type === this._activeCollection);
-                }
+                filtered = this.products.filter(p => (p.collection || '').trim() === this._activeCollection);
             }
         } else if (filter !== 'all') {
             filtered = this.products.filter(p => p.type === filter);
@@ -1224,11 +1230,51 @@ class HybridApp {
         }
     }
 
+    // Populate collection dropdown from actual product collection names
+    _populateCollectionDropdown() {
+        const dropdown = document.getElementById('collectionDropdown');
+        if (!dropdown) return;
+        
+        // Keep the label, remove old options
+        const label = dropdown.querySelector('.collection-dropdown-label');
+        dropdown.innerHTML = '';
+        if (label) dropdown.appendChild(label);
+        
+        // Get unique collection names from products
+        const collections = {};
+        this.products.forEach(p => {
+            if (p.collection && p.collection.trim()) {
+                collections[p.collection.trim()] = (collections[p.collection.trim()] || 0) + 1;
+            }
+        });
+        
+        const names = Object.keys(collections).sort();
+        if (names.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style.cssText = 'padding: 8px 12px; font-size: 11px; color: #888;';
+            emptyMsg.textContent = 'No collections yet. Set a collection name in admin for each product.';
+            dropdown.appendChild(emptyMsg);
+            return;
+        }
+        
+        names.forEach(name => {
+            const btn = document.createElement('button');
+            btn.className = 'collection-option';
+            btn.type = 'button';
+            btn.dataset.collection = name;
+            btn.textContent = name + ' (' + collections[name] + ')';
+            dropdown.appendChild(btn);
+        });
+    }
+
     // Setup collection dropdown toggle and option clicks
     _setupCollectionDropdown() {
         const collBtn = document.getElementById('collectionFilterBtn');
         const dropdown = document.getElementById('collectionDropdown');
         if (!collBtn || !dropdown) return;
+
+        // Populate dropdown with current collection names
+        this._populateCollectionDropdown();
 
         // Toggle dropdown on click
         collBtn.onclick = (e) => {
@@ -1278,6 +1324,9 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (!p) return;
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+        // Update variations FIRST so dots use current product data
+        this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
         // Remove transitioning class immediately (no fade)
         if (this.el.infoContainer) this.el.infoContainer.classList.remove('transitioning');
         this.renderMedia(p);
@@ -1306,8 +1355,6 @@ class HybridApp {
                 else { this.el.stockBadge.textContent = ''; }
             }
         }
-        this.currentVariations = p.variations || [];
-        this.variationIndex = 0;
         if (this.zoomActive) this.removeZoom();
     }
 
@@ -1381,7 +1428,11 @@ class HybridApp {
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
         if (this.el.cartButton) this.el.cartButton.onclick = () => this.openCheckout();
-        if (this.el.currencyDisplay) this.el.currencyDisplay.onchange = () => this.selectCurrency(this.el.currencyDisplay.value);
+        if (this.el.currencyDisplay) {
+            this.el.currencyDisplay.addEventListener('change', () => {
+                this.selectCurrency(this.el.currencyDisplay.value);
+            });
+        }
         document.querySelectorAll('[data-action="close-grid"]').forEach(function(el) {
             el.onclick = function() { app.closeGrid(); };
             el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeGrid(); } };
@@ -1570,8 +1621,10 @@ class HybridApp {
     }
 
     async handleAdminChange(type) {
+        // Small delay to let Supabase propagate the write
+        await new Promise(r => setTimeout(r, 500));
         if (type === 'products_updated') {
-            await this.loadProducts();
+            await this.loadProducts({ silent: true, noCache: true });
             this.showNotification('Products updated');
         } else if (type === 'settings_updated') {
             await this.loadStoreSettings();
