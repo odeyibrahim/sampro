@@ -81,8 +81,8 @@
                     </div>
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
                     <div class="table-container">
-                        <table class="admin-table">
-                            <thead><tr><th></th><th>Title</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                        <table class="admin-table" id="adminProductsTable">
+                            <thead><tr><th style="width:24px;"></th><th>Title</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
                             <tbody id="adminProductsBody"></tbody>
                         </table>
                     </div>
@@ -289,12 +289,7 @@
                     <div style="margin-bottom:10px;">
                         <button class="admin-btn confirm-pay" id="addShippingZoneBtn" style="font-size:12px;">+ Add Zone</button>
                     </div>
-                    <div class="table-container">
-                        <table class="admin-table">
-                            <thead><tr><th>Country</th><th>Method</th><th>Currency</th><th>Cost</th><th>Days</th><th>Active</th><th>Actions</th></tr></thead>
-                            <tbody id="shippingZonesBody"></tbody>
-                        </table>
-                    </div>
+                    <div id="shippingZonesList" style="display:flex; flex-direction:column; gap:6px;"></div>
                     </div>
                 </div>
 
