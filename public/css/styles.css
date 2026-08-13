@@ -6,16 +6,22 @@
 
 /* Prevent pinch-to-zoom on the entire site */
 
-/* Prevent iOS auto-zoom on input focus: minimum 16px font size */
-input[type="text"],
-input[type="email"],
-input[type="tel"],
-input[type="number"],
-input[type="url"],
-input[type="search"],
-select,
-textarea {
-    font-size: 16px !important;
+/* Prevent iOS auto-zoom on input focus — only typed text is 16px */
+/* Labels, placeholders, and non-input UI remain at their natural small sizes */
+@media (max-width: 768px) {
+    .checkout-panel input[type="text"],
+    .checkout-panel input[type="email"],
+    .checkout-panel input[type="tel"],
+    .checkout-panel input[type="number"],
+    .checkout-panel input[type="url"],
+    .checkout-panel select,
+    .checkout-panel textarea {
+        font-size: 16px !important;
+    }
+    .checkout-panel input::placeholder,
+    .checkout-panel textarea::placeholder {
+        font-size: 12px !important;
+    }
 }
 
 html, body {
@@ -956,7 +962,7 @@ body.dark-mode .collection-option.active {
     position: fixed;
     top: 0; right: -100%;
     width: 90%;
-    max-width: 460px;
+    max-width: 700px;
     height: 100%;
     background: var(--color-surface);
     color: var(--color-primary);
@@ -1133,11 +1139,25 @@ body.dark-mode .collection-option.active {
 }
 .icon-button { position: relative; }
 
-/* Accordion */
-.checkout-accordion {
+/* Two-sided checkout layout: order summary left, form right */
+.checkout-layout {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 30px;
+    align-items: start;
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid var(--color-gray-light);
+}
+.checkout-left {
+    /* Left column: totals + discount */
+}
+.checkout-right {
+    /* Right column: shipping form + payment + place order */
+}
+/* Mini-cart items section (single column, shown before checkout reveal) */
+.cart-items-section {
+    margin-bottom: 16px;
 }
 .accordion-section {
     margin-bottom: 8px;
@@ -1213,7 +1233,7 @@ body.dark-mode .collection-option.active {
     padding: 10px 0;
     border: none;
     border-bottom: 1px solid var(--color-gray-light);
-    font-size: 16px; /* Prevents iOS auto-zoom */
+    font-size: 13px;
     font-family: 'Work Sans', sans-serif;
     outline: none;
     transition: border-color 0.2s;
@@ -1604,6 +1624,7 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
 
 @media (max-width: 767px) {
     .grid-container { grid-template-columns: repeat(3, 1fr); gap: 30px; }
+    .checkout-layout { grid-template-columns: 1fr; }
     .checkout-panel { width: 100%; max-width: 100%; }
     .product-half { padding: 60px 20px 20px; }
     .grid-overlay { padding: 0 16px 16px; }
