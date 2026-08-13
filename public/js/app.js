@@ -46,6 +46,7 @@ class HybridApp {
         this.setupEvents();
         this.setupSwipe();
         this.setupPwa();
+        this.setupAdminSync();
         this.updateOfflineBanner();
         this.loadStoreSettings();
         const enterBtn = document.getElementById('enterGalleryBtn');
@@ -693,12 +694,11 @@ class HybridApp {
         return symbols[this.selectedCurrency] + value.toFixed(2);
     }
 
-    cycleCurrency() {
-        const currencies = ['USD', 'EUR', 'GBP', 'NGN'];
-        const idx = (currencies.indexOf(this.selectedCurrency) + 1) % currencies.length;
-        this.selectedCurrency = currencies[idx];
+    selectCurrency(currency) {
+        if (!['USD', 'EUR', 'GBP', 'NGN'].includes(currency)) return;
+        this.selectedCurrency = currency;
         localStorage.setItem('vgallery_currency', this.selectedCurrency);
-        if (this.el.currencyDisplay) this.el.currencyDisplay.textContent = this.selectedCurrency;
+        if (this.el.currencyDisplay) this.el.currencyDisplay.value = this.selectedCurrency;
         this.updateDisplay();
         if (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) {
             this.updateCheckoutTotal();
@@ -709,21 +709,38 @@ class HybridApp {
         const p = this.products[this.currentIndex];
         if (p && (p.media_kind === 'text' || p.type === 'text')) return;
 
+        const frame = this.el.productFrame;
+        const isExpanded = frame && frame.classList.contains('expanded');
+
         if (this.doubleTapTimer) {
             clearTimeout(this.doubleTapTimer);
             this.doubleTapTimer = null;
+            if (isExpanded) {
+                // Double-tap in expanded mode: close expanded view
+                this.toggleExpand();
+                return;
+            }
             this.toggleExpand();
             return;
         }
         this.doubleTapTimer = setTimeout(() => {
             this.doubleTapTimer = null;
-            // If the product has variations, cycle to the next image instead of zooming
-            const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
-            if (allImages.length > 1) {
-                const next = (this.variationIndex + 1) % allImages.length;
-                this.showVariation(next);
+            if (isExpanded) {
+                // Single tap in expanded mode: cycle to next image
+                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                if (allImages.length > 1) {
+                    const next = (this.variationIndex + 1) % allImages.length;
+                    this.showVariation(next);
+                }
             } else {
-                this.toggleZoom();
+                // Normal mode: if variations exist, cycle image; else zoom
+                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                if (allImages.length > 1) {
+                    const next = (this.variationIndex + 1) % allImages.length;
+                    this.showVariation(next);
+                } else {
+                    this.toggleZoom();
+                }
             }
         }, 280);
     }
@@ -743,12 +760,16 @@ class HybridApp {
             frame.classList.remove('expanded');
             document.body.style.overflow = '';
             this.el.splitContainer.classList.remove('fullview-active');
+            // Remove expanded thumbnails
+            this.removeExpandedThumbnails();
             const p = this.products[this.currentIndex];
             if (p) this.renderFrame(p);
         } else {
             frame.classList.add('expanded');
             document.body.style.overflow = 'hidden';
             this.el.splitContainer.classList.add('fullview-active');
+            // Show expanded thumbnails
+            this.renderExpandedThumbnails();
         }
     }
 
@@ -814,6 +835,12 @@ class HybridApp {
         };
         updateDots('.pv-dot');
         updateDots('.variation-dots .dot');
+
+        // Update expanded thumbnails active state
+        const thumbs = document.querySelectorAll('.expanded-thumb');
+        for (let j = 0; j < thumbs.length; j++) {
+            thumbs[j].classList.toggle('active', j === idx);
+        }
     }
 
     removeZoom() {
@@ -1253,7 +1280,7 @@ class HybridApp {
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
         if (this.el.cartButton) this.el.cartButton.onclick = () => this.openCheckout();
-        if (this.el.currencyDisplay) this.el.currencyDisplay.onclick = () => this.cycleCurrency();
+        if (this.el.currencyDisplay) this.el.currencyDisplay.onchange = () => this.selectCurrency(this.el.currencyDisplay.value);
         document.querySelectorAll('[data-action="close-grid"]').forEach(function(el) {
             el.onclick = function() { app.closeGrid(); };
             el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeGrid(); } };
@@ -1368,12 +1395,14 @@ class HybridApp {
         let startY = 0;
         document.addEventListener('touchstart', (e) => {
             if (this.isModalOpen()) return;
+            if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) return;
             startX = e.touches[0].clientX;
             startY = e.touches[0].clientY;
         }, { passive: true });
         
         document.addEventListener('touchend', (e) => {
             if (this.isModalOpen()) return;
+            if (this.el.productFrame && this.el.productFrame.classList.contains('expanded')) return;
             const diffX = e.changedTouches[0].clientX - startX;
             const diffY = e.changedTouches[0].clientY - startY;
             if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
@@ -1384,6 +1413,66 @@ class HybridApp {
                 }
             }
         }, { passive: true });
+    }
+
+    // Expanded mode thumbnails
+    renderExpandedThumbnails() {
+        this.removeExpandedThumbnails();
+        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        if (allImages.length <= 1) return;
+
+        const container = document.createElement('div');
+        container.className = 'expanded-thumbnails';
+        container.id = 'expandedThumbnails';
+
+        allImages.forEach((url, idx) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'expanded-thumb' + (idx === this.variationIndex ? ' active' : '');
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Image ' + (idx + 1);
+            img.loading = 'lazy';
+            thumb.appendChild(img);
+            thumb.onclick = (e) => { e.stopPropagation(); this.showVariation(idx); };
+            container.appendChild(thumb);
+        });
+
+        this.el.productFrame.appendChild(container);
+    }
+
+    removeExpandedThumbnails() {
+        const existing = document.getElementById('expandedThumbnails');
+        if (existing) existing.remove();
+    }
+
+    // Real-time sync with admin panel
+    setupAdminSync() {
+        try {
+            const bc = new BroadcastChannel('vgallery_admin');
+            bc.onmessage = (e) => {
+                if (e.data && e.data.type) this.handleAdminChange(e.data.type);
+            };
+        } catch(e) {}
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'vgallery_admin_event') {
+                try {
+                    const data = JSON.parse(e.newValue);
+                    if (data && data.type) this.handleAdminChange(data.type);
+                } catch(err) {}
+            }
+        });
+    }
+
+    async handleAdminChange(type) {
+        if (type === 'products_updated') {
+            await this.loadProducts();
+            this.showNotification('Products updated');
+        } else if (type === 'settings_updated') {
+            await this.loadStoreSettings();
+            await this.fetchCurrencyRates();
+            this.showNotification('Settings updated');
+        }
     }
 }
 
