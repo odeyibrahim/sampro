@@ -767,17 +767,21 @@ export const handler = async (event) => {
                     break;
                 }
                 try {
-                    // Update sort_order for each product
-                    const promises = order.map(item => {
-                        return supabase
+                    // Update sort_order for each product sequentially
+                    // (avoids Supabase concurrent-write conflicts)
+                    let failCount = 0;
+                    for (const item of order) {
+                        const res = await supabase
                             .from('products')
                             .update({ sort_order: item.sort_order })
                             .eq('product_id', item.product_id);
-                    });
-                    const results = await Promise.all(promises);
-                    const hasError = results.some(r => r.error);
-                    if (hasError) {
-                        result = { error: 'Some updates failed' };
+                        if (res.error) {
+                            console.error('reorder update error:', item.product_id, res.error);
+                            failCount++;
+                        }
+                    }
+                    if (failCount > 0) {
+                        result = { error: failCount + ' of ' + order.length + ' updates failed' };
                     } else {
                         result = { success: true, updated: order.length };
                     }
