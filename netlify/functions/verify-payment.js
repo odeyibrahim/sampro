@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendPaymentConfirmedEmail } from './_lib/email.js';
+import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 // Called by /payment-callback.html right after the customer is
 // redirected back from Paystack/Flutterwave's hosted checkout page.
@@ -13,8 +14,9 @@ import { sendPaymentConfirmedEmail } from './_lib/email.js';
 // work, and the second one is a harmless no-op.
 
 export const handler = async (event) => {
+    // SECURITY: CORS origin must match SITE_URL exactly.
     const headers = {
-        'Access-Control-Allow-Origin': process.env.SITE_URL || '*',
+        'Access-Control-Allow-Origin': process.env.SITE_URL || '',
         'Content-Type': 'application/json'
     };
 
@@ -30,10 +32,22 @@ export const handler = async (event) => {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing provider or reference' }) };
         }
 
+        // SECURITY: Validate reference format — prevent arbitrary string injection
+        if (reference.length > 100) {
+            return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid reference' }) };
+        }
+
         const supabase = createClient(
             process.env.VITE_SUPABASE_URL,
             process.env.SUPABASE_SERVICE_ROLE_KEY
         );
+
+        // SECURITY: Rate limit — 20 verification attempts per IP per minute
+        const ip = getClientIp(event);
+        const allowed = await rateLimit(supabase, ip, 'verify-payment', 20, 1);
+        if (!allowed) {
+            return { statusCode: 429, headers, body: JSON.stringify({ error: 'Too many requests' }) };
+        }
 
         let verified = false;
         let transactionId = null;
@@ -47,7 +61,6 @@ export const handler = async (event) => {
             transactionId = data?.data?.id;
 
         } else if (provider === 'flutterwave') {
-            // Flutterwave's redirect includes transaction_id in the query string.
             const transactionIdParam = params.transaction_id;
             if (transactionIdParam) {
                 const resp = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionIdParam}/verify`, {
@@ -79,6 +92,7 @@ export const handler = async (event) => {
         }
 
         // Report current order status back to the callback page regardless.
+        // SECURITY: Only return minimal public-safe fields (no customer details)
         const { data: order } = await supabase
             .from('orders')
             .select('order_id, payment_status, total_amount, currency')
