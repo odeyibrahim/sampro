@@ -645,10 +645,10 @@
 
     async function saveSettings() {
         var exchangeRates = JSON.stringify({
-            USD: 1,
-            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.92,
-            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.79,
-            NGN: parseFloat(document.getElementById('rateNGN').value) || 1500
+            NGN: 1,
+            USD: parseFloat(document.getElementById('rateUSD').value) || 0.000667,
+            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.000613,
+            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.000527
         });
         var data = {
             store_name: document.getElementById('storeName').value.trim() || 'V. Gallery',
