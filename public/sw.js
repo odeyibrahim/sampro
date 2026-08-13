@@ -1,9 +1,8 @@
-const CACHE_NAME = 'vgallery-cache-v2';
+const CACHE_NAME = 'vgallery-cache-v3';
 const PRECACHE_URLS = [
     '/',
-    '/css/styles.css',
-    '/js/utils.js',
-    '/js/app.js',
+    '/styles.css',
+    '/app.js',
     '/manifest.json'
 ];
 
