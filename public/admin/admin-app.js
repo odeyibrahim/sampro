@@ -100,7 +100,14 @@
     function renderProductsTable(products) {
         var tbody = document.getElementById('adminProductsBody');
         if (!tbody) return;
-        tbody.innerHTML = products.map(function (p) {
+        // Sort by sort_order, then by created_at
+        var sorted = products.slice().sort(function(a, b) {
+            var oa = (a.sort_order || 0);
+            var ob = (b.sort_order || 0);
+            if (oa !== ob) return oa - ob;
+            return (a.created_at || 0) - (b.created_at || 0);
+        });
+        tbody.innerHTML = sorted.map(function (p) {
             var imgCount = '';
             var imgs = (Array.isArray(p.variations) ? p.variations.length : 0);
             if (imgs > 0) imgCount = ' <span style="color:#888;font-size:10px;">(' + (imgs + 1) + ')</span>';
@@ -108,7 +115,8 @@
             var typeDisplay = typeLabels[p.type] || '';
             var featured = p.is_featured ? ' <span style="color:#D0A380;font-size:10px;">\u2605</span>' : '';
             var collDisplay = p.collection ? '<span style="color:#D0A380;font-size:10px;">' + esc(p.collection) + '</span>' : '';
-            return '<tr>' +
+            return '<tr draggable="true" data-product-id="' + attr(p.product_id) + '">' +
+                '<td style="cursor:grab; color:#aaa; font-size:14px; user-select:none;" class="drag-handle">\u2261</td>' +
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td>' + esc(p.title || '') + imgCount + featured + '</td>' +
                 '<td>' + esc(typeDisplay) + (collDisplay ? ' · ' + collDisplay : '') + '</td>' +
@@ -134,6 +142,67 @@
         tbody.querySelectorAll('.stock-input').forEach(function (input) {
             input.onchange = function () { updateStock(input.dataset.productId, input.value); };
         });
+
+        // Setup drag reorder
+        setupDragReorder(tbody);
+    }
+
+    var _draggedRow = null;
+    function setupDragReorder(tbody) {
+        var rows = tbody.querySelectorAll('tr[draggable]');
+        rows.forEach(function(row) {
+            row.addEventListener('dragstart', function(e) {
+                _draggedRow = row;
+                row.style.opacity = '0.4';
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', row.dataset.productId);
+            });
+            row.addEventListener('dragend', function() {
+                row.style.opacity = '';
+                _draggedRow = null;
+                // Remove all drag-over highlights
+                tbody.querySelectorAll('tr').forEach(function(r) { r.style.borderTop = ''; });
+            });
+            row.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (_draggedRow && _draggedRow !== row) {
+                    row.style.borderTop = '2px solid #D0A380';
+                }
+            });
+            row.addEventListener('dragleave', function() {
+                row.style.borderTop = '';
+            });
+            row.addEventListener('drop', function(e) {
+                e.preventDefault();
+                row.style.borderTop = '';
+                if (!_draggedRow || _draggedRow === row) return;
+                var draggedId = _draggedRow.dataset.productId;
+                var targetId = row.dataset.productId;
+                // Reorder in DOM
+                if (_draggedRow.getBoundingClientRect().top < row.getBoundingClientRect().top) {
+                    tbody.insertBefore(_draggedRow, row.nextSibling);
+                } else {
+                    tbody.insertBefore(_draggedRow, row);
+                }
+                // Save new order to server
+                saveProductOrder(tbody);
+            });
+        });
+    }
+
+    async function saveProductOrder(tbody) {
+        var rows = tbody.querySelectorAll('tr[data-product-id]');
+        var order = [];
+        rows.forEach(function(row, idx) {
+            order.push({ product_id: row.dataset.productId, sort_order: idx });
+        });
+        var result = await apiCall('reorder_products', { order: order });
+        if (result.error) {
+            showNotification('Failed to save order: ' + result.error, 'error');
+            // Reload to reset
+            loadProducts();
+        }
     }
 
     async function loadProducts() {
@@ -802,38 +871,75 @@
 
     // ---- Shipping Zones ----
     function renderShippingZones(zones) {
-        var tbody = document.getElementById('shippingZonesBody');
-        if (!tbody) return;
+        var container = document.getElementById('shippingZonesList');
+        if (!container) {
+            // Fallback to old tbody if HTML not yet updated
+            container = document.getElementById('shippingZonesBody');
+            if (!container) return;
+        }
         if (!zones || zones.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888; padding:20px;">No shipping zones yet. Click "+ Add Zone" to create one.</td></tr>';
+            container.innerHTML = '<p style="text-align:center; color:#888; padding:20px; font-size:11px;">No shipping zones yet. Click "+ Add Zone" to create one.</p>';
             return;
         }
-        tbody.innerHTML = zones.map(function(z) {
-            var activeLabel = z.is_active !== false
-                ? '<span style="color:#4caf50;">Active</span>'
-                : '<span style="color:#999;">Inactive</span>';
-            return '<tr>' +
-                '<td>' + esc(z.country_name || z.country_code) + ' <span style="color:#888;font-size:10px;">(' + esc(z.country_code) + ')</span></td>' +
-                '<td>' + esc(z.method) + '</td>' +
-                '<td>' + esc(z.currency) + '</td>' +
-                '<td>' + z.currency + ' ' + parseFloat(z.cost || 0).toFixed(2) + '</td>' +
-                '<td>' + esc(z.estimated_days || '-') + '</td>' +
-                '<td>' + activeLabel + '</td>' +
-                '<td>' +
-                    '<button class="admin-btn" data-toggle-zone="' + attr(z.id) + '">Toggle</button> ' +
-                    '<button class="admin-btn danger" data-delete-zone="' + attr(z.id) + '">Delete</button>' +
-                '</td>' +
-            '</tr>';
+        container.innerHTML = zones.map(function(z) {
+            var activeClass = z.is_active !== false ? '' : ' style="opacity:0.5;"';
+            var activeLabel = z.is_active !== false ? 'Active' : 'Inactive';
+            var activeColor = z.is_active !== false ? '#4caf50' : '#999';
+            return '<div class="shipping-zone-row" data-zone-id="' + attr(z.id) + '"' + activeClass + '>' +
+                '<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0; flex-wrap:wrap;">' +
+                    '<input type="text" value="' + attr(z.country_code || '') + '" data-field="country_code" placeholder="Code" style="width:50px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px; text-transform:uppercase;">' +
+                    '<input type="text" value="' + attr(z.country_name || z.country_code || '') + '" data-field="country_name" placeholder="Country" style="width:90px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                    '<select data-field="method" style="padding:4px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                        '<option value="standard"' + (z.method === 'standard' ? ' selected' : '') + '>Standard</option>' +
+                        '<option value="express"' + (z.method === 'express' ? ' selected' : '') + '>Express</option>' +
+                    '</select>' +
+                    '<input type="text" value="' + attr(z.currency || 'USD') + '" data-field="currency" placeholder="Cur" style="width:50px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                    '<input type="number" value="' + parseFloat(z.cost || 0).toFixed(2) + '" data-field="cost" placeholder="Cost" step="0.01" min="0" style="width:65px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                    '<input type="text" value="' + attr(z.estimated_days || '') + '" data-field="estimated_days" placeholder="Days" style="width:55px; padding:4px 6px; border:1px solid var(--border-color, #ddd); border-radius:3px; font-size:11px;">' +
+                    '<span style="font-size:10px; color:' + activeColor + ';">' + activeLabel + '</span>' +
+                '</div>' +
+                '<div style="display:flex; gap:4px; flex-shrink:0;">' +
+                    '<button class="admin-btn" data-save-zone="' + attr(z.id) + '" style="font-size:10px; padding:3px 8px;" title="Save changes">Save</button>' +
+                    '<button class="admin-btn" data-toggle-zone="' + attr(z.id) + '" style="font-size:10px; padding:3px 8px;" title="Toggle active">Toggle</button>' +
+                    '<button class="admin-btn danger" data-delete-zone="' + attr(z.id) + '" style="font-size:10px; padding:3px 8px;" title="Delete">Delete</button>' +
+                '</div>' +
+            '</div>';
         }).join('');
 
-        tbody.querySelectorAll('[data-toggle-zone]').forEach(function(btn) {
+        // Bind events
+        container.querySelectorAll('[data-toggle-zone]').forEach(function(btn) {
             btn.onclick = function() { toggleShippingZone(btn.dataset.toggleZone); };
         });
-        tbody.querySelectorAll('[data-delete-zone]').forEach(function(btn) {
+        container.querySelectorAll('[data-delete-zone]').forEach(function(btn) {
             btn.onclick = function() {
                 if (confirm('Delete this shipping zone?')) deleteShippingZone(btn.dataset.deleteZone);
             };
         });
+        container.querySelectorAll('[data-save-zone]').forEach(function(btn) {
+            btn.onclick = function() { saveShippingZone(btn.dataset.saveZone); };
+        });
+    }
+
+    async function saveShippingZone(id) {
+        var row = document.querySelector('[data-zone-id="' + id + '"]');
+        if (!row) return;
+        var getCode = function(field) {
+            var el = row.querySelector('[data-field="' + field + '"]');
+            return el ? el.value.trim() : '';
+        };
+        var data = {
+            id: id,
+            country_code: getCode('country_code'),
+            country_name: getCode('country_name'),
+            method: getCode('method'),
+            currency: getCode('currency'),
+            cost: parseFloat(getCode('cost')) || 0,
+            estimated_days: getCode('estimated_days')
+        };
+        var result = await apiCall('update_shipping_zone', data);
+        if (result.error) { showNotification(result.error, 'error'); return; }
+        showNotification('Shipping zone updated');
+        loadShippingZones();
     }
 
     async function loadShippingZones() {
