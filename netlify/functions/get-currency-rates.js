@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getSettings } from './_lib/settings.js';
 import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
-// Public endpoint — returns exchange rates to USD.
+// Public endpoint — returns exchange rates relative to 1 NGN.
 // Strategy:
 //   1. If admin has disabled live rates (live_rates_enabled = 'false'),
 //      return only the admin-configured rates from settings.exchange_rates.
@@ -13,13 +13,13 @@ import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 //      admin-configured rates, then to hardcoded defaults.
 
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-const FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=USD';
+const FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=NGN';
 
 const HARDCODED_FALLBACK = {
-    USD: 1,
-    EUR: 0.92,
-    GBP: 0.79,
-    NGN: 1500
+    NGN: 1,
+    USD: 0.000667,
+    EUR: 0.000613,
+    GBP: 0.000527
 };
 
 export const handler = async (event) => {
@@ -60,7 +60,7 @@ export const handler = async (event) => {
         // If live rates are disabled, return admin rates + hardcoded fallback
         if (!liveEnabled) {
             const rates = { ...HARDCODED_FALLBACK, ...adminRates };
-            rates.USD = 1;
+            rates.NGN = 1;
             return {
                 statusCode: 200,
                 headers,
@@ -83,7 +83,7 @@ export const handler = async (event) => {
             try {
                 const cached = JSON.parse(settings.live_rates_data);
                 const rates = { ...cached, ...adminRates };
-                rates.USD = 1;
+                rates.NGN = 1;
                 return {
                     statusCode: 200,
                     headers,
@@ -98,7 +98,7 @@ export const handler = async (event) => {
             }
         }
 
-        // Fetch from frankfurter.app
+        // Fetch from frankfurter.app (NGN-based)
         let liveRates = null;
         try {
             const resp = await fetch(FRANKFURTER_URL, {
@@ -107,7 +107,7 @@ export const handler = async (event) => {
             if (resp.ok) {
                 const data = await resp.json();
                 if (data && data.rates) {
-                    liveRates = { USD: 1, ...data.rates };
+                    liveRates = { NGN: 1, ...data.rates };
                 }
             }
         } catch (e) {
@@ -126,7 +126,7 @@ export const handler = async (event) => {
             }
 
             const rates = { ...liveRates, ...adminRates };
-            rates.USD = 1;
+            rates.NGN = 1;
             return {
                 statusCode: 200,
                 headers,
@@ -143,7 +143,7 @@ export const handler = async (event) => {
             try {
                 const stale = JSON.parse(settings.live_rates_data);
                 const rates = { ...stale, ...adminRates };
-                rates.USD = 1;
+                rates.NGN = 1;
                 return {
                     statusCode: 200,
                     headers,
@@ -157,7 +157,7 @@ export const handler = async (event) => {
         }
 
         const rates = { ...HARDCODED_FALLBACK, ...adminRates };
-        rates.USD = 1;
+        rates.NGN = 1;
         return {
             statusCode: 200,
             headers,
