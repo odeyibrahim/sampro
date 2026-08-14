@@ -3,8 +3,8 @@ class HybridApp {
         this.products = [];
         this.currentIndex = 0;
         this.savedItems = new Set();
-        this.selectedCurrency = 'NGN';
-        this.exchangeRates = { NGN: 1, USD: 0.000667, EUR: 0.000613, GBP: 0.000527 };
+        this.selectedCurrency = 'NGN';  // Default: Naira (matches store base)
+        this.exchangeRates = { NGN: 1, USD: 0.000667, EUR: 0.000613, GBP: 0.000527 };  // NGN-centric (matches server)
         this.cart = [];  // [{ productId, quantity, addedAt }]
         this.cartOpen = false;
         this.checkoutRevealed = false;
@@ -44,10 +44,18 @@ class HybridApp {
 
     async init() {
         this.bindElements();
-        await this.loadProducts();
-        this._updateCartBadge();
-        this.loadSaved();
+        // CURRENCY FIX: Load currency preference BEFORE products render,
+        // so the first updateDisplay() shows the correct currency.
         this.loadCurrency();
+        this.loadSaved();
+        this._updateCartBadge();
+        // CURRENCY FIX: Load admin settings (which include exchange rates)
+        // BEFORE fetching live rates, so admin-configured rates aren't
+        // overwritten by a slower async fetch.
+        await this.loadStoreSettings();
+        await this.loadProducts();
+        // CURRENCY FIX: Only fetch live rates if admin hasn't disabled them.
+        // This runs AFTER loadStoreSettings so _liveRatesEnabled is set.
         this.fetchCurrencyRates();
         this.fetchShippingZones();
         this.setupEvents();
@@ -55,7 +63,6 @@ class HybridApp {
         this.setupPwa();
         this.setupAdminSync();
         this.updateOfflineBanner();
-        this.loadStoreSettings();
         const enterBtn = document.getElementById('enterGalleryBtn');
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
         this.setRandomVerse();
@@ -121,7 +128,10 @@ class HybridApp {
     }
 
     async fetchCurrencyRates() {
-        // Only fetch from API if live rates are enabled.
+        // CURRENCY FIX: Skip entirely if admin has disabled live rates.
+        // _liveRatesEnabled is set by loadStoreSettings() which now runs
+        // before this method in init().
+        if (this._liveRatesEnabled === false) return;
         // Admin-configured rates were already applied in loadStoreSettings().
         try {
             const res = await fetch('/.netlify/functions/get-currency-rates');
@@ -686,8 +696,12 @@ class HybridApp {
         const saved = localStorage.getItem('vgallery_currency');
         if (saved) {
             this.selectedCurrency = saved;
-            if (this.el.currencyDisplay) this.el.currencyDisplay.value = saved;
+        } else if (this.el.currencyDisplay && this.el.currencyDisplay.value) {
+            // CURRENCY FIX: Respect the HTML <select> default (e.g. NGN selected
+            // in the Nigeria build). Previously this was ignored entirely.
+            this.selectedCurrency = this.el.currencyDisplay.value;
         }
+        if (this.el.currencyDisplay) this.el.currencyDisplay.value = this.selectedCurrency;
     }
 
     bindElements() {
@@ -1003,10 +1017,10 @@ class HybridApp {
         });
     }
 
-    formatPrice(usd) {
+    formatPrice(basePrice) {  // basePrice is in the store's base currency (NGN)
         const rate = this.exchangeRates[this.selectedCurrency] || 1;
         const symbols = { USD: '$', EUR: '€', GBP: '£', NGN: '₦' };
-        const value = usd * rate;
+        const value = basePrice * rate;
         if (this.selectedCurrency === 'NGN') {
             return symbols[this.selectedCurrency] + value.toFixed(0);
         }
@@ -1320,7 +1334,7 @@ class HybridApp {
 
         const providerInput = document.querySelector('input[name="paymentProvider"]:checked');
         const paymentProvider = providerInput ? providerInput.value : 'paystack';
-        const currency = paymentProvider === 'flutterwave' ? this.selectedCurrency : 'NGN';
+        const currency = (paymentProvider === 'paystack' && this.selectedCurrency === 'NGN') || paymentProvider === 'bank_transfer' ? 'NGN' : this.selectedCurrency;
 
         // Build items array
         const items = this.cart.map(function (item) {
