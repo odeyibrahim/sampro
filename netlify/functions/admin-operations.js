@@ -418,6 +418,25 @@ export const handler = async (event) => {
                     if (refundData.status !== 'success') {
                         return { statusCode: 502, headers, body: JSON.stringify({ error: refundData.message || 'Flutterwave refund failed' }) };
                     }
+                } else if (order.payment_provider === 'stripe') {
+                    const stripeKey = process.env.STRIPE_SECRET_KEY;
+                    if (!stripeKey) {
+                        return { statusCode: 500, headers, body: JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }) };
+                    }
+                    const refundPayload = {};
+                    if (order.transaction_id) refundPayload.payment_intent = order.transaction_id;
+                    const resp = await fetch('https://api.stripe.com/v1/refunds', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Basic ' + Buffer.from(stripeKey + ':').toString('base64'),
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: new URLSearchParams(refundPayload).toString()
+                    });
+                    const refundData = await resp.json();
+                    if (!resp.ok || refundData.error) {
+                        return { statusCode: 502, headers, body: JSON.stringify({ error: refundData.error?.message || 'Stripe refund failed' }) };
+                    }
                 }
 
                 const { data: refundResult, error: refundError } = await supabase.rpc('mark_order_refunded', {
