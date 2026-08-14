@@ -3,7 +3,7 @@ import { sendOrderReceivedEmail } from './_lib/email.js';
 import { getSettings } from './_lib/settings.js';
 import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
-const VALID_PROVIDERS = ['paystack', 'flutterwave', 'bank_transfer'];
+const VALID_PROVIDERS = ['paystack', 'flutterwave', 'stripe', 'bank_transfer'];
 
 export const handler = async (event) => {
     // SECURITY: CORS origin must match SITE_URL exactly.
@@ -65,7 +65,13 @@ export const handler = async (event) => {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid email address' }) };
         }
         const provider = VALID_PROVIDERS.includes(paymentProvider) ? paymentProvider : 'paystack';
-        const orderCurrency = provider === 'flutterwave' && currency === 'USD' ? 'USD' : (currency || 'NGN');
+
+        // CURRENCY FIX: Determine the order currency based on provider capabilities.
+        // - bank_transfer: always NGN (local/domiciliary accounts)
+        // - paystack: supports NGN, USD, EUR, GBP, ZAR, GHS, KES — use selected currency
+        // - flutterwave: supports many currencies — use selected currency
+        // - stripe: supports USD, EUR, GBP, NGN and 130+ more — use selected currency
+        const orderCurrency = currency || 'NGN';
 
         // SECURITY: Rate limit discount code attempts — 20 per IP per 10 minutes
         if (discountCode) {
@@ -102,10 +108,7 @@ export const handler = async (event) => {
         const siteUrl = process.env.SITE_URL || 'http://localhost:8888';
 
         // ============================================================
-        // BANK TRANSFER / DOMICILIARY — no external API call. The order
-        // stays "pending" until an admin manually confirms receipt via
-        // the dashboard (which calls mark_order_paid the same way the
-        // webhooks do).
+        // BANK TRANSFER / DOMICILIARY — no external API call.
         // ============================================================
         if (provider === 'bank_transfer') {
             await supabase.rpc('set_payment_reference', { p_order_id: order_id, p_reference: order_number });
@@ -236,6 +239,75 @@ export const handler = async (event) => {
                     success: true,
                     provider: 'flutterwave',
                     authorization_url: paymentData.data.link,
+                    reference: order_number,
+                    order_number,
+                    amount,
+                    breakdown
+                })
+            };
+        }
+
+        // ============================================================
+        // STRIPE — Stripe Checkout (redirect flow)
+        // Creates a Checkout Session and redirects the customer to
+        // Stripe's hosted payment page. Stripe calls back to our
+        // stripe-webhook on success; the customer is redirected to
+        // payment-callback.html for an immediate confirmation screen.
+        // ============================================================
+        if (provider === 'stripe') {
+            const stripeKey = process.env.STRIPE_SECRET_KEY;
+            if (!stripeKey) {
+                return { statusCode: 500, headers, body: JSON.stringify({ error: 'Stripe is not configured' }) };
+            }
+
+            // Stripe amounts are in the smallest currency unit (kobo for NGN, cents for USD/EUR/GBP)
+            const zeroDecimalCurrencies = ['JPY', 'KRW', 'VND', 'NGN'];
+            const stripeAmount = zeroDecimalCurrencies.includes(orderCurrency)
+                ? Math.round(parseFloat(amount))
+                : Math.round(parseFloat(amount) * 100);
+
+            const sessionResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Basic ' + Buffer.from(stripeKey + ':').toString('base64'),
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    'payment_method_types[0]': 'card',
+                    'line_items[0][price_data][currency]': orderCurrency.toLowerCase(),
+                    'line_items[0][price_data][product_data][name]': `Order ${order_number}`,
+                    'line_items[0][price_data][unit_amount]': String(stripeAmount),
+                    'line_items[0][quantity]': '1',
+                    'mode': 'payment',
+                    'success_url': `${siteUrl}/payment-callback.html?provider=stripe&reference=${order_number}`,
+                    'cancel_url': `${siteUrl}/?payment=cancelled`,
+                    'client_reference_id': order_number,
+                    'metadata[order_id]': String(order_id || ''),
+                    'metadata[order_number]': order_number,
+                    'customer_email': email
+                }).toString()
+            });
+
+            const sessionData = await sessionResponse.json();
+
+            if (!sessionResponse.ok || !sessionData.url) {
+                console.error('Stripe session error:', sessionData);
+                return { statusCode: 502, headers, body: JSON.stringify({ error: sessionData.error?.message || 'Stripe initialization failed' }) };
+            }
+
+            // Store the Stripe payment_intent_id for later refund capability
+            await supabase.rpc('set_payment_reference', {
+                p_order_id: order_id,
+                p_reference: sessionData.payment_intent || order_number
+            });
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    provider: 'stripe',
+                    authorization_url: sessionData.url,
                     reference: order_number,
                     order_number,
                     amount,
