@@ -3,7 +3,7 @@ import { sendPaymentConfirmedEmail } from './_lib/email.js';
 import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 
 // Called by /payment-callback.html right after the customer is
-// redirected back from Paystack/Flutterwave's hosted checkout page.
+// redirected back from Paystack/Flutterwave/Stripe's hosted checkout.
 //
 // This is NOT the authoritative source of truth for "was this paid" —
 // the webhooks are. This endpoint exists purely so the customer sees an
@@ -70,13 +70,53 @@ export const handler = async (event) => {
                 verified = data?.status === 'success' && data?.data?.status === 'successful' && data?.data?.tx_ref === reference;
                 transactionId = data?.data?.id;
             }
+
+        } else if (provider === 'stripe') {
+            // Stripe: retrieve the Payment Intent to check payment_status.
+            // The reference is either the payment_intent_id (if stored by
+            // initialize-payment) or the order_number.
+            const stripeKey = process.env.STRIPE_SECRET_KEY;
+            if (stripeKey && reference.startsWith('pi_')) {
+                const resp = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(reference)}`, {
+                    headers: { 'Authorization': 'Basic ' + Buffer.from(stripeKey + ':').toString('base64') }
+                });
+                const data = await resp.json();
+                if (data.payment_status === 'succeeded') {
+                    verified = true;
+                    transactionId = data.id;
+                }
+            }
+            // If reference is an order_number (not a pi_), try looking up
+            // the order by payment_reference to get the stored payment_intent.
+            if (!verified && !reference.startsWith('pi_')) {
+                const { data: order } = await supabase
+                    .from('orders')
+                    .select('payment_reference, payment_status, transaction_id')
+                    .eq('payment_reference', reference)
+                    .maybeSingle();
+                if (order?.transaction_id && order.transaction_id.startsWith('pi_')) {
+                    const resp = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(order.transaction_id)}`, {
+                        headers: { 'Authorization': 'Basic ' + Buffer.from(stripeKey + ':').toString('base64') }
+                    });
+                    const data = await resp.json();
+                    if (data.payment_status === 'succeeded') {
+                        verified = true;
+                        transactionId = data.id;
+                    }
+                }
+                // Fallback: if the webhook already ran, the order may already be paid
+                if (!verified && order?.payment_status === 'paid') {
+                    verified = true;
+                }
+            }
+
         } else {
             return { statusCode: 400, headers, body: JSON.stringify({ error: 'Unknown provider' }) };
         }
 
         if (verified) {
             const { data: markResult } = await supabase.rpc('mark_order_paid', {
-                p_reference: reference,
+                p_reference: reference.startsWith('pi_') ? (transactionId || reference) : reference,
                 p_payment_method: provider,
                 p_transaction_id: transactionId ? String(transactionId) : null
             });
@@ -85,7 +125,7 @@ export const handler = async (event) => {
                 const { data: orderForEmail } = await supabase
                     .from('orders')
                     .select('order_id, customer_email, customer_name, total_amount, currency')
-                    .eq('payment_reference', reference)
+                    .eq('payment_reference', reference.startsWith('pi_') ? (transactionId || reference) : reference)
                     .maybeSingle();
                 if (orderForEmail) await sendPaymentConfirmedEmail(orderForEmail);
             }
