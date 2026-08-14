@@ -129,7 +129,7 @@
                             <option value="USD">USD</option>
                             <option value="EUR">EUR</option>
                             <option value="GBP">GBP</option>
-                            <option value="NGN" selected>NGN</option>
+                            <option value="NGN">NGN</option>
                         </select>
                         <span class="price-tag" id="priceTag"></span>
                         <span class="original-price" id="originalPrice" style="display:none;"></span>
@@ -296,6 +296,9 @@
                         </label>
                         <label class="payment-method-option">
                             <input type="radio" name="paymentProvider" value="flutterwave"> Card / Bank via Flutterwave
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="stripe"> Card via Stripe
                         </label>
                         <label class="payment-method-option">
                             <input type="radio" name="paymentProvider" value="bank_transfer"> Direct Bank Transfer
