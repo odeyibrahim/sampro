@@ -303,9 +303,12 @@
         if (settings.exchange_rates) {
             try {
                 var rates = JSON.parse(settings.exchange_rates);
+                // NGN-centric rates: NGN is always 1 (anchor), populate USD/EUR/GBP
+                if (rates.USD) document.getElementById('rateUSD').value = rates.USD;
                 if (rates.EUR) document.getElementById('rateEUR').value = rates.EUR;
                 if (rates.GBP) document.getElementById('rateGBP').value = rates.GBP;
-                if (rates.NGN) document.getElementById('rateNGN').value = rates.NGN;
+                // Force NGN to 1 always — it is the base currency
+                document.getElementById('rateNGN').value = 1;
             } catch (e) {}
         }
         if (settings.logo_url) {
@@ -657,11 +660,12 @@
     }
 
     async function saveSettings() {
+        // NGN-centric rates: NGN is always the base (1), all others are relative to 1 NGN
         var exchangeRates = JSON.stringify({
-            USD: 1,
-            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.92,
-            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.79,
-            NGN: parseFloat(document.getElementById('rateNGN').value) || 1500
+            NGN: 1,
+            USD: parseFloat(document.getElementById('rateUSD').value) || 0.000667,
+            EUR: parseFloat(document.getElementById('rateEUR').value) || 0.000613,
+            GBP: parseFloat(document.getElementById('rateGBP').value) || 0.000527
         });
         var data = {
             store_name: document.getElementById('storeName').value.trim() || 'V. Gallery',
