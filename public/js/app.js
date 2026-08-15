@@ -275,7 +275,7 @@ class HybridApp {
     }
 
     // Common country name → code mapping for flexible matching
-    _COUNTRY_MAP: {
+    _COUNTRY_MAP = {
         'nigeria': 'NG', 'ng': 'NG',
         'united states': 'US', 'usa': 'US', 'us': 'US', 'america': 'US',
         'united kingdom': 'GB', 'uk': 'GB', 'gb': 'GB', 'england': 'GB',
@@ -285,7 +285,7 @@ class HybridApp {
         'united arab emirates': 'AE', 'uae': 'AE', 'saudi arabia': 'SA',
         'singapore': 'SG', 'japan': 'JP', 'south korea': 'KR',
         'rwanda': 'RW', 'tanzania': 'TZ', 'uganda': 'UG'
-    },
+    };
 
     _resolveCountryCode(input) {
         const v = (input || '').trim().toLowerCase();
@@ -300,7 +300,7 @@ class HybridApp {
             if (keys[i].indexOf(v) !== -1 || v.indexOf(keys[i]) !== -1) return this._COUNTRY_MAP[keys[i]];
         }
         return v.toUpperCase(); // fallback: return input as-is
-    },
+    }
 
     _isLocalCountry(customerInput) {
         const storeCode = (this.storeCountryCode || 'NG').toUpperCase();
@@ -323,7 +323,7 @@ class HybridApp {
                 storeNames[i].indexOf(customerLower) !== -1) return true;
         }
         return false;
-    },
+    }
 
     getShippingInfo() {
         const countryInput = document.getElementById('checkoutCountryInput');
@@ -1734,7 +1734,11 @@ class HybridApp {
     }
 
     setRandomVerse() {
-        var verses = [
+        var el = document.getElementById('introPoem');
+        if (!el) return;
+
+        // Hardcoded fallback verses
+        var fallbackVerses = [
             '"Be still, and know that I am God."',
             '"The Lord is my shepherd; I shall not want."',
             '"I can do all things through Christ who strengthens me."',
@@ -1751,8 +1755,20 @@ class HybridApp {
             '"The Lord bless you and keep you; the Lord make his face shine upon you."',
             '"Create in me a clean heart, O God, and renew a right spirit within me."'
         ];
-        var el = document.getElementById('introPoem');
-        if (el) el.textContent = verses[Math.floor(Math.random() * verses.length)];
+
+        // Try fetching a live verse from bible-api.com (free, no API key needed)
+        fetch('https://bible-api.com/?random=verse')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data && data.text && data.reference) {
+                    el.textContent = '"' + data.text.trim().replace(/\s+/g, ' ') + '" — ' + data.reference;
+                } else {
+                    el.textContent = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+                }
+            })
+            .catch(function() {
+                el.textContent = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+            });
     }
 
     showIntro() {
