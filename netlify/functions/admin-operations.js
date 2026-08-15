@@ -418,25 +418,6 @@ export const handler = async (event) => {
                     if (refundData.status !== 'success') {
                         return { statusCode: 502, headers, body: JSON.stringify({ error: refundData.message || 'Flutterwave refund failed' }) };
                     }
-                } else if (order.payment_provider === 'stripe') {
-                    const stripeKey = process.env.STRIPE_SECRET_KEY;
-                    if (!stripeKey) {
-                        return { statusCode: 500, headers, body: JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured' }) };
-                    }
-                    const refundPayload = {};
-                    if (order.transaction_id) refundPayload.payment_intent = order.transaction_id;
-                    const resp = await fetch('https://api.stripe.com/v1/refunds', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Basic ' + Buffer.from(stripeKey + ':').toString('base64'),
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        },
-                        body: new URLSearchParams(refundPayload).toString()
-                    });
-                    const refundData = await resp.json();
-                    if (!resp.ok || refundData.error) {
-                        return { statusCode: 502, headers, body: JSON.stringify({ error: refundData.error?.message || 'Stripe refund failed' }) };
-                    }
                 }
 
                 const { data: refundResult, error: refundError } = await supabase.rpc('mark_order_refunded', {
@@ -692,19 +673,38 @@ export const handler = async (event) => {
 
             case 'refresh_currency_rates': {
                 try {
-                    const resp = await fetch('https://api.frankfurter.app/latest?from=NGN', {
+                    // Frankfurter does NOT support NGN as a base currency.
+                    // Strategy: fetch from USD, then derive NGN-centric rates
+                    // using the admin-configured USD→NGN rate.
+                    const settings = await getSettings(supabase);
+                    let adminRates = {};
+                    if (settings.exchange_rates) {
+                        try { adminRates = JSON.parse(settings.exchange_rates); } catch (e) {}
+                    }
+                    // Admin's USD→NGN rate (how many NGN per 1 USD)
+                    const ngnPerUsd = (adminRates && typeof adminRates.USD === 'number' && adminRates.USD > 0)
+                        ? (1 / adminRates.USD)
+                        : 1500;  // fallback
+
+                    const resp = await fetch('https://api.frankfurter.app/latest?from=USD', {
                         signal: AbortSignal.timeout(5000)
                     });
                     if (resp.ok) {
                         const fdata = await resp.json();
                         if (fdata && fdata.rates) {
-                            const liveRates = JSON.stringify({ NGN: 1, ...fdata.rates });
+                            // fdata.rates are USD-centric: { EUR: 0.92, GBP: 0.79, ... }
+                            // Convert to NGN-centric: NGN = 1, USD = 1/ngnPerUsd, EUR = 0.92/ngnPerUsd, etc.
+                            const ngnRates = { NGN: 1, USD: 1 / ngnPerUsd };
+                            for (const [cur, usdRate] of Object.entries(fdata.rates)) {
+                                ngnRates[cur] = usdRate / ngnPerUsd;
+                            }
+                            const liveRates = JSON.stringify(ngnRates);
                             const now = new Date().toISOString();
                             await supabase.from('settings').upsert([
                                 { key: 'live_rates_data', value: liveRates, updated_at: now },
                                 { key: 'live_rates_last_fetched', value: now, updated_at: now }
                             ], { onConflict: 'key' });
-                            result = { success: true, rates: JSON.parse(liveRates), updated_at: now };
+                            result = { success: true, rates: ngnRates, updated_at: now };
                         } else {
                             result = { success: false, error: 'API returned unexpected data' };
                         }
