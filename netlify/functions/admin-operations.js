@@ -220,6 +220,18 @@ export const handler = async (event) => {
                 break;
             }
 
+            case 'get_product': {
+                const pMatch = resolveId(data);
+                if (!pMatch) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Product id required' }) };
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq(pMatch.key, pMatch.val)
+                    .single();
+                result = product;
+                break;
+            }
+
             case 'create_product': {
                 const newProductId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
                 let { data: newProduct, error: createError } = await supabase
@@ -521,7 +533,7 @@ export const handler = async (event) => {
                         totalProducts: productsResult.count || 0,
                         totalCustomers: customersResult.count || 0
                     },
-                    products: (await supabase.from('products').select('*').order('created_at', { ascending: false })).data || [],
+                    products: (await supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })).data || [],
                     orders: ordersFull.data || [],
                     settings: settingsResult
                 };
