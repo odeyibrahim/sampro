@@ -48,17 +48,29 @@ class HybridApp {
         this.bindElements();
         this.loadCurrency();
 
-        // Show intro + start verse fetch IMMEDIATELY — don't block on network calls.
+        // Show intro immediately — pulsing logo visible.
         const enterBtn = document.getElementById('enterGalleryBtn');
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
-        this.setRandomVerse();
         this.showIntro();
 
-        // Load heavy data in background (intro is already visible).
-        // Silent on first load so the spinner overlay doesn't cover the intro.
-        await this.loadStoreSettings();
-        await this.fetchCurrencyRates();
-        await this.loadProducts({ silent: true });
+        // Fire ALL data fetches in parallel. Intro stays visible until all resolve.
+        const settingsPromise = this.loadStoreSettings();
+        const ratesPromise   = this.fetchCurrencyRates();
+        const productsPromise = this.loadProducts({ silent: true });
+        const versePromise   = this._fetchVerse(); // returns { text, ref } or null
+
+        // Wait for ALL core data before continuing
+        const [, , , verseData] = await Promise.all([
+            settingsPromise,
+            ratesPromise,
+            productsPromise,
+            versePromise
+        ]);
+
+        // Now reveal verse + enable Explore button
+        this._revealVerse(verseData);
+
+        // Post-load setup (non-blocking to user)
         this._updateCartBadge();
         this.loadSaved();
         this.fetchShippingZones();
@@ -1347,13 +1359,21 @@ class HybridApp {
         }
     }
 
+    async _loadHtml2canvas() {
+        if (typeof html2canvas !== 'undefined') return;
+        return new Promise(function(resolve, reject) {
+            var s = document.createElement('script');
+            s.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
     async shareProduct() {
         this.showLoading(true);
         try {
-            if (typeof html2canvas === 'undefined') {
-                this.showNotification('Share unavailable');
-                return;
-            }
+            await this._loadHtml2canvas();
             const canvas = await html2canvas(this.el.splitContainer, {
                 scale: 2,
                 backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#ffffff',
@@ -1788,32 +1808,8 @@ class HybridApp {
         this.renderGrid(filter);
     }
 
-    setRandomVerse() {
-        var loaderEl = document.getElementById('introLoader');
-        var pctEl = document.getElementById('introLoaderPct');
-        var loadedEl = document.getElementById('introLoaded');
-        var poemEl = document.getElementById('introPoem');
-        var sigEl = document.getElementById('introSignature');
-        if (!poemEl) return;
-
-        var pct = 0;
-        var pctTimer = setInterval(function() {
-            pct += Math.floor(Math.random() * 12) + 3;
-            if (pct > 90) pct = 90;
-            if (pctEl) pctEl.textContent = pct;
-        }, 200);
-
-        var reveal = function(text, ref) {
-            clearInterval(pctTimer);
-            if (pctEl) pctEl.textContent = '100';
-            poemEl.textContent = '"' + text + '"';
-            if (sigEl) sigEl.textContent = ref;
-            setTimeout(function() {
-                if (loaderEl) loaderEl.style.display = 'none';
-                if (loadedEl) loadedEl.classList.add('ready');
-            }, 300);
-        };
-
+    // Fetch verse from API or fallback — returns a promise that never rejects
+    _fetchVerse() {
         var fallbackVerses = [
             { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
             { text: 'The Lord is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
@@ -1841,23 +1837,51 @@ class HybridApp {
             { text: 'Good name is to be chosen rather than great riches.', ref: 'Proverbs 22:1' }
         ];
 
-        // Try Psalms or Proverbs first for motivational verses
         var books = ['psalms', 'proverbs', 'isaiah', 'jeremiah', 'philippians'];
         var book = books[Math.floor(Math.random() * 3)]; // 2/3 chance Psalms/Proverbs
-        fetch('https://bible-api.com/' + book + '?random=verse')
+        return fetch('https://bible-api.com/' + book + '?random=verse')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.text && data.reference) {
-                    reveal(data.text.trim().replace(/\s+/g, ' '), data.reference);
-                } else {
-                    var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
-                    reveal(v.text, v.ref);
+                    return { text: data.text.trim().replace(/\s+/g, ' '), ref: data.reference };
                 }
+                return fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
             })
             .catch(function() {
-                var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
-                reveal(v.text, v.ref);
+                return fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
             });
+    }
+
+    // Reveal verse text + show uploaded logo in intro loader
+    _revealVerse(data) {
+        var loaderEl = document.getElementById('introLoader');
+        var loadedEl = document.getElementById('introLoaded');
+        var poemEl = document.getElementById('introPoem');
+        var sigEl = document.getElementById('introSignature');
+        var logoLoaderEl = document.getElementById('introLoaderLogo');
+        if (!poemEl) return;
+
+        // If a site logo is uploaded, show it in the intro loader
+        if (logoLoaderEl && this._lightLogoUrl) {
+            logoLoaderEl.innerHTML = '';
+            var img = document.createElement('img');
+            img.src = this._lightLogoUrl;
+            img.alt = 'Store logo';
+            img.style.cssText = 'max-height:48px;max-width:160px;object-fit:contain;';
+            logoLoaderEl.appendChild(img);
+        }
+
+        if (data) {
+            poemEl.textContent = '"' + data.text + '"';
+            if (sigEl) sigEl.textContent = data.ref;
+        } else {
+            poemEl.textContent = '"Be still, and know that I am God."';
+            if (sigEl) sigEl.textContent = 'Psalm 46:10';
+        }
+        setTimeout(function() {
+            if (loaderEl) loaderEl.style.display = 'none';
+            if (loadedEl) loadedEl.classList.add('ready');
+        }, 300);
     }
 
     showIntro() {
@@ -1968,9 +1992,8 @@ class HybridApp {
             };
         }
 
-        if (localStorage.getItem('vgallery_dark') === '1') {
-            document.body.classList.add('dark-mode');
-        }
+        // Dark mode class already applied in <head> — no flash
+        // Toggle handler below uses body.classList.toggle as before.
 
         const siteLogo = document.getElementById('siteLogo');
         if (siteLogo) siteLogo.onclick = () => { window.location.reload(); };
