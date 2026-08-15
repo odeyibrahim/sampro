@@ -36,6 +36,31 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
+    <style>
+    .add-btn {
+        background: none;
+        border: 1px solid var(--color-gray-light, #ccc);
+        border-radius: 4px;
+        padding: 4px 14px;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--color-gray, #888);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Roboto Mono', monospace;
+    }
+    .add-btn:hover {
+        border-color: var(--color-primary, #000);
+        color: var(--color-primary, #000);
+    }
+    .add-btn:active { transform: scale(0.95); }
+    .add-btn.added {
+        border-color: var(--color-primary, #000);
+        color: var(--color-primary, #000);
+    }
+    </style>
     
     <!-- Libraries -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -133,8 +158,9 @@
                         </select>
                         <span class="price-tag" id="priceTag"></span>
                         <span class="original-price" id="originalPrice" style="display:none;"></span>
-                        <button class="icon-button" id="cartButton" type="button" aria-label="Buy now">𐚱</button>
+                        <button class="add-btn" id="addButton" type="button" aria-label="Add to cart">ADD</button>
                         <button class="icon-button heart" id="heartButton" type="button" aria-label="Save">♡</button>
+                        <button class="icon-button" id="cartIconButton" type="button" aria-label="Open cart">𐚱</button>
                         <span class="stock-badge" id="stockBadge"></span>
                     </div>
                 </div>
