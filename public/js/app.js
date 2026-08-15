@@ -728,6 +728,7 @@ class HybridApp {
             bgImageBottom: document.getElementById('bgImageBottom'),
             heartButton: document.getElementById('heartButton'),
             addButton: document.getElementById('addButton'),
+            shareButton: document.getElementById('shareButton'),
             cartIconButton: document.getElementById('cartIconButton'),
             prevBtn: document.getElementById('prevBtn'),
             nextBtn: document.getElementById('nextBtn'),
@@ -827,6 +828,9 @@ class HybridApp {
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
+        }
+        if (this.el.shareButton) {
+            this.el.shareButton.style.display = p.show_share !== false ? '' : 'none';
         }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
@@ -1651,6 +1655,9 @@ class HybridApp {
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
         }
+        if (this.el.shareButton) {
+            this.el.shareButton.style.display = p.show_share !== false ? '' : 'none';
+        }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
             this.el.heartButton.classList.toggle('saved', isSaved);
@@ -1746,6 +1753,7 @@ class HybridApp {
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
         if (this.el.addButton) this.el.addButton.onclick = () => this.addToCart();
+        if (this.el.shareButton) this.el.shareButton.onclick = () => this.shareProduct();
         if (this.el.cartIconButton) this.el.cartIconButton.onclick = () => this.openCart();
         if (this.el.currencyDisplay) {
             this.el.currencyDisplay.addEventListener('change', () => {
