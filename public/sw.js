@@ -1,5 +1,5 @@
 // V. Gallery Service Worker v3
-const CACHE_NAME = 'vgallery-cache-v5';
+const CACHE_NAME = 'vgallery-cache-v6';
 const PRECACHE_URLS = [
     '/',
     '/css/styles.css',
