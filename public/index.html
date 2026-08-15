@@ -21,7 +21,7 @@
         .intro-overlay.hidden{opacity:0;pointer-events:none}
         .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
         @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .intro-poem{font-size:clamp(18px,4vh,18px);line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif}
+        .intro-poem{font-size:11px;line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
         .intro-signature{color:#D0A380;font-size:11px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
         .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s;opacity:0;transform:translateY(10px)}
         .intro-loaded.ready .enter-gallery{opacity:1;transform:translateY(0);transition:opacity .6s ease,transform .6s ease}
@@ -46,30 +46,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
     <style>
-    /* ADD button — original Work Sans style */
-    .add-btn {
-        background: none;
-        border: 1px solid var(--color-gray-light, #ccc);
-        border-radius: 3px;
-        padding: 2px 8px;
-        font-family: 'Work Sans', sans-serif;
-        font-size: 11px;
-        font-weight: 400;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        color: var(--color-gray, #888);
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
+    /* ADD button is now a + icon — uses icon-button base from external CSS */
+    .icon-button#addButton {
+        font-size: 16px;
+        line-height: 1;
     }
-    .add-btn:hover {
-        border-color: var(--color-primary, #000);
-        color: var(--color-primary, #000);
-    }
-    .add-btn:active { transform: scale(0.95); }
-    .add-btn.added {
-        border-color: var(--color-primary, #000);
-        color: var(--color-primary, #000);
+    .icon-button#addButton.added {
+        opacity: 0.5;
     }
 
     /* Share button in action row */
@@ -78,57 +61,63 @@
         display: inline-block;
     }
 
-    /* Currency + Price widget — Roboto Mono */
+    /* Currency + Price widget — Roboto Mono, 12px */
     .currency-price {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        margin-left: 8px;
+        margin-left: 10px;
         flex-shrink: 0;
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         color: inherit;
     }
     .currency-price .currency-selector {
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         padding: 1px 2px;
         border: 1px solid var(--color-gray-light, #ccc);
         border-radius: 3px;
         background: none;
         -webkit-appearance: none;
         appearance: none;
+        outline: none;
         color: inherit;
         cursor: pointer;
     }
+    .currency-price .currency-selector:focus {
+        border-color: var(--color-gray-light, #ccc);
+    }
     .currency-price .price-tag {
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 400;
     }
     .currency-price .original-price {
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
     }
 
-    /* Notification — bottom center, no background */
+    /* Notification — bottom half only, author-matching style */
     .notification {
         position: fixed !important;
-        top: auto !important;
-        bottom: 80px !important;
+        top: 50% !important;
+        bottom: auto !important;
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%) translateY(8px) !important;
         background: none !important;
         color: var(--color-gray, #888) !important;
         font-family: 'Work Sans', sans-serif !important;
-        font-size: 12px !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
         padding: 0 !important;
         max-width: 90vw !important;
         text-align: center !important;
         border-radius: 0 !important;
         white-space: nowrap;
-        letter-spacing: 0.2px;
+        pointer-events: none;
     }
     .notification.active {
         opacity: 1 !important;
@@ -139,6 +128,12 @@
     }
     .notification.warning {
         color: var(--color-warning, #e65100) !important;
+    }
+    @media (min-width: 769px) {
+        .notification {
+            top: auto !important;
+            bottom: 60px !important;
+        }
     }
 
     /* Cart badge — no background */
@@ -208,21 +203,88 @@
         font-size: 10px;
     }
 
-    /* Description default 13px */
+    /* Description: lighter on mobile, more spaced on desktop */
     .description {
         font-size: 13px !important;
+        font-weight: 400 !important;
+        line-height: 1.5 !important;
+    }
+    @media (max-width: 768px) {
+        .description {
+            font-weight: 300 !important;
+        }
+    }
+    @media (min-width: 769px) {
+        .description {
+            line-height: 1.7 !important;
+        }
     }
 
-    /* Text page: no italics, scrollable in landscape on mobile */
+    /* Text page: no italics, scrollable, contained within info area */
     .text-content,
     .frame-inner.text-mode .text-content {
         font-style: normal !important;
     }
-    @media (orientation: landscape) and (max-width: 768px) {
-        .frame-inner {
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
+    /* Info container: scrollable, hidden scrollbar, contained */
+    .info-container {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .info-container::-webkit-scrollbar {
+        display: none;
+    }
+    .frame-inner {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .frame-inner::-webkit-scrollbar {
+        display: none;
+    }
+    /* Hints overlay (shown after Explore) */
+    .hints-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.65);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.5s ease;
+    }
+    .hints-overlay.visible {
+        opacity: 1;
+        pointer-events: all;
+    }
+    .hints-content {
+        text-align: center;
+        padding: 24px;
+        max-width: 280px;
+    }
+    .hints-content p {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #ccc;
+        margin: 10px 0;
+        line-height: 1.6;
+    }
+    .hints-content p span.hint-key {
+        display: inline-block;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 3px;
+        padding: 1px 6px;
+        margin: 0 2px;
+        font-size: 10px;
+        color: #D0A380;
+    }
+    /* Logo smart invert */
+    .logo-container.logo-invert {
+        filter: brightness(0);
     }
     </style>
     
@@ -257,6 +319,16 @@
     <!-- Loading + notifications -->
     <div class="loading" id="loading"><div class="spinner"></div></div>
     <div class="notification" id="notification" role="status" aria-live="polite"></div>
+
+    <!-- Hints overlay -->
+    <div class="hints-overlay" id="hintsOverlay">
+        <div class="hints-content">
+            <p><span class="hint-key">Tap</span> left / right to navigate</p>
+            <p><span class="hint-key">Double-tap</span> for full screen</p>
+            <p><span class="hint-key">+</span> add to cart &nbsp; <span class="hint-key">♡</span> save</p>
+            <p><span class="hint-key">☰</span> grid view &nbsp; <span class="hint-key">𐚱</span> cart</p>
+        </div>
+    </div>
 
     <!-- Install toast (PWA prompt) -->
     <div class="install-toast" id="installToast" role="dialog" aria-label="Install app">
@@ -317,12 +389,12 @@
                     <div class="title-author">
                         <span id="productTitle">-</span>
                         <span id="productCreator" class="product-creator">V.</span>
-                        <div class="currency-price">
+                        <div class="currency-price" id="currencyPriceWidget">
                             <select class="currency-selector" id="currencyDisplay">
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
                                 <option value="GBP">GBP</option>
-                                <option value="NGN" selected>NGN</option>
+                                <option value="NGN">NGN</option>
                             </select>
                             <span class="price-tag" id="priceTag"></span>
                             <span class="original-price" id="originalPrice" style="display:none;"></span>
@@ -330,7 +402,7 @@
                     </div>
 
                     <div class="action-row" id="priceRow">
-                        <button class="add-btn" id="addButton" type="button" aria-label="Add to cart">ADD</button>
+                        <button class="icon-button" id="addButton" type="button" aria-label="Add to cart">+</button>
                         <button class="icon-button heart" id="heartButton" type="button" aria-label="Save">♡</button>
                         <button class="icon-button share" id="shareButton" type="button" aria-label="Share" style="display:none;">↗</button>
                         <button class="icon-button" id="cartIconButton" type="button" aria-label="Open cart">𐚱</button>
