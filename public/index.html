@@ -37,20 +37,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
     <style>
-    /* ADD button — matches author font/size */
+    /* ADD button — matches currency changer / author style */
     .add-btn {
         background: none;
         border: 1px solid var(--color-gray-light, #ccc);
-        border-radius: 4px;
-        padding: 3px 10px;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-family: inherit;
         font-size: inherit;
-        font-weight: 400;
-        letter-spacing: 0.5px;
+        font-weight: inherit;
+        letter-spacing: inherit;
         text-transform: uppercase;
         color: var(--color-gray, #888);
         cursor: pointer;
         transition: all 0.2s;
-        font-family: inherit;
         white-space: nowrap;
     }
     .add-btn:hover {
@@ -63,32 +63,27 @@
         color: var(--color-primary, #000);
     }
 
-    /* Action row — even spacing */
-    .action-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 6px;
-    }
-
     /* Share button in action row */
     .action-row .icon-button.share {
         font-size: 14px;
         display: inline-block;
     }
 
-    /* Currency + Price widget next to title */
+    /* Currency + Price widget — inherits author font/size from .title-author */
     .currency-price {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         margin-left: 8px;
         flex-shrink: 0;
+        font: inherit;
+        color: inherit;
     }
     .currency-price .currency-selector {
-        font-size: inherit;
-        padding: 0 2px;
-        border: none;
+        font: inherit;
+        padding: 1px 2px;
+        border: 1px solid var(--color-gray-light, #ccc);
+        border-radius: 3px;
         background: none;
         -webkit-appearance: none;
         appearance: none;
@@ -96,11 +91,11 @@
         cursor: pointer;
     }
     .currency-price .price-tag {
-        font-size: inherit;
+        font: inherit;
         font-weight: inherit;
     }
     .currency-price .original-price {
-        font-size: inherit;
+        font: inherit;
     }
 
     /* Notification — bottom center, no background */
@@ -235,7 +230,7 @@
     <div class="intro-overlay" id="introOverlay">
         <div class="intro-content">
             <div class="intro-poem" id="introPoem"></div>
-            <div class="intro-signature">V.</div>
+            <div class="intro-signature" id="introSignature"></div>
             <button class="enter-gallery" id="enterGalleryBtn">Enter Shop</button>
         </div>
     </div>
