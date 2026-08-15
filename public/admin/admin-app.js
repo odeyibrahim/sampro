@@ -436,10 +436,8 @@
         if (addlFile) addlFile.value = '';
 
         if (productId) {
-            apiCall('get_products').then(function (result) {
-                if (!Array.isArray(result)) return;
-                var p = result.find(function (x) { return String(x.product_id) === String(productId); });
-                if (!p) return;
+            apiCall('get_product', { product_id: productId }).then(function (p) {
+                if (!p || p.error) return;
         document.getElementById('editTitle').value = p.title || '';
                 document.getElementById('editAuthor').value = p.author || 'V.';
                 document.getElementById('editDescription').value = p.description || '';
