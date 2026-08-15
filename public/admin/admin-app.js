@@ -1113,16 +1113,13 @@
 
         document.getElementById('logoutBtn').onclick = logout;
 
-        // Dark mode toggle
+        // Dark mode toggle (class already applied in <head> — no flash)
         var darkBtn = document.getElementById('darkToggleBtn');
         if (darkBtn) {
-            // Restore saved preference
-            try {
-                if (localStorage.getItem('admin_dark_mode') === '1') {
-                    document.body.classList.add('dark-mode');
-                    darkBtn.textContent = '◑';
-                }
-            } catch(e) {}
+            // Sync button icon with already-applied class
+            if (document.body.classList.contains('dark-mode')) {
+                darkBtn.textContent = '◑';
+            }
             darkBtn.onclick = function() {
                 document.body.classList.toggle('dark-mode');
                 var isNowDark = document.body.classList.contains('dark-mode');
