@@ -21,8 +21,8 @@
         .intro-overlay.hidden{opacity:0;pointer-events:none}
         .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
         @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-        .intro-poem{font-size:11px;line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Roboto Mono',monospace;letter-spacing:0.5px;text-transform:uppercase}
-        .intro-signature{color:#D0A380;font-size:11px;margin-bottom:40px;font-family:'Roboto Mono',monospace;letter-spacing:0.5px;text-transform:uppercase}
+        .intro-poem{font-size:14px;line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif;letter-spacing:0.5px}
+        .intro-signature{color:#D0A380;font-size:10.5px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
         .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s;opacity:0;transform:translateY(10px)}
         .intro-loaded.ready .enter-gallery{opacity:1;transform:translateY(0);transition:opacity .6s ease,transform .6s ease}
         .enter-gallery:hover{background:#000;color:#fff}
@@ -46,14 +46,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
     <style>
-    /* ADD button: + icon with same hover bg as other icon-buttons */
+    /* ADD button: always +, brief flash on add */
     .icon-button#addButton {
         font-size: 16px;
         line-height: 1;
-    }
-    .icon-button#addButton.added {
-        opacity: 0.4;
-        cursor: default;
     }
 
     /* Share button in action row */
@@ -62,7 +58,7 @@
         display: inline-block;
     }
 
-    /* Currency + Price widget — Roboto Mono, 12px */
+    /* Currency + Price widget — Roboto Mono, 11px */
     .currency-price {
         display: inline-flex;
         align-items: center;
@@ -70,12 +66,12 @@
         margin-left: 10px;
         flex-shrink: 0;
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-size: 11px;
         color: inherit;
     }
     .currency-price .currency-selector {
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-size: 11px;
         padding: 1px 2px;
         border: 1px solid rgba(128,128,128,0.35);
         border-radius: 3px;
@@ -93,12 +89,12 @@
     }
     .currency-price .price-tag {
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 400;
     }
     .currency-price .original-price {
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-size: 11px;
     }
 
     /* Notification — bottom half only, author-matching style */
@@ -206,37 +202,19 @@
         font-size: 10px;
     }
 
-    /* Description: lighter on desktop, breathable on mobile */
-    .description {
-        font-size: 13px !important;
-        font-weight: 400 !important;
-        line-height: 1.5 !important;
-        letter-spacing: 0 !important;
-    }
-    @media (max-width: 768px) {
-        .description {
-            font-weight: 300 !important;
-        }
-    }
-    @media (min-width: 769px) {
-        .description {
-            font-weight: 300 !important;
-            line-height: 1.7 !important;
-            letter-spacing: 0.3px !important;
-        }
-    }
+    /* Description: base styles, no weight override */
 
     /* Text page: no italics, scrollable, contained within frame area */
     .text-content,
     .frame-inner.text-mode .text-content {
         font-style: normal !important;
     }
-    /* Info container: scrollable with hidden scrollbar, bounded to info-half */
+    /* Info container: scrollable with hidden scrollbar, bounded to 90% of info-half */
     .info-container {
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
-        max-height: 100%;
+        max-height: 90%;
         box-sizing: border-box;
     }
     .info-container::-webkit-scrollbar {
@@ -253,7 +231,7 @@
     }
     /* Ensure text-mode frame-inner is bounded by product-frame */
     .product-frame .frame-inner {
-        max-height: 100%;
+        max-height: 90%;
         box-sizing: border-box;
     }
     /* Hints overlay (shown after Explore) */
@@ -267,7 +245,7 @@
         background: rgba(0,0,0,0.65);
         opacity: 0;
         pointer-events: none;
-        transition: opacity 0.5s ease;
+        transition: opacity 0.6s ease;
     }
     .hints-overlay.visible {
         opacity: 1;
@@ -279,7 +257,7 @@
         max-width: 280px;
     }
     .hints-content p {
-        font-family: 'Roboto Mono', monospace;
+        font-family: 'Work Sans', sans-serif;
         font-size: 11px;
         letter-spacing: 0.5px;
         text-transform: uppercase;
@@ -296,12 +274,9 @@
         font-size: 10px;
         color: #D0A380;
     }
-    /* Logo smart invert: all-black on light bg, all-white on dark bg */
+    /* Logo invert for light backgrounds — used when no dark logo is set */
     .logo-container.logo-invert {
         filter: brightness(0);
-    }
-    .logo-container.logo-invert-white {
-        filter: brightness(0) invert(1);
     }
     </style>
     
@@ -344,6 +319,10 @@
             <p><span class="hint-key">Double-tap</span> for full screen</p>
             <p><span class="hint-key">+</span> add to cart &nbsp; <span class="hint-key">♡</span> save</p>
             <p><span class="hint-key">☰</span> grid view &nbsp; <span class="hint-key">𐚱</span> cart</p>
+            <p class="hints-dismiss-hint" style="margin-top:20px;opacity:0.5;font-size:10px;">Tap anywhere to continue</p>
+            <div class="hints-loading" id="hintsLoading" style="display:none;margin-top:16px;">
+                <div class="spinner" style="width:16px;height:16px;border-width:1.5px;margin:0 auto;"></div>
+            </div>
         </div>
     </div>
 
