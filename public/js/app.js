@@ -36,6 +36,8 @@ class HybridApp {
         this.doubleTapTimer = null;
         this._activeCollection = null;
         this.deferredInstallPrompt = null;
+        this._darkLogoUrl = null;
+        this._lightLogoUrl = null;
         this.sessionId = localStorage.getItem('session_id') || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
         localStorage.setItem('session_id', this.sessionId);
         this._loadCart();
@@ -75,6 +77,9 @@ class HybridApp {
             const settings = await res.json();
             const siteLogo = document.getElementById('siteLogo');
             const logoSize = parseInt(settings.logo_size) || 36;
+            // Store logo URLs for dark/light switching
+            this._lightLogoUrl = settings.logo_url || null;
+            this._darkLogoUrl = settings.logo_url_dark || null;
             if (siteLogo && settings.logo_url) {
                 siteLogo.innerHTML = '';
                 const img = document.createElement('img');
@@ -218,12 +223,12 @@ class HybridApp {
         }
         this._saveCart();
         this._updateCartBadge();
-        // Brief visual feedback on the + button
+        // Brief visual feedback: flash ✓ then revert to +
         const addBtn = this.el.addButton;
         if (addBtn) {
-            addBtn.classList.add('added');
+            addBtn.textContent = '✓';
             setTimeout(function() {
-                addBtn.classList.remove('added');
+                addBtn.textContent = '+';
             }, 1200);
         }
     }
@@ -615,33 +620,39 @@ class HybridApp {
         return lum < 0.4;
     }
 
-    // Smart logo invert: light bg → black logo, dark bg → white logo
+    // Logo contrast: use dark logo on light backgrounds, or invert text logo
     _applyLogoContrast(bgConfig) {
         var logo = document.getElementById('siteLogo');
         if (!logo) return;
-        // If dark mode is active and no custom bg, treat as dark
-        var isDark = document.body.classList.contains('dark-mode');
-        // Check for image/video bg — can't sample, skip
-        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) {
-            // In dark mode with image/video bg, default to white
-            if (isDark) {
-                logo.classList.remove('logo-invert');
-                logo.classList.add('logo-invert-white');
-            } else {
-                logo.classList.remove('logo-invert', 'logo-invert-white');
+        // If a dark logo is uploaded, swap logos instead of filtering
+        if (this._darkLogoUrl) {
+            var isDark = document.body.classList.contains('dark-mode');
+            var color = '';
+            if (bgConfig && bgConfig.color1) color = bgConfig.color1;
+            if (!color) {
+                var rootStyle = getComputedStyle(document.documentElement);
+                color = rootStyle.getPropertyValue('--bg-top').trim();
             }
+            if (!color) color = isDark ? '#121212' : '#f8f8f8';
+            var bgIsLight = !this._isDarkColor(color);
+            var img = logo.querySelector('img');
+            if (img) {
+                img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
+            }
+            logo.classList.remove('logo-invert');
             return;
         }
+        // No dark logo — use CSS filter invert for text logo
+        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) return;
         var color = '';
         if (bgConfig && bgConfig.color1) color = bgConfig.color1;
         if (!color) {
             var rootStyle = getComputedStyle(document.documentElement);
             color = rootStyle.getPropertyValue('--bg-top').trim();
         }
-        if (!color) color = isDark ? '#121212' : '#f8f8f8';
+        if (!color) color = '#f8f8f8';
         var isLight = !this._isDarkColor(color);
         logo.classList.toggle('logo-invert', isLight);
-        logo.classList.toggle('logo-invert-white', !isLight);
     }
 
     _applyNavContrast(c1, c2, navEl) {
@@ -905,9 +916,8 @@ class HybridApp {
         this.renderVariationDots();
 
         if (this.el.addButton) {
-            const inCart = this._findCartItem(p.product_id);
-            this.el.addButton.textContent = inCart ? '✓' : '+';
-            this.el.addButton.classList.toggle('added', !!inCart);
+            this.el.addButton.textContent = '+';
+            this.el.addButton.classList.remove('added');
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
@@ -1041,8 +1051,7 @@ class HybridApp {
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
                 : (p.font_size || 13) + 'px';
-            // Only set inline weight if product explicitly specifies one;
-            // otherwise let the CSS override handle desktop vs mobile.
+            // Only set inline weight if product explicitly specifies one
             if (p.font_weight) {
                 this.el.descriptionText.style.fontWeight = p.font_weight;
             } else {
@@ -1051,8 +1060,6 @@ class HybridApp {
             this.el.descriptionText.style.textTransform = p.text_transform || 'none';
             // Never force italics — text page content uses normal style
             this.el.descriptionText.style.fontStyle = 'normal';
-            // Clear inline letter-spacing so CSS can handle desktop vs mobile
-            this.el.descriptionText.style.letterSpacing = '';
         }
 
         if (this.el.priceRow) {
@@ -1745,9 +1752,8 @@ class HybridApp {
         this.renderVariationDots();
         // Update chrome
         if (this.el.addButton) {
-            const inCart = this._findCartItem(p.product_id);
-            this.el.addButton.textContent = inCart ? '✓' : '+';
-            this.el.addButton.classList.toggle('added', !!inCart);
+            this.el.addButton.textContent = '+';
+            this.el.addButton.classList.remove('added');
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
@@ -1811,22 +1817,34 @@ class HybridApp {
         var fallbackVerses = [
             { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
             { text: 'The Lord is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
-            { text: 'I can do all things through Christ who strengthens me.', ref: 'Philippians 4:13' },
-            { text: 'For God so loved the world that he gave his only begotten Son.', ref: 'John 3:16' },
-            { text: "The earth is the Lord's and the fullness thereof.", ref: 'Psalm 24:1' },
+            { text: 'Trust in the Lord with all your heart, and lean not on your own understanding.', ref: 'Proverbs 3:5' },
             { text: 'He has made everything beautiful in its time.', ref: 'Ecclesiastes 3:11' },
-            { text: 'Trust in the Lord with all your heart.', ref: 'Proverbs 3:5' },
-            { text: 'The Lord is my light and my salvation.', ref: 'Psalm 27:1' },
-            { text: 'Be strong and courageous. Do not be afraid.', ref: 'Joshua 1:9' },
+            { text: 'The Lord is my light and my salvation; whom shall I fear?', ref: 'Psalm 27:1' },
+            { text: 'Be strong and courageous. Do not be afraid; do not be discouraged.', ref: 'Joshua 1:9' },
             { text: 'This is the day the Lord has made; let us rejoice and be glad.', ref: 'Psalm 118:24' },
-            { text: 'The Lord is near to the brokenhearted.', ref: 'Psalm 34:18' },
+            { text: 'The Lord is near to the brokenhearted and saves the crushed in spirit.', ref: 'Psalm 34:18' },
             { text: 'Your word is a lamp to my feet and a light to my path.', ref: 'Psalm 119:105' },
-            { text: 'Cast all your anxiety on him because he cares for you.', ref: '1 Peter 5:7' },
+            { text: 'Delight yourself in the Lord, and he will give you the desires of your heart.', ref: 'Psalm 37:4' },
+            { text: 'I can do all things through Christ who strengthens me.', ref: 'Philippians 4:13' },
+            { text: 'For I know the plans I have for you, declares the Lord, plans to prosper you.', ref: 'Jeremiah 29:11' },
+            { text: 'The Lord is my strength and my shield; my heart trusts in him.', ref: 'Psalm 28:7' },
+            { text: 'Commit to the Lord whatever you do, and he will establish your plans.', ref: 'Proverbs 16:3' },
+            { text: 'The fear of the Lord is the beginning of wisdom.', ref: 'Proverbs 9:10' },
+            { text: 'Be still before the Lord and wait patiently for him.', ref: 'Psalm 37:7' },
             { text: 'The Lord bless you and keep you; the Lord make his face shine upon you.', ref: 'Numbers 6:24' },
-            { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' }
+            { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' },
+            { text: 'He gives strength to the weary and increases the power of the weak.', ref: 'Isaiah 40:29' },
+            { text: 'The Lord your God is with you, the Mighty Warrior who saves.', ref: 'Zephaniah 3:17' },
+            { text: 'But those who hope in the Lord will renew their strength.', ref: 'Isaiah 40:31' },
+            { text: 'The earth is the Lord\'s and the fullness thereof.', ref: 'Psalm 24:1' },
+            { text: 'Cast all your anxiety on him because he cares for you.', ref: '1 Peter 5:7' },
+            { text: 'Good name is to be chosen rather than great riches.', ref: 'Proverbs 22:1' }
         ];
 
-        fetch('https://bible-api.com/?random=verse')
+        // Try Psalms or Proverbs first for motivational verses
+        var books = ['psalms', 'proverbs', 'isaiah', 'jeremiah', 'philippians'];
+        var book = books[Math.floor(Math.random() * 3)]; // 2/3 chance Psalms/Proverbs
+        fetch('https://bible-api.com/' + book + '?random=verse')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.text && data.reference) {
@@ -1861,19 +1879,24 @@ class HybridApp {
         if (sessionStorage.getItem('vgallery_hints_seen')) return;
         var overlay = document.getElementById('hintsOverlay');
         if (!overlay) return;
+        var loadingEl = document.getElementById('hintsLoading');
+        // Show loading spinner if products haven't loaded yet
+        if (!this.products.length && loadingEl) {
+            loadingEl.style.display = 'block';
+        }
+        // Fade in
         setTimeout(function() {
             overlay.classList.add('visible');
             sessionStorage.setItem('vgallery_hints_seen', '1');
         }, 800);
+        // Dismiss only on tap/click anywhere
         var dismiss = function() {
             overlay.classList.remove('visible');
         };
         setTimeout(function() {
             document.addEventListener('touchstart', dismiss, { once: true });
             document.addEventListener('click', dismiss, { once: true });
-            document.addEventListener('keydown', dismiss, { once: true });
-        }, 1000);
-        setTimeout(dismiss, 6000);
+        }, 100);
     }
 
     showLoading(show) {
