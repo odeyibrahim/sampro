@@ -970,7 +970,7 @@ class HybridApp {
         } else if (this.el.productCreator) {
             const showAuthor = p.show_author !== false;
             this.el.productCreator.style.display = showAuthor ? '' : 'none';
-            this.el.productCreator.textContent = p.author || 'V.';
+            this.el.productCreator.textContent = p.author || this._currentVerseRef || '';
             this.el.productCreator.style.fontStyle = '';
             this.el.productCreator.style.fontSize = '';
             this.el.productCreator.style.opacity = '';
@@ -1734,40 +1734,50 @@ class HybridApp {
     }
 
     setRandomVerse() {
-        var el = document.getElementById('introPoem');
-        if (!el) return;
+        var poemEl = document.getElementById('introPoem');
+        var sigEl = document.getElementById('introSignature');
+        if (!poemEl) return;
 
-        // Hardcoded fallback verses
+        // Hardcoded fallback verses (text + reference)
         var fallbackVerses = [
-            '"Be still, and know that I am God."',
-            '"The Lord is my shepherd; I shall not want."',
-            '"I can do all things through Christ who strengthens me."',
-            '"For God so loved the world that he gave his only begotten Son."',
-            '"The earth is the Lord\'s and the fullness thereof."',
-            '"He has made everything beautiful in its time."',
-            '"Trust in the Lord with all your heart."',
-            '"The Lord is my light and my salvation."',
-            '"Be strong and courageous. Do not be afraid."',
-            '"This is the day the Lord has made; let us rejoice and be glad."',
-            '"The Lord is near to the brokenhearted."',
-            '"Your word is a lamp to my feet and a light to my path."',
-            '"Cast all your anxiety on him because he cares for you."',
-            '"The Lord bless you and keep you; the Lord make his face shine upon you."',
-            '"Create in me a clean heart, O God, and renew a right spirit within me."'
+            { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
+            { text: 'The Lord is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
+            { text: 'I can do all things through Christ who strengthens me.', ref: 'Philippians 4:13' },
+            { text: 'For God so loved the world that he gave his only begotten Son.', ref: 'John 3:16' },
+            { text: "The earth is the Lord's and the fullness thereof.", ref: 'Psalm 24:1' },
+            { text: 'He has made everything beautiful in its time.', ref: 'Ecclesiastes 3:11' },
+            { text: 'Trust in the Lord with all your heart.', ref: 'Proverbs 3:5' },
+            { text: 'The Lord is my light and my salvation.', ref: 'Psalm 27:1' },
+            { text: 'Be strong and courageous. Do not be afraid.', ref: 'Joshua 1:9' },
+            { text: 'This is the day the Lord has made; let us rejoice and be glad.', ref: 'Psalm 118:24' },
+            { text: 'The Lord is near to the brokenhearted.', ref: 'Psalm 34:18' },
+            { text: 'Your word is a lamp to my feet and a light to my path.', ref: 'Psalm 119:105' },
+            { text: 'Cast all your anxiety on him because he cares for you.', ref: '1 Peter 5:7' },
+            { text: 'The Lord bless you and keep you; the Lord make his face shine upon you.', ref: 'Numbers 6:24' },
+            { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' }
         ];
+
+        var applyVerse = function(text, ref) {
+            poemEl.textContent = '"' + text + '"';
+            if (sigEl) sigEl.textContent = '— ' + ref;
+            // Store reference so product author can use it as fallback
+            this._currentVerseRef = ref;
+        }.bind(this);
 
         // Try fetching a live verse from bible-api.com (free, no API key needed)
         fetch('https://bible-api.com/?random=verse')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.text && data.reference) {
-                    el.textContent = '"' + data.text.trim().replace(/\s+/g, ' ') + '" — ' + data.reference;
+                    applyVerse(data.text.trim().replace(/\s+/g, ' '), data.reference);
                 } else {
-                    el.textContent = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+                    var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+                    applyVerse(v.text, v.ref);
                 }
             })
             .catch(function() {
-                el.textContent = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+                var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
+                applyVerse(v.text, v.ref);
             });
     }
 
