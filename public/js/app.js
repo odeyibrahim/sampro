@@ -44,11 +44,19 @@ class HybridApp {
 
     async init() {
         this.bindElements();
-        // Load currency BEFORE products so rates are correct on first render.
         this.loadCurrency();
-        await this.loadStoreSettings();  // loads admin rates + settings
-        await this.fetchCurrencyRates();  // loads live/cached rates from server
-        await this.loadProducts();
+
+        // Show intro + start verse fetch IMMEDIATELY — don't block on network calls.
+        const enterBtn = document.getElementById('enterGalleryBtn');
+        if (enterBtn) enterBtn.onclick = () => this.enterGallery();
+        this.setRandomVerse();
+        this.showIntro();
+
+        // Load heavy data in background (intro is already visible).
+        // Silent on first load so the spinner overlay doesn't cover the intro.
+        await this.loadStoreSettings();
+        await this.fetchCurrencyRates();
+        await this.loadProducts({ silent: true });
         this._updateCartBadge();
         this.loadSaved();
         this.fetchShippingZones();
@@ -56,11 +64,8 @@ class HybridApp {
         this.setupSwipe();
         this.setupPwa();
         this.setupAdminSync();
+        this.setupSupabaseRealtime();
         this.updateOfflineBanner();
-        const enterBtn = document.getElementById('enterGalleryBtn');
-        if (enterBtn) enterBtn.onclick = () => this.enterGallery();
-        this.setRandomVerse();
-        this.showIntro();
     }
 
     async loadStoreSettings() {
@@ -2076,6 +2081,100 @@ class HybridApp {
                 } catch(err) {}
             }
         });
+    }
+
+    // Supabase Realtime — cross-device sync (works across phone, laptop, etc.)
+    setupSupabaseRealtime() {
+        // Fetch public config (no auth needed) to get Supabase URL + anon key
+        fetch('/.netlify/functions/admin-operations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ operation: 'get_realtime_config' })
+        })
+        .then(r => r.json())
+        .then(config => {
+            if (!config || !config.url || !config.anonKey) return;
+            this._connectRealtimeWs(config.url, config.anonKey);
+        })
+        .catch(() => {});
+    }
+
+    _connectRealtimeWs(supabaseUrl, anonKey) {
+        try {
+            // Extract project ref from URL (e.g. https://xyz.supabase.co → xyz)
+            var match = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+            if (!match) return;
+            var projectRef = match[1];
+            var wsUrl = 'wss://' + projectRef + '.supabase.co/realtime/v1/websocket?apikey=' + anonKey + '&log_level=error&vsn=1.0.0';
+            var ws = new WebSocket(wsUrl);
+            var self = this;
+            var joined = false;
+            var pendingJoin = null;
+
+            ws.onopen = function() {
+                // Join the realtime channel
+                ws.send(JSON.stringify({
+                    topic: 'realtime',
+                    event: 'phx_join',
+                    payload: {},
+                    ref: '1'
+                }));
+            };
+
+            ws.onmessage = function(evt) {
+                var msg;
+                try { msg = JSON.parse(evt.data); } catch(e) { return; }
+
+                // Confirm we joined the realtime channel
+                if (msg.event === 'phx_reply' && msg.ref === '1') {
+                    joined = true;
+                    // Subscribe to products table changes
+                    ws.send(JSON.stringify({
+                        topic: 'realtime:public:products',
+                        event: 'phx_join',
+                        payload: {
+                            config: { broadcast: { self: false }, presence: { key: '' } },
+                            extension: { postgres_changes: [
+                                { event: '*', schema: 'public', table: 'products' }
+                            ]}
+                        },
+                        ref: '2'
+                    }));
+                    // Subscribe to settings table changes
+                    ws.send(JSON.stringify({
+                        topic: 'realtime:public:settings',
+                        event: 'phx_join',
+                        payload: {
+                            config: { broadcast: { self: false }, presence: { key: '' } },
+                            extension: { postgres_changes: [
+                                { event: '*', schema: 'public', table: 'settings' }
+                            ]}
+                        },
+                        ref: '3'
+                    }));
+                }
+
+                // Handle postgres_changes notifications
+                if (msg.event === 'postgres_changes' && msg.payload) {
+                    var table = msg.payload.table;
+                    if (table === 'products') {
+                        self.handleAdminChange('products_updated');
+                    } else if (table === 'settings') {
+                        self.handleAdminChange('settings_updated');
+                    }
+                }
+            };
+
+            ws.onclose = function() {
+                // Reconnect after 10 seconds
+                setTimeout(function() {
+                    if (self._realtimeDestroyed) return;
+                    self._connectRealtimeWs(supabaseUrl, anonKey);
+                }, 10000);
+            };
+
+            this._realtimeWs = ws;
+        } catch(e) {}
     }
 
     async handleAdminChange(type) {
