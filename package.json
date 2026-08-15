@@ -1,7 +1,7 @@
 {
   "name": "vgallery-complete",
   "version": "2.1.0",
-  "description": "V. Gallery - Art + Commerce, with Paystack, Flutterwave, and bank/domiciliary transfer support",
+  "description": "V. Gallery - Art + Commerce, with Paystack, Flutterwave, Stripe, and bank/domiciliary transfer support",
   "scripts": {
     "hash-password": "node -e \"console.log(require('bcryptjs').hashSync(process.argv[1], 10))\"",
     "build:js": "terser public/js/app.js -o dist/js/app.js -c -m --compress drop_console=true && terser public/js/utils.js -o dist/js/utils.js -c -m && terser public/js/payment-callback.js -o dist/js/payment-callback.js -c -m && terser public/admin/admin-app.js -o dist/admin/admin-app.js -c -m && terser public/admin/admin-login.js -o dist/admin/admin-login.js -c -m",
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "stripe": "^17.4.0"
   },
   "devDependencies": {
     "@netlify/functions": "^2.6.0",
