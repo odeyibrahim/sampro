@@ -61,9 +61,10 @@
         color: var(--color-primary, #000);
     }
 
-    /* Share button in action row */
+    /* Share button in action row — must be explicit to override external CSS */
     .action-row .icon-button.share {
         font-size: 14px;
+        display: inline-block;
     }
 
     /* Notification — bottom center, no background */
@@ -96,6 +97,15 @@
         color: var(--color-warning, #e65100) !important;
     }
 
+    /* Cart icon button — relative for badge positioning */
+    #cartIconButton {
+        position: relative;
+        line-height: 1;
+    }
+    #cartIconButton img {
+        display: block;
+    }
+
     /* Cart badge — no background */
     .cart-badge {
         background: none !important;
@@ -103,6 +113,7 @@
         font-weight: 500;
         width: auto !important;
         height: auto !important;
+        position: absolute !important;
         top: -4px !important;
         right: -8px !important;
         font-size: 10px;
@@ -254,7 +265,7 @@
                         <button class="add-btn" id="addButton" type="button" aria-label="Add to cart">ADD</button>
                         <button class="icon-button heart" id="heartButton" type="button" aria-label="Save">♡</button>
                         <button class="icon-button share" id="shareButton" type="button" aria-label="Share" style="display:none;">↗</button>
-                        <button class="icon-button" id="cartIconButton" type="button" aria-label="Open cart">𐚱</button>
+                        <button class="icon-button" id="cartIconButton" type="button" aria-label="Open cart"><img src="https://symbl-cdn.com/i/webp/9e/e36d14532125f247d8bedac25f53db.webp" alt="" width="16" height="16" style="pointer-events:none;"></button>
                         <span class="stock-badge" id="stockBadge"></span>
                     </div>
                 </div>
@@ -413,7 +424,7 @@
                     <div class="payment-method-options" id="paymentMethodOptions">
                         <label class="payment-method-option selected">
                             <input type="radio" name="paymentProvider" value="paystack" checked>
-                            <span class="pm-brand"><img src="https://paystack.com/assets/payment-icons/paystack-icon.svg" alt="" width="20" height="20" onerror="this.style.display='none'"></span>
+                            <span class="pm-brand"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Paystack_Logo.svg/250px-Paystack_Logo.svg.png" alt="Paystack" width="20" height="20" onerror="this.style.display='none'"></span>
                             <span class="pm-label">Card / Bank Transfer</span>
                             <span class="pm-provider">Paystack</span>
                         </label>
@@ -431,7 +442,7 @@
                         </label>
                         <label class="payment-method-option">
                             <input type="radio" name="paymentProvider" value="bank_transfer">
-                            <span class="pm-brand pm-bank-icon">🏦</span>
+                            <span class="pm-brand pm-bank-icon">💳</span>
                             <span class="pm-label">Direct Bank Transfer</span>
                             <span class="pm-provider">Manual</span>
                         </label>
