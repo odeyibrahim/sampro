@@ -213,8 +213,7 @@ class HybridApp {
         }
         this._saveCart();
         this._updateCartBadge();
-        // Open cart panel so user sees the item
-        this.openCart();
+        // Cart drawer opens only when user clicks the cart icon/badge
     }
 
     removeFromCart(productId) {
