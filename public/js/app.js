@@ -830,7 +830,7 @@ class HybridApp {
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
         }
         if (this.el.shareButton) {
-            this.el.shareButton.style.display = p.show_share !== false ? '' : 'none';
+            this.el.shareButton.style.display = (p.show_share === true || p.show_share === 'true' || p.show_share === '1') ? 'inline-block' : 'none';
         }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
@@ -1656,7 +1656,7 @@ class HybridApp {
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
         }
         if (this.el.shareButton) {
-            this.el.shareButton.style.display = p.show_share !== false ? '' : 'none';
+            this.el.shareButton.style.display = (p.show_share === true || p.show_share === 'true' || p.show_share === '1') ? 'inline-block' : 'none';
         }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
