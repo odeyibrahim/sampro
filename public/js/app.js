@@ -213,7 +213,16 @@ class HybridApp {
         }
         this._saveCart();
         this._updateCartBadge();
-        // Cart drawer opens only when user clicks the cart icon/badge
+        // Brief visual feedback on the ADD button
+        const addBtn = this.el.addButton;
+        if (addBtn) {
+            addBtn.textContent = 'ADDED';
+            addBtn.classList.add('added');
+            setTimeout(function() {
+                addBtn.textContent = 'ADD';
+                addBtn.classList.remove('added');
+            }, 1200);
+        }
     }
 
     removeFromCart(productId) {
@@ -242,7 +251,7 @@ class HybridApp {
     }
 
     _updateCartBadge() {
-        const btn = this.el.cartButton;
+        const btn = this.el.cartIconButton;
         if (!btn) return;
         const count = this._cartCount();
         // Remove old badge
@@ -718,7 +727,8 @@ class HybridApp {
             bgVideoBottom: document.getElementById('bgVideoBottom'),
             bgImageBottom: document.getElementById('bgImageBottom'),
             heartButton: document.getElementById('heartButton'),
-            cartButton: document.getElementById('cartButton'),
+            addButton: document.getElementById('addButton'),
+            cartIconButton: document.getElementById('cartIconButton'),
             prevBtn: document.getElementById('prevBtn'),
             nextBtn: document.getElementById('nextBtn'),
             pageIndicator: document.getElementById('pageIndicator'),
@@ -810,6 +820,14 @@ class HybridApp {
         this.renderBackgrounds(p);
         this.renderVariationDots();
 
+        if (this.el.addButton) {
+            const inCart = this._findCartItem(p.product_id);
+            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.classList.toggle('added', !!inCart);
+            this.el.addButton.disabled = p.stock <= 0;
+            this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
+            this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
+        }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
             this.el.heartButton.classList.toggle('saved', isSaved);
@@ -1625,6 +1643,14 @@ class HybridApp {
         this.renderBackgrounds(p);
         this.renderVariationDots();
         // Update chrome
+        if (this.el.addButton) {
+            const inCart = this._findCartItem(p.product_id);
+            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.classList.toggle('added', !!inCart);
+            this.el.addButton.disabled = p.stock <= 0;
+            this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
+            this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
+        }
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
             this.el.heartButton.classList.toggle('saved', isSaved);
@@ -1719,7 +1745,8 @@ class HybridApp {
         if (this.el.prevBtn) this.el.prevBtn.onclick = () => this.prevProduct();
         if (this.el.nextBtn) this.el.nextBtn.onclick = () => this.nextProduct();
         if (this.el.heartButton) this.el.heartButton.onclick = () => this.toggleSave();
-        if (this.el.cartButton) this.el.cartButton.onclick = () => this.addToCart();
+        if (this.el.addButton) this.el.addButton.onclick = () => this.addToCart();
+        if (this.el.cartIconButton) this.el.cartIconButton.onclick = () => this.openCart();
         if (this.el.currencyDisplay) {
             this.el.currencyDisplay.addEventListener('change', () => {
                 this.selectCurrency(this.el.currencyDisplay.value);
