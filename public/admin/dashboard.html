@@ -4,12 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Admin · V. Gallery</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Self-hosted fonts (same as storefront) -->
+    <style>
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+    </style>
+    <!-- Dark mode before first paint -->
+    <script>try{if(localStorage.getItem('admin_dark_mode')==='1'){document.documentElement.className='dark-mode';document.documentElement.dataset.darkReady='1'}}catch(e){}</script>
     
     <!-- Local relative path to prevent MIME errors -->
     <link rel="stylesheet" href="admin.css">
 </head>
 <body class="admin-dashboard-body">
+<script>if(document.documentElement.dataset.darkReady==='1')document.body.classList.add('dark-mode');</script>
     <div class="admin-panel">
         <div class="admin-header">
             <div class="admin-header-left">
