@@ -970,7 +970,7 @@ class HybridApp {
         } else if (this.el.productCreator) {
             const showAuthor = p.show_author !== false;
             this.el.productCreator.style.display = showAuthor ? '' : 'none';
-            this.el.productCreator.textContent = p.author || this._currentVerseRef || '';
+            this.el.productCreator.textContent = p.author || 'V.';
             this.el.productCreator.style.fontStyle = '';
             this.el.productCreator.style.fontSize = '';
             this.el.productCreator.style.opacity = '';
@@ -1734,11 +1734,31 @@ class HybridApp {
     }
 
     setRandomVerse() {
+        var loaderEl = document.getElementById('introLoader');
+        var pctEl = document.getElementById('introLoaderPct');
+        var loadedEl = document.getElementById('introLoaded');
         var poemEl = document.getElementById('introPoem');
         var sigEl = document.getElementById('introSignature');
         if (!poemEl) return;
 
-        // Hardcoded fallback verses (text + reference)
+        var pct = 0;
+        var pctTimer = setInterval(function() {
+            pct += Math.floor(Math.random() * 12) + 3;
+            if (pct > 90) pct = 90;
+            if (pctEl) pctEl.textContent = pct;
+        }, 200);
+
+        var reveal = function(text, ref) {
+            clearInterval(pctTimer);
+            if (pctEl) pctEl.textContent = '100';
+            poemEl.textContent = '"' + text + '"';
+            if (sigEl) sigEl.textContent = ref;
+            setTimeout(function() {
+                if (loaderEl) loaderEl.style.display = 'none';
+                if (loadedEl) loadedEl.classList.add('ready');
+            }, 300);
+        };
+
         var fallbackVerses = [
             { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
             { text: 'The Lord is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
@@ -1757,27 +1777,19 @@ class HybridApp {
             { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' }
         ];
 
-        var applyVerse = function(text, ref) {
-            poemEl.textContent = '"' + text + '"';
-            if (sigEl) sigEl.textContent = '— ' + ref;
-            // Store reference so product author can use it as fallback
-            this._currentVerseRef = ref;
-        }.bind(this);
-
-        // Try fetching a live verse from bible-api.com (free, no API key needed)
         fetch('https://bible-api.com/?random=verse')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.text && data.reference) {
-                    applyVerse(data.text.trim().replace(/\s+/g, ' '), data.reference);
+                    reveal(data.text.trim().replace(/\s+/g, ' '), data.reference);
                 } else {
                     var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
-                    applyVerse(v.text, v.ref);
+                    reveal(v.text, v.ref);
                 }
             })
             .catch(function() {
                 var v = fallbackVerses[Math.floor(Math.random() * fallbackVerses.length)];
-                applyVerse(v.text, v.ref);
+                reveal(v.text, v.ref);
             });
     }
 
