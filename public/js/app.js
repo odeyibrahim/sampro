@@ -36,8 +36,6 @@ class HybridApp {
         this.doubleTapTimer = null;
         this._activeCollection = null;
         this.deferredInstallPrompt = null;
-        this._darkLogoUrl = null;
-        this._lightLogoUrl = null;
         this.sessionId = localStorage.getItem('session_id') || 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
         localStorage.setItem('session_id', this.sessionId);
         this._loadCart();
@@ -77,9 +75,6 @@ class HybridApp {
             const settings = await res.json();
             const siteLogo = document.getElementById('siteLogo');
             const logoSize = parseInt(settings.logo_size) || 36;
-            // Store logo URLs for dark/light switching
-            this._lightLogoUrl = settings.logo_url || null;
-            this._darkLogoUrl = settings.logo_url_dark || null;
             if (siteLogo && settings.logo_url) {
                 siteLogo.innerHTML = '';
                 const img = document.createElement('img');
@@ -212,23 +207,25 @@ class HybridApp {
         if (existing) {
             if (existing.quantity < p.stock) {
                 existing.quantity++;
-                this.showNotification('Quantity updated');
+                this.showNotification(p.title + ' quantity updated');
             } else {
                 this.showNotification('Max stock reached');
                 return;
             }
         } else {
             this.cart.push({ productId: p.product_id, quantity: 1, addedAt: Date.now() });
-            this.showNotification('Added to Cart');
+            this.showNotification(p.title + ' added to cart');
         }
         this._saveCart();
         this._updateCartBadge();
-        // Brief visual feedback: flash ✓ then revert to +
+        // Brief visual feedback on the ADD button
         const addBtn = this.el.addButton;
         if (addBtn) {
-            addBtn.textContent = '✓';
+            addBtn.textContent = 'ADDED';
+            addBtn.classList.add('added');
             setTimeout(function() {
-                addBtn.textContent = '+';
+                addBtn.textContent = 'ADD';
+                addBtn.classList.remove('added');
             }, 1200);
         }
     }
@@ -602,9 +599,6 @@ class HybridApp {
 
         // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
         this._applyNavContrast(color1, color2, bottomNav);
-        // Also apply logo contrast for admin backdrop
-        var topBgConfig = applyTop ? { type: 'color', color1: color1, color2: color2 } : null;
-        this._applyLogoContrast(topBgConfig);
     }
 
     // Determine whether a background colour is "dark" (perceived luminance < 0.4)
@@ -618,27 +612,6 @@ class HybridApp {
         var b = parseInt(c.substr(4,2),16)/255;
         var lum = 0.2126*r + 0.7152*g + 0.0722*b;
         return lum < 0.4;
-    }
-
-    // Logo contrast: use dark logo on light backgrounds, never invert the main logo
-    _applyLogoContrast(bgConfig) {
-        var logo = document.getElementById('siteLogo');
-        if (!logo) return;
-        logo.classList.remove('logo-invert');
-        if (!this._darkLogoUrl) return;
-        var isDark = document.body.classList.contains('dark-mode');
-        var color = '';
-        if (bgConfig && bgConfig.color1) color = bgConfig.color1;
-        if (!color) {
-            var rootStyle = getComputedStyle(document.documentElement);
-            color = rootStyle.getPropertyValue('--bg-top').trim();
-        }
-        if (!color) color = isDark ? '#121212' : '#f8f8f8';
-        var bgIsLight = !this._isDarkColor(color);
-        var img = logo.querySelector('img');
-        if (img) {
-            img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
-        }
     }
 
     _applyNavContrast(c1, c2, navEl) {
@@ -902,8 +875,9 @@ class HybridApp {
         this.renderVariationDots();
 
         if (this.el.addButton) {
-            this.el.addButton.textContent = '+';
-            this.el.addButton.classList.remove('added');
+            const inCart = this._findCartItem(p.product_id);
+            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.classList.toggle('added', !!inCart);
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
@@ -1037,12 +1011,7 @@ class HybridApp {
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
                 : (p.font_size || 13) + 'px';
-            // Only set inline weight if product explicitly specifies one
-            if (p.font_weight) {
-                this.el.descriptionText.style.fontWeight = p.font_weight;
-            } else {
-                this.el.descriptionText.style.fontWeight = '';
-            }
+            this.el.descriptionText.style.fontWeight = p.font_weight || (isTextMode ? 400 : 400);
             this.el.descriptionText.style.textTransform = p.text_transform || 'none';
             // Never force italics — text page content uses normal style
             this.el.descriptionText.style.fontStyle = 'normal';
@@ -1052,9 +1021,6 @@ class HybridApp {
             const showPrice = p.show_price !== false;
             this.el.priceRow.style.display = showPrice ? '' : 'none';
         }
-        // Also toggle the currency-price widget in title-author row
-        var cpw = document.getElementById('currencyPriceWidget');
-        if (cpw) cpw.style.display = (p.show_price !== false) ? '' : 'none';
         if (this.el.priceTag) this.el.priceTag.textContent = this.formatPrice(p.base_price);
         if (this.el.originalPrice) {
             if (p.compare_price) {
@@ -1084,9 +1050,6 @@ class HybridApp {
             { el: this.el.infoHalf, bg: p.background_bottom, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
         ];
         const isDark = document.body.classList.contains('dark-mode');
-
-        // Smart logo invert based on top-half background
-        this._applyLogoContrast(p.background_top);
 
         halves.forEach(({ el, bg, video, image }) => {
             if (!el) return;
@@ -1738,8 +1701,9 @@ class HybridApp {
         this.renderVariationDots();
         // Update chrome
         if (this.el.addButton) {
-            this.el.addButton.textContent = '+';
-            this.el.addButton.classList.remove('added');
+            const inCart = this._findCartItem(p.product_id);
+            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.classList.toggle('added', !!inCart);
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
             this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
@@ -1776,23 +1740,22 @@ class HybridApp {
 
     setRandomVerse() {
         var loaderEl = document.getElementById('introLoader');
+        var pctEl = document.getElementById('introLoaderPct');
         var loadedEl = document.getElementById('introLoaded');
         var poemEl = document.getElementById('introPoem');
         var sigEl = document.getElementById('introSignature');
-        var logoLoaderEl = document.getElementById('introLoaderLogo');
         if (!poemEl) return;
 
-        // If a site logo is uploaded, show it in the intro loader
-        if (logoLoaderEl && this._lightLogoUrl) {
-            logoLoaderEl.innerHTML = '';
-            var img = document.createElement('img');
-            img.src = this._lightLogoUrl;
-            img.alt = 'Store logo';
-            img.style.cssText = 'max-height:48px;max-width:160px;object-fit:contain;';
-            logoLoaderEl.appendChild(img);
-        }
+        var pct = 0;
+        var pctTimer = setInterval(function() {
+            pct += Math.floor(Math.random() * 12) + 3;
+            if (pct > 90) pct = 90;
+            if (pctEl) pctEl.textContent = pct;
+        }, 200);
 
         var reveal = function(text, ref) {
+            clearInterval(pctTimer);
+            if (pctEl) pctEl.textContent = '100';
             poemEl.textContent = '"' + text + '"';
             if (sigEl) sigEl.textContent = ref;
             setTimeout(function() {
@@ -1804,34 +1767,22 @@ class HybridApp {
         var fallbackVerses = [
             { text: 'Be still, and know that I am God.', ref: 'Psalm 46:10' },
             { text: 'The Lord is my shepherd; I shall not want.', ref: 'Psalm 23:1' },
-            { text: 'Trust in the Lord with all your heart, and lean not on your own understanding.', ref: 'Proverbs 3:5' },
-            { text: 'He has made everything beautiful in its time.', ref: 'Ecclesiastes 3:11' },
-            { text: 'The Lord is my light and my salvation; whom shall I fear?', ref: 'Psalm 27:1' },
-            { text: 'Be strong and courageous. Do not be afraid; do not be discouraged.', ref: 'Joshua 1:9' },
-            { text: 'This is the day the Lord has made; let us rejoice and be glad.', ref: 'Psalm 118:24' },
-            { text: 'The Lord is near to the brokenhearted and saves the crushed in spirit.', ref: 'Psalm 34:18' },
-            { text: 'Your word is a lamp to my feet and a light to my path.', ref: 'Psalm 119:105' },
-            { text: 'Delight yourself in the Lord, and he will give you the desires of your heart.', ref: 'Psalm 37:4' },
             { text: 'I can do all things through Christ who strengthens me.', ref: 'Philippians 4:13' },
-            { text: 'For I know the plans I have for you, declares the Lord, plans to prosper you.', ref: 'Jeremiah 29:11' },
-            { text: 'The Lord is my strength and my shield; my heart trusts in him.', ref: 'Psalm 28:7' },
-            { text: 'Commit to the Lord whatever you do, and he will establish your plans.', ref: 'Proverbs 16:3' },
-            { text: 'The fear of the Lord is the beginning of wisdom.', ref: 'Proverbs 9:10' },
-            { text: 'Be still before the Lord and wait patiently for him.', ref: 'Psalm 37:7' },
-            { text: 'The Lord bless you and keep you; the Lord make his face shine upon you.', ref: 'Numbers 6:24' },
-            { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' },
-            { text: 'He gives strength to the weary and increases the power of the weak.', ref: 'Isaiah 40:29' },
-            { text: 'The Lord your God is with you, the Mighty Warrior who saves.', ref: 'Zephaniah 3:17' },
-            { text: 'But those who hope in the Lord will renew their strength.', ref: 'Isaiah 40:31' },
-            { text: 'The earth is the Lord\'s and the fullness thereof.', ref: 'Psalm 24:1' },
+            { text: 'For God so loved the world that he gave his only begotten Son.', ref: 'John 3:16' },
+            { text: "The earth is the Lord's and the fullness thereof.", ref: 'Psalm 24:1' },
+            { text: 'He has made everything beautiful in its time.', ref: 'Ecclesiastes 3:11' },
+            { text: 'Trust in the Lord with all your heart.', ref: 'Proverbs 3:5' },
+            { text: 'The Lord is my light and my salvation.', ref: 'Psalm 27:1' },
+            { text: 'Be strong and courageous. Do not be afraid.', ref: 'Joshua 1:9' },
+            { text: 'This is the day the Lord has made; let us rejoice and be glad.', ref: 'Psalm 118:24' },
+            { text: 'The Lord is near to the brokenhearted.', ref: 'Psalm 34:18' },
+            { text: 'Your word is a lamp to my feet and a light to my path.', ref: 'Psalm 119:105' },
             { text: 'Cast all your anxiety on him because he cares for you.', ref: '1 Peter 5:7' },
-            { text: 'Good name is to be chosen rather than great riches.', ref: 'Proverbs 22:1' }
+            { text: 'The Lord bless you and keep you; the Lord make his face shine upon you.', ref: 'Numbers 6:24' },
+            { text: 'Create in me a clean heart, O God, and renew a right spirit within me.', ref: 'Psalm 51:10' }
         ];
 
-        // Try Psalms or Proverbs first for motivational verses
-        var books = ['psalms', 'proverbs', 'isaiah', 'jeremiah', 'philippians'];
-        var book = books[Math.floor(Math.random() * 3)]; // 2/3 chance Psalms/Proverbs
-        fetch('https://bible-api.com/' + book + '?random=verse')
+        fetch('https://bible-api.com/?random=verse')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (data && data.text && data.reference) {
@@ -1858,32 +1809,7 @@ class HybridApp {
             if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
             this.updateDisplay();
             this._pushProductUrl();
-            this._showHints();
         }, 300);
-    }
-
-    _showHints() {
-        if (sessionStorage.getItem('vgallery_hints_seen')) return;
-        var overlay = document.getElementById('hintsOverlay');
-        if (!overlay) return;
-        var loadingEl = document.getElementById('hintsLoading');
-        // Show loading spinner if products haven't loaded yet
-        if (!this.products.length && loadingEl) {
-            loadingEl.style.display = 'block';
-        }
-        // Fade in
-        setTimeout(function() {
-            overlay.classList.add('visible');
-            sessionStorage.setItem('vgallery_hints_seen', '1');
-        }, 800);
-        // Dismiss only on tap/click anywhere
-        var dismiss = function() {
-            overlay.classList.remove('visible');
-        };
-        setTimeout(function() {
-            document.addEventListener('touchstart', dismiss, { once: true });
-            document.addEventListener('click', dismiss, { once: true });
-        }, 100);
     }
 
     showLoading(show) {
@@ -1960,7 +1886,7 @@ class HybridApp {
         }
 
         const siteLogo = document.getElementById('siteLogo');
-        if (siteLogo) siteLogo.onclick = () => { window.location.reload(); };
+        if (siteLogo) siteLogo.onclick = () => this.showIntro();
 
         const gridIcon = document.getElementById('gridIconTop');
         if (gridIcon) gridIcon.onclick = () => this.openGrid();
