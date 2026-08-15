@@ -22,13 +22,22 @@
         .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
         @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         .intro-poem{font-size:clamp(18px,4vh,18px);line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif}
-        .intro-signature{color:#D0A380;font-size:24px;margin-bottom:40px;font-family:'Copperplate',Georgia,serif}
-        .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s}
+        .intro-signature{color:#D0A380;font-size:11px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
+        .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s;opacity:0;transform:translateY(10px)}
+        .intro-loaded.ready .enter-gallery{opacity:1;transform:translateY(0);transition:opacity .6s ease,transform .6s ease}
         .enter-gallery:hover{background:#000;color:#fff}
         .loading{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;display:none;align-items:center;justify-content:center}
         .loading.active{display:flex}
         .spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.15);border-top-color:#D0A380;border-radius:50%;animation:ciSpin .7s linear infinite}
         @keyframes ciSpin{to{transform:rotate(360deg)}}
+        .intro-loader{display:flex;flex-direction:column;align-items:center;gap:16px}
+        .intro-loader-logo{font-family:'Copperplate',Georgia,serif;font-size:48px;color:#D0A380;animation:ciPulse 1.8s ease-in-out infinite}
+        .intro-loader-pct{font-family:'Work Sans',sans-serif;font-size:11px;color:#666;letter-spacing:1px}
+        @keyframes ciPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+        .intro-loaded{transition:opacity .5s ease}
+        .intro-loaded .intro-poem{opacity:0;transform:translateY(8px);transition:opacity .6s ease .1s,transform .6s ease .1s}
+        .intro-loaded .intro-signature{opacity:0;transform:translateY(8px);transition:opacity .6s ease .25s,transform .6s ease .25s}
+        .intro-loaded.ready .intro-poem,.intro-loaded.ready .intro-signature{opacity:1;transform:translateY(0)}
     </style>
     <link rel="preload" href="/css/styles.css" as="style">
     <link rel="stylesheet" href="/css/styles.css">
@@ -37,16 +46,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
     <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
     <style>
-    /* ADD button — matches currency changer / author style */
+    /* ADD button — original Work Sans style */
     .add-btn {
         background: none;
         border: 1px solid var(--color-gray-light, #ccc);
         border-radius: 3px;
         padding: 2px 8px;
-        font-family: inherit;
-        font-size: inherit;
-        font-weight: inherit;
-        letter-spacing: inherit;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
         color: var(--color-gray, #888);
         cursor: pointer;
@@ -69,18 +78,20 @@
         display: inline-block;
     }
 
-    /* Currency + Price widget — inherits author font/size from .title-author */
+    /* Currency + Price widget — original Work Sans style */
     .currency-price {
         display: inline-flex;
         align-items: center;
         gap: 3px;
         margin-left: 8px;
         flex-shrink: 0;
-        font: inherit;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
         color: inherit;
     }
     .currency-price .currency-selector {
-        font: inherit;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
         padding: 1px 2px;
         border: 1px solid var(--color-gray-light, #ccc);
         border-radius: 3px;
@@ -91,11 +102,13 @@
         cursor: pointer;
     }
     .currency-price .price-tag {
-        font: inherit;
-        font-weight: inherit;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
+        font-weight: 400;
     }
     .currency-price .original-price {
-        font: inherit;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
     }
 
     /* Notification — bottom center, no background */
@@ -229,9 +242,15 @@
     <!-- Intro overlay -->
     <div class="intro-overlay" id="introOverlay">
         <div class="intro-content">
-            <div class="intro-poem" id="introPoem"></div>
-            <div class="intro-signature" id="introSignature"></div>
-            <button class="enter-gallery" id="enterGalleryBtn">Enter Shop</button>
+            <div class="intro-loader" id="introLoader">
+                <div class="intro-loader-logo">V.</div>
+                <div class="intro-loader-pct" id="introLoaderPct">0</div>
+            </div>
+            <div class="intro-loaded" id="introLoaded">
+                <div class="intro-poem" id="introPoem"></div>
+                <div class="intro-signature" id="introSignature"></div>
+                <button class="enter-gallery" id="enterGalleryBtn">Explore</button>
+            </div>
         </div>
     </div>
 
