@@ -620,39 +620,25 @@ class HybridApp {
         return lum < 0.4;
     }
 
-    // Logo contrast: use dark logo on light backgrounds, or invert text logo
+    // Logo contrast: use dark logo on light backgrounds, never invert the main logo
     _applyLogoContrast(bgConfig) {
         var logo = document.getElementById('siteLogo');
         if (!logo) return;
-        // If a dark logo is uploaded, swap logos instead of filtering
-        if (this._darkLogoUrl) {
-            var isDark = document.body.classList.contains('dark-mode');
-            var color = '';
-            if (bgConfig && bgConfig.color1) color = bgConfig.color1;
-            if (!color) {
-                var rootStyle = getComputedStyle(document.documentElement);
-                color = rootStyle.getPropertyValue('--bg-top').trim();
-            }
-            if (!color) color = isDark ? '#121212' : '#f8f8f8';
-            var bgIsLight = !this._isDarkColor(color);
-            var img = logo.querySelector('img');
-            if (img) {
-                img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
-            }
-            logo.classList.remove('logo-invert');
-            return;
-        }
-        // No dark logo — use CSS filter invert for text logo
-        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) return;
+        logo.classList.remove('logo-invert');
+        if (!this._darkLogoUrl) return;
+        var isDark = document.body.classList.contains('dark-mode');
         var color = '';
         if (bgConfig && bgConfig.color1) color = bgConfig.color1;
         if (!color) {
             var rootStyle = getComputedStyle(document.documentElement);
             color = rootStyle.getPropertyValue('--bg-top').trim();
         }
-        if (!color) color = '#f8f8f8';
-        var isLight = !this._isDarkColor(color);
-        logo.classList.toggle('logo-invert', isLight);
+        if (!color) color = isDark ? '#121212' : '#f8f8f8';
+        var bgIsLight = !this._isDarkColor(color);
+        var img = logo.querySelector('img');
+        if (img) {
+            img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
+        }
     }
 
     _applyNavContrast(c1, c2, navEl) {
@@ -1790,22 +1776,23 @@ class HybridApp {
 
     setRandomVerse() {
         var loaderEl = document.getElementById('introLoader');
-        var pctEl = document.getElementById('introLoaderPct');
         var loadedEl = document.getElementById('introLoaded');
         var poemEl = document.getElementById('introPoem');
         var sigEl = document.getElementById('introSignature');
+        var logoLoaderEl = document.getElementById('introLoaderLogo');
         if (!poemEl) return;
 
-        var pct = 0;
-        var pctTimer = setInterval(function() {
-            pct += Math.floor(Math.random() * 12) + 3;
-            if (pct > 90) pct = 90;
-            if (pctEl) pctEl.textContent = pct;
-        }, 200);
+        // If a site logo is uploaded, show it in the intro loader
+        if (logoLoaderEl && this._lightLogoUrl) {
+            logoLoaderEl.innerHTML = '';
+            var img = document.createElement('img');
+            img.src = this._lightLogoUrl;
+            img.alt = 'Store logo';
+            img.style.cssText = 'max-height:48px;max-width:160px;object-fit:contain;';
+            logoLoaderEl.appendChild(img);
+        }
 
         var reveal = function(text, ref) {
-            clearInterval(pctTimer);
-            if (pctEl) pctEl.textContent = '100';
             poemEl.textContent = '"' + text + '"';
             if (sigEl) sigEl.textContent = ref;
             setTimeout(function() {
