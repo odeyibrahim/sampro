@@ -214,7 +214,7 @@ class HybridApp {
             }
         } else {
             this.cart.push({ productId: p.product_id, quantity: 1, addedAt: Date.now() });
-            this.showNotification('Added to cart');
+            this.showNotification('Added to Cart');
         }
         this._saveCart();
         this._updateCartBadge();
@@ -615,21 +615,33 @@ class HybridApp {
         return lum < 0.4;
     }
 
-    // Smart logo invert: light bg → black logo (via CSS filter)
+    // Smart logo invert: light bg → black logo, dark bg → white logo
     _applyLogoContrast(bgConfig) {
         var logo = document.getElementById('siteLogo');
         if (!logo) return;
+        // If dark mode is active and no custom bg, treat as dark
+        var isDark = document.body.classList.contains('dark-mode');
         // Check for image/video bg — can't sample, skip
-        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) return;
+        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) {
+            // In dark mode with image/video bg, default to white
+            if (isDark) {
+                logo.classList.remove('logo-invert');
+                logo.classList.add('logo-invert-white');
+            } else {
+                logo.classList.remove('logo-invert', 'logo-invert-white');
+            }
+            return;
+        }
         var color = '';
         if (bgConfig && bgConfig.color1) color = bgConfig.color1;
         if (!color) {
             var rootStyle = getComputedStyle(document.documentElement);
             color = rootStyle.getPropertyValue('--bg-top').trim();
         }
-        if (!color) color = '#f8f8f8'; // default light bg
+        if (!color) color = isDark ? '#121212' : '#f8f8f8';
         var isLight = !this._isDarkColor(color);
         logo.classList.toggle('logo-invert', isLight);
+        logo.classList.toggle('logo-invert-white', !isLight);
     }
 
     _applyNavContrast(c1, c2, navEl) {
@@ -894,7 +906,7 @@ class HybridApp {
 
         if (this.el.addButton) {
             const inCart = this._findCartItem(p.product_id);
-            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.textContent = inCart ? '✓' : '+';
             this.el.addButton.classList.toggle('added', !!inCart);
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
@@ -1029,10 +1041,18 @@ class HybridApp {
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
                 : (p.font_size || 13) + 'px';
-            this.el.descriptionText.style.fontWeight = p.font_weight || (isTextMode ? 400 : 400);
+            // Only set inline weight if product explicitly specifies one;
+            // otherwise let the CSS override handle desktop vs mobile.
+            if (p.font_weight) {
+                this.el.descriptionText.style.fontWeight = p.font_weight;
+            } else {
+                this.el.descriptionText.style.fontWeight = '';
+            }
             this.el.descriptionText.style.textTransform = p.text_transform || 'none';
             // Never force italics — text page content uses normal style
             this.el.descriptionText.style.fontStyle = 'normal';
+            // Clear inline letter-spacing so CSS can handle desktop vs mobile
+            this.el.descriptionText.style.letterSpacing = '';
         }
 
         if (this.el.priceRow) {
@@ -1726,7 +1746,7 @@ class HybridApp {
         // Update chrome
         if (this.el.addButton) {
             const inCart = this._findCartItem(p.product_id);
-            this.el.addButton.textContent = inCart ? 'IN CART' : 'ADD';
+            this.el.addButton.textContent = inCart ? '✓' : '+';
             this.el.addButton.classList.toggle('added', !!inCart);
             this.el.addButton.disabled = p.stock <= 0;
             this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
