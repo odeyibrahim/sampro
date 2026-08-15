@@ -99,6 +99,18 @@ export const handler = async (event) => {
         const { operation, data } = requestBody;
 
         // ============================================================
+        // PUBLIC ENDPOINTS (no auth required)
+        // ============================================================
+        if (operation === 'get_realtime_config') {
+            const url = process.env.VITE_SUPABASE_URL || '';
+            const anonKey = process.env.SUPABASE_ANON_KEY || '';
+            if (!url || !anonKey) {
+                return { statusCode: 200, headers, body: JSON.stringify({ url: '', anonKey: '' }) };
+            }
+            return { statusCode: 200, headers, body: JSON.stringify({ url: url, anonKey: anonKey }) };
+        }
+
+        // ============================================================
         // LOGIN — fails closed if ADMIN_PASSWORD_HASH isn't configured.
         // ============================================================
         if (operation === 'login') {
