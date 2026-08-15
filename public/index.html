@@ -15,6 +15,9 @@
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="icon" href="icons/icon-192.png">
     
+    <!-- Critical: dark mode before first paint -->
+    <script>try{if(localStorage.getItem('vgallery_dark')==='1'){document.documentElement.className='dark-mode';document.documentElement.dataset.darkReady='1'}}catch(e){}</script>
+
     <!-- Critical: intro overlay painted instantly before external CSS arrives -->
     <style>
         .intro-overlay{position:fixed;inset:0;background:#1a1a1a;z-index:9999;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;opacity:1;transition:opacity .6s ease;pointer-events:all}
@@ -42,9 +45,17 @@
     <link rel="preload" href="/css/styles.css" as="style">
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600&family=Roboto+Mono&family=Courier+Prime&display=swap" rel="stylesheet">
-    <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
+    <!-- Self-hosted fonts -->
+    <style>
+    @font-face{font-family:'Copperplate';src:url('/fonts/Copperplate.woff') format('woff');font-weight:normal;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Courier Prime';src:url('/fonts/CourierPrime-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    </style>
     <style>
     /* ADD button: always +, brief flash on add */
     .icon-button#addButton {
@@ -89,28 +100,19 @@
     }
     .currency-price .price-tag {
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 400;
     }
     .currency-price .original-price {
         font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
-    }
-    /* Dark mode: currency dropdown inherits dark bg */
-    body.dark-mode .currency-price .currency-selector {
-        background: inherit;
-        color: inherit;
-    }
-    body.dark-mode .currency-price .currency-selector option {
-        background: #1a1a1a;
-        color: #f0f0f0;
+        font-size: 11px;
     }
 
-    /* Notification — author-matching style, bottom on mobile */
+    /* Notification — bottom half only, author-matching style */
     .notification {
         position: fixed !important;
-        top: auto !important;
-        bottom: 80px !important;
+        top: 50% !important;
+        bottom: auto !important;
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%) translateY(8px) !important;
@@ -139,6 +141,7 @@
     }
     @media (min-width: 769px) {
         .notification {
+            top: auto !important;
             bottom: 60px !important;
         }
     }
@@ -211,7 +214,6 @@
     }
 
     /* Description: base styles, no weight override */
-    .description { font-size: 13px !important; }
 
     /* Text page: no italics, scrollable, contained within frame area */
     .text-content,
@@ -283,16 +285,20 @@
         font-size: 10px;
         color: #D0A380;
     }
+    /* Logo invert for light backgrounds — used when no dark logo is set */
+    .logo-container.logo-invert {
+        filter: brightness(0);
+    }
     </style>
     
-    <!-- Libraries -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
     
     <!-- App Scripts -->
     <script src="/js/utils.js"></script>
     <script src="/js/app.js" defer></script>
 </head>
 <body>
+<script>if(document.documentElement.dataset.darkReady==='1')document.body.classList.add('dark-mode');</script>
     <a href="#mainContent" class="skip-link">Skip to content</a>
 
     <!-- Offline banner -->
