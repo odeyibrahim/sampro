@@ -207,24 +207,22 @@ class HybridApp {
         if (existing) {
             if (existing.quantity < p.stock) {
                 existing.quantity++;
-                this.showNotification(p.title + ' quantity updated');
+                this.showNotification('Quantity updated');
             } else {
                 this.showNotification('Max stock reached');
                 return;
             }
         } else {
             this.cart.push({ productId: p.product_id, quantity: 1, addedAt: Date.now() });
-            this.showNotification(p.title + ' added to cart');
+            this.showNotification('Added to cart');
         }
         this._saveCart();
         this._updateCartBadge();
-        // Brief visual feedback on the ADD button
+        // Brief visual feedback on the + button
         const addBtn = this.el.addButton;
         if (addBtn) {
-            addBtn.textContent = 'ADDED';
             addBtn.classList.add('added');
             setTimeout(function() {
-                addBtn.textContent = 'ADD';
                 addBtn.classList.remove('added');
             }, 1200);
         }
@@ -599,6 +597,9 @@ class HybridApp {
 
         // Tier 3a: Auto-contrast for nav icons and brand text against dark backgrounds
         this._applyNavContrast(color1, color2, bottomNav);
+        // Also apply logo contrast for admin backdrop
+        var topBgConfig = applyTop ? { type: 'color', color1: color1, color2: color2 } : null;
+        this._applyLogoContrast(topBgConfig);
     }
 
     // Determine whether a background colour is "dark" (perceived luminance < 0.4)
@@ -612,6 +613,23 @@ class HybridApp {
         var b = parseInt(c.substr(4,2),16)/255;
         var lum = 0.2126*r + 0.7152*g + 0.0722*b;
         return lum < 0.4;
+    }
+
+    // Smart logo invert: light bg → black logo (via CSS filter)
+    _applyLogoContrast(bgConfig) {
+        var logo = document.getElementById('siteLogo');
+        if (!logo) return;
+        // Check for image/video bg — can't sample, skip
+        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) return;
+        var color = '';
+        if (bgConfig && bgConfig.color1) color = bgConfig.color1;
+        if (!color) {
+            var rootStyle = getComputedStyle(document.documentElement);
+            color = rootStyle.getPropertyValue('--bg-top').trim();
+        }
+        if (!color) color = '#f8f8f8'; // default light bg
+        var isLight = !this._isDarkColor(color);
+        logo.classList.toggle('logo-invert', isLight);
     }
 
     _applyNavContrast(c1, c2, navEl) {
@@ -1021,6 +1039,9 @@ class HybridApp {
             const showPrice = p.show_price !== false;
             this.el.priceRow.style.display = showPrice ? '' : 'none';
         }
+        // Also toggle the currency-price widget in title-author row
+        var cpw = document.getElementById('currencyPriceWidget');
+        if (cpw) cpw.style.display = (p.show_price !== false) ? '' : 'none';
         if (this.el.priceTag) this.el.priceTag.textContent = this.formatPrice(p.base_price);
         if (this.el.originalPrice) {
             if (p.compare_price) {
@@ -1050,6 +1071,9 @@ class HybridApp {
             { el: this.el.infoHalf, bg: p.background_bottom, video: this.el.bgVideoBottom, image: this.el.bgImageBottom }
         ];
         const isDark = document.body.classList.contains('dark-mode');
+
+        // Smart logo invert based on top-half background
+        this._applyLogoContrast(p.background_top);
 
         halves.forEach(({ el, bg, video, image }) => {
             if (!el) return;
@@ -1809,7 +1833,27 @@ class HybridApp {
             if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
             this.updateDisplay();
             this._pushProductUrl();
+            this._showHints();
         }, 300);
+    }
+
+    _showHints() {
+        if (sessionStorage.getItem('vgallery_hints_seen')) return;
+        var overlay = document.getElementById('hintsOverlay');
+        if (!overlay) return;
+        setTimeout(function() {
+            overlay.classList.add('visible');
+            sessionStorage.setItem('vgallery_hints_seen', '1');
+        }, 800);
+        var dismiss = function() {
+            overlay.classList.remove('visible');
+        };
+        setTimeout(function() {
+            document.addEventListener('touchstart', dismiss, { once: true });
+            document.addEventListener('click', dismiss, { once: true });
+            document.addEventListener('keydown', dismiss, { once: true });
+        }, 1000);
+        setTimeout(dismiss, 6000);
     }
 
     showLoading(show) {
@@ -1886,7 +1930,7 @@ class HybridApp {
         }
 
         const siteLogo = document.getElementById('siteLogo');
-        if (siteLogo) siteLogo.onclick = () => this.showIntro();
+        if (siteLogo) siteLogo.onclick = () => { window.location.reload(); };
 
         const gridIcon = document.getElementById('gridIconTop');
         if (gridIcon) gridIcon.onclick = () => this.openGrid();
