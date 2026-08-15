@@ -274,20 +274,69 @@ class HybridApp {
         return subtotal;
     }
 
+    // Common country name → code mapping for flexible matching
+    _COUNTRY_MAP: {
+        'nigeria': 'NG', 'ng': 'NG',
+        'united states': 'US', 'usa': 'US', 'us': 'US', 'america': 'US',
+        'united kingdom': 'GB', 'uk': 'GB', 'gb': 'GB', 'england': 'GB',
+        'ghana': 'GH', 'kenya': 'KE', 'south africa': 'ZA', 'canada': 'CA',
+        'france': 'FR', 'germany': 'DE', 'italy': 'IT', 'spain': 'ES',
+        'netherlands': 'NL', 'australia': 'AU', 'china': 'CN', 'india': 'IN',
+        'united arab emirates': 'AE', 'uae': 'AE', 'saudi arabia': 'SA',
+        'singapore': 'SG', 'japan': 'JP', 'south korea': 'KR',
+        'rwanda': 'RW', 'tanzania': 'TZ', 'uganda': 'UG'
+    },
+
+    _resolveCountryCode(input) {
+        const v = (input || '').trim().toLowerCase();
+        if (!v) return '';
+        // Direct code match (2 letters)
+        if (v.length === 2) return v.toUpperCase();
+        // Name lookup
+        if (this._COUNTRY_MAP[v]) return this._COUNTRY_MAP[v];
+        // Partial match: check if v is contained in any map key
+        const keys = Object.keys(this._COUNTRY_MAP);
+        for (let i = 0; i < keys.length; i++) {
+            if (keys[i].indexOf(v) !== -1 || v.indexOf(keys[i]) !== -1) return this._COUNTRY_MAP[keys[i]];
+        }
+        return v.toUpperCase(); // fallback: return input as-is
+    },
+
+    _isLocalCountry(customerInput) {
+        const storeCode = (this.storeCountryCode || 'NG').toUpperCase();
+        const storeNames = [];
+        // Build reverse lookup from map
+        const map = this._COUNTRY_MAP;
+        const mapKeys = Object.keys(map);
+        for (let i = 0; i < mapKeys.length; i++) {
+            if (map[mapKeys[i]] === storeCode) storeNames.push(mapKeys[i]);
+        }
+        // Also add the store code itself
+        storeNames.push(storeCode.toLowerCase());
+
+        const customerLower = (customerInput || '').trim().toLowerCase();
+        if (!customerLower) return false;
+        // Check if customer input matches any form of the store country
+        for (let i = 0; i < storeNames.length; i++) {
+            if (customerLower === storeNames[i] ||
+                customerLower.indexOf(storeNames[i]) !== -1 ||
+                storeNames[i].indexOf(customerLower) !== -1) return true;
+        }
+        return false;
+    },
+
     getShippingInfo() {
-        // Determine shipping based on address country vs store country
         const countryInput = document.getElementById('checkoutCountryInput');
         const customerCountry = (countryInput && countryInput.value.trim().toLowerCase()) || '';
-        const storeCountry = (this.storeCountryCode || 'nigeria').toLowerCase();
-        const isLocal = customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1;
+        const isLocal = this._isLocalCountry(customerCountry);
         const currency = this.selectedCurrency;
+        const customerCode = this._resolveCountryCode(customerCountry);
 
-        // Try zones first
-        if (this.shippingZones && Object.keys(this.shippingZones).length > 0 && customerCountry) {
-            // Find a matching zone key
+        // Try zones first — match by country code in zone key
+        if (this.shippingZones && Object.keys(this.shippingZones).length > 0 && customerCode) {
             const keys = Object.keys(this.shippingZones);
             for (let i = 0; i < keys.length; i++) {
-                if (keys[i].indexOf(':') !== -1 && keys[i].toLowerCase().indexOf(customerCountry) !== -1) {
+                if (keys[i].indexOf(':') !== -1 && keys[i].toUpperCase().indexOf(customerCode) !== -1) {
                     const zone = this.shippingZones[keys[i]];
                     if (zone.standard) return zone.standard;
                     const firstMethod = Object.keys(zone)[0];
@@ -310,8 +359,7 @@ class HybridApp {
     getTaxRate() {
         const countryInput = document.getElementById('checkoutCountryInput');
         const customerCountry = (countryInput && countryInput.value.trim().toLowerCase()) || '';
-        const storeCountry = (this.storeCountryCode || 'nigeria').toLowerCase();
-        if (customerCountry.length > 0 && storeCountry.indexOf(customerCountry) !== -1) return this.localTaxRate;
+        if (this._isLocalCountry(customerCountry)) return this.localTaxRate;
         return 0;
     }
 
@@ -957,11 +1005,11 @@ class HybridApp {
             const isTextMode = kind === 'text';
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
-                : (p.font_size || 11) + 'px';
+                : (p.font_size || 13) + 'px';
             this.el.descriptionText.style.fontWeight = p.font_weight || (isTextMode ? 400 : 400);
             this.el.descriptionText.style.textTransform = p.text_transform || 'none';
-            // In text-mode, use italic style for literary content
-            this.el.descriptionText.style.fontStyle = isTextMode ? 'italic' : 'normal';
+            // Never force italics — text page content uses normal style
+            this.el.descriptionText.style.fontStyle = 'normal';
         }
 
         if (this.el.priceRow) {
@@ -1801,8 +1849,22 @@ class HybridApp {
         if (gridIcon) gridIcon.onclick = () => this.openGrid();
 
         // Address fields trigger shipping/tax recalculation
-        const addressFields = ['checkoutCountryInput', 'checkoutZip', 'checkoutCity'];
-        addressFields.forEach(function(fieldId) {
+        // Country field uses debounce to avoid excessive recalculations while typing
+        const countryField = document.getElementById('checkoutCountryInput');
+        if (countryField) {
+            let _countryTimer = null;
+            const recalcCountry = function() {
+                if (app.checkoutRevealed) app.updateCheckoutTotals();
+            };
+            countryField.addEventListener('input', function() {
+                clearTimeout(_countryTimer);
+                _countryTimer = setTimeout(recalcCountry, 400);
+            });
+            countryField.addEventListener('change', recalcCountry);
+            countryField.addEventListener('blur', recalcCountry);
+        }
+        const otherFields = ['checkoutZip', 'checkoutCity'];
+        otherFields.forEach(function(fieldId) {
             const field = document.getElementById(fieldId);
             if (field) {
                 field.addEventListener('input', function() {
