@@ -10,6 +10,7 @@
     var editingId = null;
     var uploadedFileData = null;
     var uploadedLogoData = null;
+    var uploadedDarkLogoData = null;
     var additionalImages = []; // array of { type: 'url'|'base64', value: string }
     var esc = Utils.escapeHtml;
     var attr = Utils.escapeAttr;
@@ -314,6 +315,10 @@
         if (settings.logo_url) {
             var logoPreview = document.getElementById('logoPreview');
             if (logoPreview) { logoPreview.src = settings.logo_url; }
+        }
+        if (settings.logo_url_dark) {
+            var logoDarkPreview = document.getElementById('logoDarkPreview');
+            if (logoDarkPreview) { logoDarkPreview.src = settings.logo_url_dark; }
         }
         if (settings.logo_size) {
             document.getElementById('logoSizeRange').value = settings.logo_size;
@@ -683,10 +688,14 @@
         if (uploadedLogoData) {
             data.logo_url = uploadedLogoData;
         }
+        if (uploadedDarkLogoData) {
+            data.logo_url_dark = uploadedDarkLogoData;
+        }
         var result = await apiCall('update_settings', data);
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Settings saved');
         uploadedLogoData = null;
+        uploadedDarkLogoData = null;
         // Broadcast change to frontend
         broadcastChange('settings_updated');
         // Persist dark mode preference
@@ -1205,6 +1214,19 @@
                 handleFileUpload(this, 'logoPreview', function(base64) {
                     uploadedLogoData = base64;
                     showNotification('Logo ready. Save settings to apply.');
+                });
+            };
+        }
+
+        // ---- Dark logo upload ----
+        var logoDarkUpload = document.getElementById('logoDarkUpload');
+        var logoDarkUploadArea = document.getElementById('logoDarkUploadArea');
+        if (logoDarkUploadArea && logoDarkUpload) {
+            logoDarkUploadArea.onclick = function () { logoDarkUpload.click(); };
+            logoDarkUpload.onchange = function () {
+                handleFileUpload(this, 'logoDarkPreview', function(base64) {
+                    uploadedDarkLogoData = base64;
+                    showNotification('Dark logo ready. Save settings to apply.');
                 });
             };
         }
