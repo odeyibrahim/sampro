@@ -13,7 +13,7 @@ import { rateLimit, getClientIp } from './_lib/rate-limit.js';
 //      admin-configured rates, then to hardcoded defaults.
 
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
-const FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=NGN';
+const FRANKFURTER_URL = 'https://api.frankfurter.app/latest?from=USD';
 
 const HARDCODED_FALLBACK = {
     NGN: 1,
@@ -98,7 +98,7 @@ export const handler = async (event) => {
             }
         }
 
-        // Fetch from frankfurter.app (NGN-based)
+        // Fetch from frankfurter.app (USD-based, then convert to NGN-centric)
         let liveRates = null;
         try {
             const resp = await fetch(FRANKFURTER_URL, {
@@ -107,7 +107,17 @@ export const handler = async (event) => {
             if (resp.ok) {
                 const data = await resp.json();
                 if (data && data.rates) {
-                    liveRates = { NGN: 1, ...data.rates };
+                    // Frankfurter does not support NGN. Derive NGN anchor from admin rates.
+                    // adminRates are NGN-centric: { NGN: 1, USD: 0.000667, ... }
+                    // So 1 USD = 1/adminRates.USD NGN (if adminRates.USD > 0)
+                    const ngnPerUsd = (adminRates && typeof adminRates.USD === 'number' && adminRates.USD > 0)
+                        ? (1 / adminRates.USD)
+                        : 1500;  // fallback
+                    const ngnRates = { NGN: 1, USD: 1 / ngnPerUsd };
+                    for (const [cur, usdRate] of Object.entries(data.rates)) {
+                        ngnRates[cur] = usdRate / ngnPerUsd;
+                    }
+                    liveRates = ngnRates;
                 }
             }
         } catch (e) {
