@@ -632,39 +632,24 @@ class HybridApp {
         return lum < 0.4;
     }
 
-    // Logo contrast: use dark logo on light backgrounds, or invert text logo
+    // Logo contrast: swap dark/light logo variant when both are uploaded
     _applyLogoContrast(bgConfig) {
         var logo = document.getElementById('siteLogo');
         if (!logo) return;
-        // If a dark logo is uploaded, swap logos instead of filtering
-        if (this._darkLogoUrl) {
-            var isDark = document.body.classList.contains('dark-mode');
-            var color = '';
-            if (bgConfig && bgConfig.color1) color = bgConfig.color1;
-            if (!color) {
-                var rootStyle = getComputedStyle(document.documentElement);
-                color = rootStyle.getPropertyValue('--bg-top').trim();
-            }
-            if (!color) color = isDark ? '#121212' : '#f8f8f8';
-            var bgIsLight = !this._isDarkColor(color);
-            var img = logo.querySelector('img');
-            if (img) {
-                img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
-            }
-            logo.classList.remove('logo-invert');
-            return;
-        }
-        // No dark logo — use CSS filter invert for text logo
-        if (bgConfig && (bgConfig.type === 'image' || bgConfig.type === 'video')) return;
+        if (!this._darkLogoUrl) return; // No dark variant — logo stays as-is
+        var isDark = document.body.classList.contains('dark-mode');
         var color = '';
         if (bgConfig && bgConfig.color1) color = bgConfig.color1;
         if (!color) {
             var rootStyle = getComputedStyle(document.documentElement);
             color = rootStyle.getPropertyValue('--bg-top').trim();
         }
-        if (!color) color = '#f8f8f8';
-        var isLight = !this._isDarkColor(color);
-        logo.classList.toggle('logo-invert', isLight);
+        if (!color) color = isDark ? '#121212' : '#f8f8f8';
+        var bgIsLight = !this._isDarkColor(color);
+        var img = logo.querySelector('img');
+        if (img) {
+            img.src = bgIsLight ? this._darkLogoUrl : this._lightLogoUrl;
+        }
     }
 
     _applyNavContrast(c1, c2, navEl) {
