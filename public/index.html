@@ -47,14 +47,14 @@
     
     <!-- Self-hosted fonts -->
     <style>
-    @font-face{font-family:'Copperplate';src:url('/fonts/Copperplate.woff') format('woff');font-weight:normal;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal;font-display:swap}
-    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
-    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Medium.ttf') format('truetype');font-weight:500;font-style:normal;font-display:swap}
-    @font-face{font-family:'Courier Prime';src:url('/fonts/CourierPrime-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Copperplate';src:url('fonts/Copperplate.woff2') format('woff2');font-weight:normal;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Light.woff2') format('woff2');font-weight:300;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-SemiBold.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('fonts/RobotoMono-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('fonts/RobotoMono-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Courier Prime';src:url('fonts/CourierPrime-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
     </style>
     <style>
     /* ADD button: always +, brief flash on add */
@@ -294,6 +294,65 @@
         color: #D0A380;
     }
     /* Logo stays as-is unless a separate dark variant is uploaded in admin */
+
+    /* Nav: compact page indicator, tappable halves for prev/next */
+    .page-indicator {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 9px !important;
+        min-width: auto !important;
+        padding: 6px 2px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        letter-spacing: 0.5px;
+        position: relative;
+    }
+    .page-indicator::before,
+    .page-indicator::after {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 50%;
+    }
+    .page-indicator::before { left: 0; }
+    .page-indicator::after { right: 0; }
+
+    /* Variation dots: compact, below frame */
+    .product-variation-dots {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 0;
+        pointer-events: auto;
+    }
+    .pv-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(128,128,128,0.35);
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+        flex-shrink: 0;
+    }
+    .pv-dot.active {
+        background: rgba(0,0,0,0.7);
+        transform: scale(1.15);
+    }
+    body.dark-mode .pv-dot {
+        background: rgba(255,255,255,0.25);
+    }
+    body.dark-mode .pv-dot.active {
+        background: rgba(255,255,255,0.8);
+    }
+
+    /* Grid item saved heart — matches frontend ♡/♥ style */
+    .grid-item-saved {
+        font-style: normal;
+        font-size: 11px;
+        color: inherit;
+        opacity: 0.8;
+    }
     </style>
     
     <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
@@ -332,7 +391,7 @@
         <div class="hints-content">
             <p><span class="hint-key">Tap</span> left / right to navigate</p>
             <p><span class="hint-key">Double-tap</span> for full screen</p>
-            <p><span class="hint-key">+</span> add to cart &nbsp; <span class="hint-key">♡</span> save</p>
+            <p><span class="hint-key">+</span> add to cart &nbsp; <span class="hint-key">♡</span> trove</p>
             <p><span class="hint-key">☰</span> grid view &nbsp; <span class="hint-key">𐚱</span> cart</p>
             <p class="hints-dismiss-hint" style="margin-top:20px;opacity:0.5;font-size:10px;">Tap anywhere to continue</p>
             <div class="hints-loading" id="hintsLoading" style="display:none;margin-top:16px;">
@@ -430,7 +489,7 @@
                     </div>
                     <div class="nav-arrows">
                         <button class="arrow-btn" id="prevBtn" type="button" aria-label="Previous">‹</button>
-                        <div class="page-indicator" id="pageIndicator">1/1</div>
+                        <span class="page-indicator" id="pageIndicator" role="button" tabindex="0" aria-label="Tap left to go back, right to go forward">1/1</span>
                         <button class="arrow-btn" id="nextBtn" type="button" aria-label="Next">›</button>
                     </div>
                 </div>
@@ -450,8 +509,8 @@
                         <!-- Populated dynamically from product data -->
                     </div>
                 </div>
-                <button class="filter-btn" data-filter="context" type="button" id="contextFilterBtn">Closet</button>
-                <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">👁</button>
+                <button class="filter-btn" data-filter="trove" type="button" id="troveFilterBtn">Trove</button>
+                <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">⊙</button>
             </div>
             <span class="close-grid-btn" data-action="close-grid" role="button" tabindex="0" aria-label="Close grid">←</span>
         </div>
