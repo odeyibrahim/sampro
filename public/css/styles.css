@@ -250,10 +250,10 @@ body {
     white-space: pre-line;
 }
 .intro-signature {
-    font-size: clamp(16px, 3vh, 22px);
+    font-size: 12px;
     color: var(--color-primary);
     margin-bottom: 50px;
-    letter-spacing: 2px;
+    letter-spacing: 0.5px;
 }
 .enter-gallery {
     background: none;
@@ -595,10 +595,9 @@ body {
 }
 
 .product-creator {
-    font-size: 10.5px; /* Exact monolith sizing */
+    font-size: 10px;
     color: var(--color-gray);
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     font-family: 'Work Sans', sans-serif;
 }
 .product-creator[style*="display: none"],
@@ -652,29 +651,29 @@ body {
     100% { transform: scale(1); }
 }
 .action-row .price-tag {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-primary);
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 .action-row .original-price {
     font-size: 11px;
     color: var(--color-gray);
     text-decoration: line-through;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
     margin-right: 2px;
 }
 .action-row .stock-badge {
     font-size: 10px;
     padding: 2px 8px;
     border-radius: 12px;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 .action-row .stock-badge.sold-out { background: #ffebee; color: var(--color-error); }
 .action-row .stock-badge.low-stock { background: #fff3e0; color: var(--color-warning); }
 .action-row .currency-selector {
     font-size: 10px;
     color: var(--color-gray);
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
     padding: 3px 8px 3px 5px;
     border: 1px solid var(--color-gray-light);
     border-radius: 4px;
@@ -1045,7 +1044,7 @@ body.dark-mode .collection-option.active {
 }
 .cart-item-price {
     font-size: 12px;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
     color: var(--color-gray-dark);
     margin-bottom: 6px;
 }
@@ -1064,7 +1063,7 @@ body.dark-mode .collection-option.active {
     font-size: 13px;
     min-width: 32px;
     text-align: center;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 .cart-item-remove {
     position: absolute;
@@ -1086,7 +1085,7 @@ body.dark-mode .collection-option.active {
     padding-top: 16px;
     font-size: 13px;
     font-weight: 600;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 
 .cart-empty {
@@ -1193,7 +1192,7 @@ body.dark-mode .collection-option.active {
     justify-content: space-between;
     margin-bottom: 8px;
     font-size: 12px;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 .summary-row.total {
     margin-top: 16px;
@@ -1213,7 +1212,7 @@ body.dark-mode .collection-option.active {
     font-size: 10px;
     text-transform: uppercase;
     color: var(--color-gray);
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
 }
 .form-group input,
 .form-group select {
@@ -1330,7 +1329,7 @@ body.dark-mode .collection-option.active {
     padding: 10px;
     background: var(--color-surface);
     border-radius: 6px;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
     font-size: 11px;
 }
 
@@ -1516,7 +1515,7 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
     transform: translateX(100%);
     transition: all 0.3s ease;
     max-width: 400px;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'Work Sans', sans-serif;
     border-radius: 4px;
 }
 .notification.active { opacity: 1; transform: translateX(0); }
@@ -1585,24 +1584,26 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
 .product-variation-dots {
     display: flex;
     justify-content: center;
-    gap: 10px;
-    padding: 8px 0 0;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
     pointer-events: auto;
     flex-shrink: 0;
 }
 .product-variation-dots .pv-dot {
-    width: 8px; height: 8px;
+    width: 4px;
+    height: 4px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.2);
+    background: rgba(128,128,128,0.35);
     cursor: pointer;
-    transition: all 0.25s ease;
-    pointer-events: auto;
+    transition: background 0.2s, transform 0.2s;
+    flex-shrink: 0;
 }
 .product-variation-dots .pv-dot:hover { background: rgba(0,0,0,0.5); transform: scale(1.4); }
-.product-variation-dots .pv-dot.active { background: #000; width: 24px; border-radius: 4px; }
-body.dark-mode .product-variation-dots .pv-dot { background: rgba(255,255,255,0.3); }
-body.dark-mode .product-variation-dots .pv-dot:hover { background: rgba(255,255,255,0.6); }
-body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
+.product-variation-dots .pv-dot.active { background: rgba(0,0,0,0.7); transform: scale(1.5); }
+body.dark-mode .product-variation-dots .pv-dot { background: rgba(255,255,255,0.25); }
+body.dark-mode .product-variation-dots .pv-dot:hover { background: rgba(255,255,255,0.5); }
+body.dark-mode .product-variation-dots .pv-dot.active { background: rgba(255,255,255,0.8); }
 
 /* Smooth image cross-fade for variation switching */
 .product-image {
@@ -1610,6 +1611,11 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: #fff; }
 }
 
 /* img pointer-events handled at top of file */
+
+/* ---------- Dark mode: top-half stays light ---------- */
+body.dark-mode .product-half {
+    background: #f8f8f8;
+}
 
 /* ---------- Dark mode checkout specifics ---------- */
 body.dark-mode .checkout-panel {
