@@ -5,7 +5,8 @@ export const handler = async (event) => {
     const siteUrl = process.env.SITE_URL || '';
     const headers = {
         'Access-Control-Allow-Origin': siteUrl,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=30'  // CDN caches for 30s — reduces cold-start hits
     };
 
     if (event.httpMethod === 'OPTIONS') {
