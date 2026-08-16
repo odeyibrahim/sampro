@@ -169,10 +169,14 @@ body.dark-mode {
     --color-surface: #121212;
     --color-overlay: rgba(0,0,0,0.4);
     --color-border: #2a2a2a;
-    --bg-top: #121212;
     --bg-bottom: #121212;
     background: #0a0a0a;
     color: #eee;
+}
+
+/* Dark mode: content wrapper (not top-half) goes dark */
+body.dark-mode .content-wrapper {
+    background: #0a0a0a;
 }
 
 body {
@@ -1629,11 +1633,9 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
     transition: background 0.2s, transform 0.2s;
     flex-shrink: 0;
 }
+/* Variation dots — light mode styles only; dark mode excluded (inside top-half) */
 .product-variation-dots .pv-dot:hover { background: rgba(0,0,0,0.5); transform: scale(1.4); }
 .product-variation-dots .pv-dot.active { background: rgba(0,0,0,0.7); transform: scale(1.5); }
-body.dark-mode .product-variation-dots .pv-dot { background: rgba(255,255,255,0.25); }
-body.dark-mode .product-variation-dots .pv-dot:hover { background: rgba(255,255,255,0.5); }
-body.dark-mode .product-variation-dots .pv-dot.active { background: rgba(255,255,255,0.8); }
 
 /* Smooth image cross-fade for variation switching */
 .product-image {
@@ -1642,10 +1644,14 @@ body.dark-mode .product-variation-dots .pv-dot.active { background: rgba(255,255
 
 /* img pointer-events handled at top of file */
 
-/* ---------- Dark mode: top-half stays light ---------- */
-body.dark-mode .product-half {
-    background: #f8f8f8;
+/* ---------- Dark mode: top-half completely excluded ---------- */
+body.dark-mode .product-half,
+body.dark-mode .product-frame.expanded {
+    color: #333;
 }
+
+/* Variation dots live inside top-half — excluded from dark mode */
+/* (removed dark-mode overrides for .pv-dot — they inherit light-mode styles) */
 
 /* ---------- Dark mode checkout specifics ---------- */
 body.dark-mode .checkout-panel {
