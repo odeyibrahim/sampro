@@ -330,8 +330,11 @@
         font-size: 11px;
         color: var(--color-heart, #e25555);
     }
-    /* Dark mode: top-half stays light */
-    body.dark-mode .product-half { background: #f8f8f8; }
+    /* Dark mode: top-half completely excluded */
+    body.dark-mode .product-half,
+    body.dark-mode .product-frame.expanded {
+        color: #333;
+    }
     </style>
     
     <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
