@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
+    <style>html{touch-action:pan-y;-ms-touch-action:pan-y;overscroll-behavior:none}@media screen and (orientation:landscape) and (max-height:500px){html{transform:rotate(90deg);transform-origin:top left;width:100vh;height:100vw;position:absolute;top:0;left:100%}}</style>
     <title>V. Gallery · Art + Commerce</title>
     
     <!-- PWA -->
@@ -25,7 +26,12 @@
         .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
         @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
         .intro-poem{font-size:14px;line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif;letter-spacing:0.5px}
-        .intro-signature{color:#D0A380;font-size:10.5px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
+        .intro-loader-logo img{max-height:48px;max-width:160px;object-fit:contain;display:block}
+        .intro-loader-logo img[src]{display:block}
+        .intro-loader-logo img:not([src]),.intro-loader-logo img[style*='none']{display:none}
+        .logo-container .logo-local-img{max-height:36px;max-width:120px;object-fit:contain;display:block}
+        .logo-container .logo-local-img[style*='none']{display:none}
+        .intro-signature{color:#D0A380;font-size:10px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
         .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s;opacity:0;transform:translateY(10px)}
         .intro-loaded.ready .enter-gallery{opacity:1;transform:translateY(0);transition:opacity .6s ease,transform .6s ease}
         .enter-gallery:hover{background:#000;color:#fff}
@@ -47,14 +53,11 @@
     
     <!-- Self-hosted fonts -->
     <style>
-    @font-face{font-family:'Copperplate';src:url('fonts/Copperplate.woff2') format('woff2');font-weight:normal;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Light.woff2') format('woff2');font-weight:300;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-SemiBold.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
-    @font-face{font-family:'Roboto Mono';src:url('fonts/RobotoMono-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
-    @font-face{font-family:'Roboto Mono';src:url('fonts/RobotoMono-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
-    @font-face{font-family:'Courier Prime';src:url('fonts/CourierPrime-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Copperplate';src:url('fonts/Copperplate.woff2') format('woff2'),url('fonts/Copperplate.woff') format('woff');font-weight:normal;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Light.woff2') format('woff2'),url('fonts/WorkSans-Light.woff') format('woff');font-weight:300;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Regular.woff2') format('woff2'),url('fonts/WorkSans-Regular.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-Medium.woff2') format('woff2'),url('fonts/WorkSans-Medium.woff') format('woff');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('fonts/WorkSans-SemiBold.woff2') format('woff2'),url('fonts/WorkSans-SemiBold.woff') format('woff');font-weight:600;font-style:normal;font-display:swap}
     </style>
     <style>
     /* ADD button: always +, brief flash on add */
@@ -69,20 +72,21 @@
         display: inline-block;
     }
 
-    /* Currency + Price widget — Roboto Mono, 11px */
+    /* Currency + Price widget — matches author style */
     .currency-price {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         margin-left: 10px;
         flex-shrink: 0;
-        font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
         color: inherit;
+        letter-spacing: 0.3px;
     }
     .currency-price .currency-selector {
-        font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
         padding: 1px 2px;
         border: 1px solid rgba(128,128,128,0.35);
         border-radius: 3px;
@@ -107,13 +111,13 @@
         color: #f0f0f0;
     }
     .currency-price .price-tag {
-        font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
         font-weight: 400;
     }
     .currency-price .original-price {
-        font-family: 'Roboto Mono', monospace;
-        font-size: 12px;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
     }
 
     /* Notification — author-matching style, bottom on mobile */
@@ -209,7 +213,7 @@
         color: var(--color-gray, #aaa);
         margin-top: 8px;
         padding-bottom: 4px;
-        font-family: 'Roboto Mono', monospace;
+        font-family: 'Work Sans', sans-serif;
         letter-spacing: 0.3px;
     }
 
@@ -297,7 +301,7 @@
 
     /* Nav: compact page indicator, tappable halves for prev/next */
     .page-indicator {
-        font-family: 'Roboto Mono', monospace;
+        font-family: 'Work Sans', sans-serif;
         font-size: 9px !important;
         min-width: auto !important;
         padding: 6px 2px;
@@ -317,6 +321,14 @@
     .page-indicator::before { left: 0; }
     .page-indicator::after { right: 0; }
 
+    /* Bottom nav: brand and arrows have equal edge padding */
+    .bottom-nav .nav-left {
+        padding-left: 4px;
+    }
+    .bottom-nav .nav-arrows {
+        padding-right: 4px;
+    }
+
     /* Variation dots: compact, below frame */
     .product-variation-dots {
         display: flex;
@@ -327,8 +339,8 @@
         pointer-events: auto;
     }
     .pv-dot {
-        width: 6px;
-        height: 6px;
+        width: 4px;
+        height: 4px;
         border-radius: 50%;
         background: rgba(128,128,128,0.35);
         cursor: pointer;
@@ -337,7 +349,7 @@
     }
     .pv-dot.active {
         background: rgba(0,0,0,0.7);
-        transform: scale(1.15);
+        transform: scale(1.5);
     }
     body.dark-mode .pv-dot {
         background: rgba(255,255,255,0.25);
@@ -372,7 +384,7 @@
     <div class="intro-overlay" id="introOverlay">
         <div class="intro-content">
             <div class="intro-loader" id="introLoader">
-                <div class="intro-loader-logo" id="introLoaderLogo">V.</div>
+                <div class="intro-loader-logo" id="introLoaderLogo"><img src="logo.png" alt="" onerror="this.style.display='none'">V.</div>
             </div>
             <div class="intro-loaded" id="introLoaded">
                 <div class="intro-poem" id="introPoem"></div>
@@ -426,6 +438,7 @@
         <!-- Chrome layer: logo + grid icon, anchored to content width -->
         <div class="chrome-layer" id="chromeLayer">
             <div class="logo-container" id="siteLogo" role="button" tabindex="0" aria-label="Return to intro">
+                <img src="logo.png" alt="" class="logo-local-img" onerror="this.style.display='none'">
                 <span class="logo-text">V.</span>
             </div>
             <button class="grid-icon-top" id="gridIconTop" type="button" aria-label="Open grid view">☷</button>
