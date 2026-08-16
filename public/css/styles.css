@@ -1263,28 +1263,58 @@ body.dark-mode .collection-option.active {
 
 /* Payment methods */
 .payment-method-options {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
     margin: 16px 0;
 }
 .payment-method-option {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
+    justify-content: center;
+    padding: 14px 8px;
     border: 1px solid var(--color-gray-light);
     border-radius: 8px;
     cursor: pointer;
-    font-size: 12px;
     transition: all 0.2s;
+    min-height: 52px;
 }
 .payment-method-option.selected {
     border-color: var(--color-primary);
     background: var(--color-light);
-    font-weight: 500;
 }
-.payment-method-option input { width: auto; margin: 0; }
+.payment-method-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.pm-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pm-badge img {
+    height: 20px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+}
+.pm-badge svg {
+    height: 20px;
+    width: auto;
+    max-width: 100%;
+}
+.pm-bank-badge {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 18px;
+    line-height: 1;
+}
+.pm-bank-badge span:last-child {
+    font-size: 9px;
+    color: var(--color-gray);
+    letter-spacing: 0.5px;
+}
 
 /* Place order */
 .place-order-btn {
