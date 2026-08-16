@@ -1173,26 +1173,12 @@ class HybridApp {
         }
     }
 
-    handleImageTap(e) {
+    handleImageTap() {
         const p = this._viewProducts()[this.currentIndex];
         if (p && (p.media_kind === 'text' || p.type === 'text')) return;
 
         const frame = this.el.productFrame;
         const isExpanded = frame && frame.classList.contains('expanded');
-
-        // Tap-left / tap-right navigation on the product half (not in expanded or zoom)
-        if (!isExpanded && !this.zoomActive && e && e.clientX !== undefined) {
-            const rect = this.el.productHalf.getBoundingClientRect();
-            const relX = e.clientX - rect.left;
-            const edgeZone = rect.width * 0.2;
-            if (relX < edgeZone) {
-                this.prevProduct();
-                return;
-            } else if (relX > rect.width - edgeZone) {
-                this.nextProduct();
-                return;
-            }
-        }
 
         if (this.doubleTapTimer) {
             clearTimeout(this.doubleTapTimer);
@@ -1969,7 +1955,7 @@ class HybridApp {
             el.onclick = function() { app.closeCart(); };
             el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeCart(); } };
         });
-        if (this.el.productFrame) this.el.productFrame.onclick = (e) => this.handleImageTap(e);
+        if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
         if (this.el.shareDownloadBtn) this.el.shareDownloadBtn.onclick = () => this.downloadShare();
         if (this.el.shareCloseBtn) this.el.shareCloseBtn.onclick = () => this.closeShare();
