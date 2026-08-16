@@ -98,25 +98,29 @@
     .currency-price .currency-selector:focus {
         border-color: rgba(128,128,128,0.5);
     }
+    body.dark-mode .currency-price .currency-selector {
+        background: inherit;
+        color: inherit;
+    }
     body.dark-mode .currency-price .currency-selector option {
         background: #1a1a1a;
         color: #f0f0f0;
     }
     .currency-price .price-tag {
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 400;
     }
     .currency-price .original-price {
         font-family: 'Roboto Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
     }
 
-    /* Notification — bottom half only, author-matching style */
+    /* Notification — author-matching style, bottom on mobile */
     .notification {
         position: fixed !important;
-        top: 50% !important;
-        bottom: auto !important;
+        top: auto !important;
+        bottom: 80px !important;
         left: 50% !important;
         right: auto !important;
         transform: translateX(-50%) translateY(8px) !important;
@@ -145,7 +149,6 @@
     }
     @media (min-width: 769px) {
         .notification {
-            top: auto !important;
             bottom: 60px !important;
         }
     }
