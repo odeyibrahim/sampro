@@ -280,6 +280,7 @@ class HybridApp {
         }
         item.quantity = newQty;
         this._saveCart();
+        this._updateCartBadge();
         this.renderCartItems();
     }
 
