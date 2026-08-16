@@ -35,6 +35,7 @@ class HybridApp {
         this.gridDetailsVisible = true;
         this.doubleTapTimer = null;
         this._activeCollection = null;
+        this._activeFilter = 'all';  // 'all' | 'collection' | 'trove'
         this.deferredInstallPrompt = null;
         this._darkLogoUrl = null;
         this._lightLogoUrl = null;
@@ -42,6 +43,18 @@ class HybridApp {
         localStorage.setItem('session_id', this.sessionId);
         this._loadCart();
         this.init();
+    }
+
+    // Returns the currently active product subset for the split view.
+    // When a collection or trove filter is active, navigation is scoped to that subset.
+    _viewProducts() {
+        if (this._activeFilter === 'collection' && this._activeCollection) {
+            return this.products.filter(p => (p.collection || '').trim() === this._activeCollection);
+        }
+        if (this._activeFilter === 'trove') {
+            return this.products.filter(p => this.savedItems.has(p.product_id));
+        }
+        return this.products;
     }
 
     async init() {
@@ -215,7 +228,7 @@ class HybridApp {
     }
 
     addToCart() {
-        const p = this.products[this.currentIndex];
+        const p = this._viewProducts()[this.currentIndex];
         if (!p || p.stock <= 0) {
             this.showNotification('Sold out');
             return;
@@ -683,7 +696,8 @@ class HybridApp {
         const match = window.location.pathname.match(/^\/product\/([\w\-]+)$/);
         if (!match) return;
         const slug = decodeURIComponent(match[1]);
-        const idx = this.products.findIndex(p => p.slug === slug);
+        const vp = this._viewProducts();
+        const idx = vp.findIndex(p => p.slug === slug);
         if (idx !== -1) {
             this.currentIndex = idx;
         }
@@ -692,7 +706,7 @@ class HybridApp {
     // Push a SEO URL into the browser history without reload.
     // Called after every product navigation (next/prev/grid click).
     _pushProductUrl() {
-        const p = this.products[this.currentIndex];
+        const p = this._viewProducts()[this.currentIndex];
         if (!p) return;
         // Use slug if set, otherwise derive one from the title
         let slug = p.slug;
@@ -894,8 +908,12 @@ class HybridApp {
     }
 
     updateDisplay() {
-        if (!this.products.length) return;
-        const p = this.products[this.currentIndex];
+        const vp = this._viewProducts();
+        if (!vp.length) return;
+        // Clamp index to current view
+        if (this.currentIndex >= vp.length) this.currentIndex = vp.length - 1;
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        const p = vp[this.currentIndex];
         if (!p) return;
 
         // Cancel any pending transition timer to prevent stale callbacks
@@ -927,11 +945,12 @@ class HybridApp {
             this.el.heartButton.classList.toggle('saved', isSaved);
             this.el.heartButton.innerHTML = isSaved ? '♥' : '♡';
         }
+        const vp = this._viewProducts();
         if (this.el.pageIndicator) {
-            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + this.products.length;
+            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
         }
         if (this.el.prevBtn) this.el.prevBtn.disabled = this.currentIndex === 0;
-        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === this.products.length - 1;
+        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === vp.length - 1;
 
         if (this.el.stockBadge) {
             const showStock = p.show_stock !== false;
@@ -1155,12 +1174,26 @@ class HybridApp {
         }
     }
 
-    handleImageTap() {
-        const p = this.products[this.currentIndex];
+    handleImageTap(e) {
+        const p = this._viewProducts()[this.currentIndex];
         if (p && (p.media_kind === 'text' || p.type === 'text')) return;
 
         const frame = this.el.productFrame;
         const isExpanded = frame && frame.classList.contains('expanded');
+
+        // Tap-left / tap-right navigation on the product half (not in expanded or zoom)
+        if (!isExpanded && !this.zoomActive && e && e.clientX !== undefined) {
+            const rect = this.el.productHalf.getBoundingClientRect();
+            const relX = e.clientX - rect.left;
+            const edgeZone = rect.width * 0.2;
+            if (relX < edgeZone) {
+                this.prevProduct();
+                return;
+            } else if (relX > rect.width - edgeZone) {
+                this.nextProduct();
+                return;
+            }
+        }
 
         if (this.doubleTapTimer) {
             clearTimeout(this.doubleTapTimer);
@@ -1177,14 +1210,14 @@ class HybridApp {
             this.doubleTapTimer = null;
             if (isExpanded) {
                 // Single tap in expanded mode: cycle to next image
-                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
                 if (allImages.length > 1) {
                     const next = (this.variationIndex + 1) % allImages.length;
                     this.showVariation(next);
                 }
             } else {
                 // Normal mode: if variations exist, cycle image; else zoom
-                const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
                 if (allImages.length > 1) {
                     const next = (this.variationIndex + 1) % allImages.length;
                     this.showVariation(next);
@@ -1213,7 +1246,7 @@ class HybridApp {
             this.expandedActive = false;
             // Remove expanded thumbnails
             this.removeExpandedThumbnails();
-            const p = this.products[this.currentIndex];
+            const p = this._viewProducts()[this.currentIndex];
             if (p) this.renderFrame(p);
         } else {
             frame.classList.add('expanded');
@@ -1239,7 +1272,7 @@ class HybridApp {
             this._variationDots = null;
         }
 
-        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
         if (allImages.length <= 1) return;
 
         const dots = document.createElement('div');
@@ -1267,7 +1300,7 @@ class HybridApp {
     }
 
     showVariation(idx) {
-        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
         if (idx < 0 || idx >= allImages.length) return;
         this.variationIndex = idx;
 
@@ -1308,13 +1341,13 @@ class HybridApp {
     }
 
     async toggleSave() {
-        const p = this.products[this.currentIndex];
+        const p = this._viewProducts()[this.currentIndex];
         if (this.savedItems.has(p.product_id)) {
             this.savedItems.delete(p.product_id);
             this.showNotification('Removed from saved');
         } else {
             this.savedItems.add(p.product_id);
-            this.showNotification('Saved to collection');
+            this.showNotification('Saved to Trove');
         }
         localStorage.setItem('vgallery_saved', JSON.stringify([...this.savedItems]));
         this.updateDisplay();
@@ -1329,7 +1362,8 @@ class HybridApp {
     }
 
     nextProduct() {
-        if (this.currentIndex < this.products.length - 1) {
+        const vp = this._viewProducts();
+        if (this.currentIndex < vp.length - 1) {
             this.currentIndex++;
             this.updateDisplay();
             this._pushProductUrl();
@@ -1377,7 +1411,7 @@ class HybridApp {
     }
 
     downloadShare() {
-        const p = this.products[this.currentIndex];
+        const p = this._viewProducts()[this.currentIndex];
         const a = document.createElement('a');
         a.download = (p ? p.title : 'share') + '.png';
         a.href = this.el.shareImage.src;
@@ -1544,8 +1578,7 @@ class HybridApp {
             this.removeExpandedThumbnails();
         }
         this.zoomActive = false;
-        this._detectContextLabel();
-        this.renderGrid('all');
+        this.renderGrid(this._activeFilter === 'trove' ? 'trove' : (this._activeFilter === 'collection' ? 'collection' : 'all'));
         this.el.gridOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
         this._setupCollectionDropdown();
@@ -1568,8 +1601,7 @@ class HybridApp {
 
     renderGrid(filter) {
         let filtered = this.products;
-        if (filter === 'context') {
-            // Context tab = saved/favourited items
+        if (filter === 'trove') {
             filtered = this.products.filter(p => this.savedItems.has(p.product_id));
         } else if (filter === 'collection') {
             // Filter by collection name (set via _activeCollection)
@@ -1623,31 +1655,6 @@ class HybridApp {
         const collOptions = document.querySelectorAll('.collection-option');
         for (let i = 0; i < collOptions.length; i++) {
             collOptions[i].classList.toggle('active', collOptions[i].dataset.collection === this._activeCollection);
-        }
-    }
-
-    // Detect dominant product type to set context tab label
-    _detectContextLabel() {
-        const ctxBtn = document.getElementById('contextFilterBtn');
-        if (!ctxBtn) return;
-        const counts = { merch: 0, craft: 0, original: 0, print: 0 };
-        this.products.forEach(p => {
-            if (p.media_kind === 'text') { /* text products don't count for closet/curation */ }
-            else if (counts[p.type] !== undefined) counts[p.type]++;
-        });
-        const total = Object.values(counts).reduce((a, b) => a + b, 0);
-        const textCount = this.products.filter(p => p.media_kind === 'text').length;
-        
-        if (textCount > total) {
-            ctxBtn.textContent = 'Diary';
-        } else {
-            const merchTotal = (counts.merch || 0) + (counts.craft || 0);
-            const artTotal = (counts.original || 0) + (counts.print || 0);
-            if (merchTotal > artTotal) {
-                ctxBtn.textContent = 'Closet';
-            } else {
-                ctxBtn.textContent = 'Curation';
-            }
         }
     }
 
@@ -1720,9 +1727,13 @@ class HybridApp {
                 if (this._activeCollection === coll) {
                     // Deselect — show all
                     this._activeCollection = null;
+                    this._activeFilter = 'all';
+                    this.currentIndex = 0;
                     this.renderGrid('all');
                 } else {
                     this._activeCollection = coll;
+                    this._activeFilter = 'collection';
+                    this.currentIndex = 0;
                     this.renderGrid('collection');
                 }
                 dropdown.classList.remove('open');
@@ -1731,7 +1742,8 @@ class HybridApp {
     }
 
     viewProduct(productId) {
-        const idx = this.products.findIndex(p => p.product_id === productId);
+        const vp = this._viewProducts();
+        const idx = vp.findIndex(p => p.product_id === productId);
         if (idx !== -1) {
             this.currentIndex = idx;
             this.closeGrid();
@@ -1741,8 +1753,11 @@ class HybridApp {
     }
 
     renderImmediate() {
-        if (!this.products.length) return;
-        const p = this.products[this.currentIndex];
+        const vp = this._viewProducts();
+        if (!vp.length) return;
+        if (this.currentIndex >= vp.length) this.currentIndex = vp.length - 1;
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        const p = vp[this.currentIndex];
         if (!p) return;
         if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
         // Update variations FIRST so dots use current product data
@@ -1772,10 +1787,10 @@ class HybridApp {
             this.el.heartButton.innerHTML = isSaved ? '\u2665' : '\u2661';
         }
         if (this.el.pageIndicator) {
-            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + this.products.length;
+            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
         }
         if (this.el.prevBtn) this.el.prevBtn.disabled = this.currentIndex === 0;
-        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === this.products.length - 1;
+        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === vp.length - 1;
         if (this.el.stockBadge) {
             const showStock = p.show_stock !== false;
             this.el.stockBadge.style.display = showStock ? '' : 'none';
@@ -1955,10 +1970,19 @@ class HybridApp {
             el.onclick = function() { app.closeCart(); };
             el.onkeydown = function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); app.closeCart(); } };
         });
-        if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
+        if (this.el.productFrame) this.el.productFrame.onclick = (e) => this.handleImageTap(e);
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
         if (this.el.shareDownloadBtn) this.el.shareDownloadBtn.onclick = () => this.downloadShare();
         if (this.el.shareCloseBtn) this.el.shareCloseBtn.onclick = () => this.closeShare();
+
+        // Page indicator: tap left half = prev, right half = next
+        if (this.el.pageIndicator) {
+            this.el.pageIndicator.addEventListener('click', function(e) {
+                var rect = this.getBoundingClientRect();
+                var midX = rect.left + rect.width / 2;
+                if (e.clientX < midX) { app.prevProduct(); } else { app.nextProduct(); }
+            });
+        }
 
         if (this.el.galleryBrand) {
             let brandTapCount = 0, brandTapTimer;
@@ -2027,7 +2051,16 @@ class HybridApp {
         for (let i = 0; i < filterBtns.length; i++) {
             filterBtns[i].onclick = () => {
                 const f = filterBtns[i].dataset.filter;
-                this._activeCollection = null; // Reset collection when clicking All/Context
+                if (f === 'trove') {
+                    this._activeFilter = 'trove';
+                    this._activeCollection = null;
+                } else if (f === 'all') {
+                    this._activeFilter = 'all';
+                    this._activeCollection = null;
+                    this.currentIndex = 0;
+                } else {
+                    this._activeCollection = null;
+                }
                 this.filterGrid(f);
             };
         }
@@ -2132,7 +2165,7 @@ class HybridApp {
     // Expanded mode thumbnails
     renderExpandedThumbnails() {
         this.removeExpandedThumbnails();
-        const allImages = [this.products[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+        const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
         if (allImages.length <= 1) return;
 
         const container = document.createElement('div');
