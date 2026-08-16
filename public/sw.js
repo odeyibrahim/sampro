@@ -51,7 +51,12 @@ self.addEventListener('fetch', (event) => {
                     }
                     return response;
                 })
-                .catch(() => cached);
+                .catch(() => {
+                    // Return cached response if available, otherwise a minimal error response
+                    // to prevent "Failed to convert value to 'Response'" in the service worker.
+                    if (cached) return cached;
+                    return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+                });
             return cached || network;
         })
     );
