@@ -98,6 +98,10 @@
     .currency-price .currency-selector:focus {
         border-color: rgba(128,128,128,0.5);
     }
+    body.dark-mode .currency-price .currency-selector option {
+        background: #1a1a1a;
+        color: #f0f0f0;
+    }
     .currency-price .price-tag {
         font-family: 'Roboto Mono', monospace;
         font-size: 11px;
@@ -214,6 +218,7 @@
     }
 
     /* Description: base styles, no weight override */
+    .description { font-size: 13px !important; }
 
     /* Text page: no italics, scrollable, contained within frame area */
     .text-content,
@@ -285,10 +290,7 @@
         font-size: 10px;
         color: #D0A380;
     }
-    /* Logo invert for light backgrounds — used when no dark logo is set */
-    .logo-container.logo-invert {
-        filter: brightness(0);
-    }
+    /* Logo stays as-is unless a separate dark variant is uploaded in admin */
     </style>
     
     <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
@@ -400,7 +402,7 @@
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
                                 <option value="GBP">GBP</option>
-                                <option value="NGN">NGN</option>
+                                <option value="NGN" selected>NGN</option>
                             </select>
                             <span class="price-tag" id="priceTag"></span>
                             <span class="original-price" id="originalPrice" style="display:none;"></span>
