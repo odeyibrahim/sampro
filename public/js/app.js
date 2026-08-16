@@ -1118,13 +1118,15 @@ class HybridApp {
         // Smart logo invert based on top-half background
         this._applyLogoContrast(p.background_top);
 
-        halves.forEach(({ el, bg, video, image }) => {
+        halves.forEach(({ el, bg, video, image }, index) => {
             if (!el) return;
             el.classList.remove('bg-pulse');
             if (video) { video.classList.remove('visible'); video.pause(); video.removeAttribute('src'); }
             if (image) { image.classList.remove('visible'); image.removeAttribute('src'); }
 
-            if (isDark) {
+            // Only clear background for bottom half (info-half) in dark mode.
+            // Top half (product-half) keeps its product-specific background/color/image.
+            if (isDark && index === 1) {
                 el.style.background = '';
                 return;
             }
