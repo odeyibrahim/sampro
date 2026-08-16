@@ -197,7 +197,7 @@
         text-transform: uppercase;
         letter-spacing: 0.8px;
         color: var(--color-gray, #888);
-        font-family: 'Roboto Mono', monospace;
+        font-family: 'Work Sans', sans-serif;
     }
     .secure-hint {
         display: flex;
@@ -324,41 +324,14 @@
         padding-right: 4px;
     }
 
-    /* Variation dots: compact, below frame */
-    .product-variation-dots {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 0;
-        pointer-events: auto;
-    }
-    .pv-dot {
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: rgba(128,128,128,0.35);
-        cursor: pointer;
-        transition: background 0.2s, transform 0.2s;
-        flex-shrink: 0;
-    }
-    .pv-dot.active {
-        background: rgba(0,0,0,0.7);
-        transform: scale(1.5);
-    }
-    body.dark-mode .pv-dot {
-        background: rgba(255,255,255,0.25);
-    }
-    body.dark-mode .pv-dot.active {
-        background: rgba(255,255,255,0.8);
-    }
-
     /* Grid item saved heart — matches frontend ♡/♥ style */
     .grid-item-saved {
         font-style: normal;
         font-size: 11px;
         color: var(--color-heart, #e25555);
     }
+    /* Dark mode: top-half stays light */
+    body.dark-mode .product-half { background: #f8f8f8; }
     </style>
     
     <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
