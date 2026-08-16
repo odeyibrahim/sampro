@@ -943,7 +943,7 @@ class HybridApp {
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
             this.el.heartButton.classList.toggle('saved', isSaved);
-            this.el.heartButton.innerHTML = isSaved ? '♥' : '♡';
+            this.el.heartButton.innerHTML = isSaved ? '♥\uFE0E' : '♡\uFE0E';
         }
         if (this.el.pageIndicator) {
             this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
@@ -1621,7 +1621,7 @@ class HybridApp {
                     (showPrice ? '<div class="grid-item-price">' + Utils.escapeHtml(this.formatPrice(p.base_price)) + '</div>' : '') +
                     '<div class="grid-item-meta">' +
                         (typeLabel ? '<span class="grid-item-type">' + Utils.escapeHtml(typeLabel) + '</span>' : '') +
-                        (isSaved ? '<span class="grid-item-saved">♥</span>' : '') +
+                        (isSaved ? '<span class="grid-item-saved">♥\uFE0E</span>' : '') +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -1769,7 +1769,7 @@ class HybridApp {
         if (this.el.heartButton) {
             const isSaved = this.savedItems.has(p.product_id);
             this.el.heartButton.classList.toggle('saved', isSaved);
-            this.el.heartButton.innerHTML = isSaved ? '\u2665' : '\u2661';
+            this.el.heartButton.innerHTML = isSaved ? '\u2665\uFE0E' : '\u2661\uFE0E';
         }
         if (this.el.pageIndicator) {
             this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
