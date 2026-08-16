@@ -1196,14 +1196,18 @@ class HybridApp {
             this.doubleTapTimer = null;
             if (isExpanded) {
                 // Single tap in expanded mode: cycle to next image
-                const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                const product = this._viewProducts()[this.currentIndex];
+                if (!product) return;
+                const allImages = [product.image_url, ...this.currentVariations].filter(Boolean);
                 if (allImages.length > 1) {
                     const next = (this.variationIndex + 1) % allImages.length;
                     this.showVariation(next);
                 }
             } else {
                 // Normal mode: if variations exist, cycle image; else zoom
-                const allImages = [this._viewProducts()[this.currentIndex].image_url, ...this.currentVariations].filter(Boolean);
+                const product = this._viewProducts()[this.currentIndex];
+                if (!product) return;
+                const allImages = [product.image_url, ...this.currentVariations].filter(Boolean);
                 if (allImages.length > 1) {
                     const next = (this.variationIndex + 1) % allImages.length;
                     this.showVariation(next);
@@ -1826,7 +1830,10 @@ class HybridApp {
         var books = ['psalms', 'proverbs', 'isaiah', 'jeremiah', 'philippians'];
         var book = books[Math.floor(Math.random() * 3)]; // 2/3 chance Psalms/Proverbs
         return fetch('https://bible-api.com/' + book + '?random=verse')
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) throw new Error('bible-api ' + r.status);
+                return r.json();
+            })
             .then(function(data) {
                 if (data && data.text && data.reference) {
                     return { text: data.text.trim().replace(/\s+/g, ' '), ref: data.reference };
