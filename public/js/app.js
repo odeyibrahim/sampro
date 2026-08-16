@@ -945,7 +945,6 @@ class HybridApp {
             this.el.heartButton.classList.toggle('saved', isSaved);
             this.el.heartButton.innerHTML = isSaved ? '♥' : '♡';
         }
-        const vp = this._viewProducts();
         if (this.el.pageIndicator) {
             this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
         }
