@@ -6,8 +6,12 @@
     <title>Admin · V. Gallery</title>
     <!-- Self-hosted fonts (same as storefront) -->
     <style>
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Light.ttf') format('truetype');font-weight:300;font-style:normal;font-display:swap}
-    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Light.woff2') format('woff2');font-weight:300;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+    @font-face{font-family:'Work Sans';src:url('/fonts/WorkSans-SemiBold.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+    @font-face{font-family:'Roboto Mono';src:url('/fonts/RobotoMono-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
     </style>
     <!-- Dark mode before first paint -->
     <script>try{if(localStorage.getItem('admin_dark_mode')==='1'){document.documentElement.className='dark-mode';document.documentElement.dataset.darkReady='1'}}catch(e){}</script>
@@ -89,7 +93,7 @@
                     <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
                     <div class="table-container">
                         <table class="admin-table" id="adminProductsTable">
-                            <thead><tr><th style="width:24px;"></th><th>Title</th><th>Category</th><th>Price (₦)</th><th>Stock</th><th>Actions</th></tr></thead>
+                            <thead><tr><th style="width:24px;"></th><th>Title</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
                             <tbody id="adminProductsBody"></tbody>
                         </table>
                     </div>
