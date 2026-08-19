@@ -66,16 +66,22 @@ class HybridApp {
         if (enterBtn) enterBtn.onclick = () => this.enterGallery();
         this.showIntro();
 
-        // Fire core data fetches in parallel. Intro stays visible until all resolve.
+        // Fire ALL data fetches in parallel. Intro stays visible until all resolve.
         const settingsPromise = this.loadStoreSettings();
         const ratesPromise   = this.fetchCurrencyRates();
         const productsPromise = this.loadProducts({ silent: true });
+        const versePromise   = this._fetchVerse(); // returns { text, ref } or null
 
-        // Verse fetch is independent — never blocks the intro
-        this._fetchVerse().then(verseData => this._revealVerse(verseData));
+        // Wait for ALL core data before continuing
+        const [, , , verseData] = await Promise.all([
+            settingsPromise,
+            ratesPromise,
+            productsPromise,
+            versePromise
+        ]);
 
-        // Wait for core data only
-        await Promise.all([settingsPromise, ratesPromise, productsPromise]);
+        // Now reveal verse + enable Explore button
+        this._revealVerse(verseData);
 
         // Post-load setup (non-blocking to user)
         this._updateCartBadge();
@@ -282,16 +288,14 @@ class HybridApp {
         const btn = this.el.cartIconButton;
         if (!btn) return;
         const count = this._cartCount();
-        let badge = btn.querySelector('.cart-badge');
+        // Remove old badge
+        const old = btn.querySelector('.cart-badge');
+        if (old) old.remove();
         if (count > 0) {
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'cart-badge';
-                btn.appendChild(badge);
-            }
+            const badge = document.createElement('span');
+            badge.className = 'cart-badge';
             badge.textContent = count > 9 ? '9+' : count;
-        } else if (badge) {
-            badge.remove();
+            btn.appendChild(badge);
         }
     }
 
@@ -738,9 +742,6 @@ class HybridApp {
 
     // Handle back/forward button
     _onPopState(e) {
-        // Ensure content is visible (user may navigate back after intro was dismissed)
-        if (this.el.contentWrapper) this.el.contentWrapper.classList.add('active');
-        if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
         if (e.state && typeof e.state.index === 'number') {
             this.currentIndex = e.state.index;
         } else {
@@ -813,7 +814,6 @@ class HybridApp {
         this.el = {
             introOverlay: document.getElementById('introOverlay'),
             splitContainer: document.getElementById('mainContent'),
-            contentWrapper: document.getElementById('contentWrapper'),
             mainImage: document.getElementById('mainImage'),
             mainVideo: document.getElementById('mainVideo'),
             textContent: document.getElementById('textContent'),
@@ -852,6 +852,10 @@ class HybridApp {
             bankDomDetails: document.getElementById('bankDomDetails'),
             bankRefNumber: document.getElementById('bankRefNumber'),
             whatsappProofBtn: document.getElementById('whatsappProofBtn'),
+            shareOverlay: document.getElementById('shareOverlay'),
+            shareImage: document.getElementById('shareImage'),
+            shareDownloadBtn: document.getElementById('shareDownloadBtn'),
+            shareCloseBtn: document.getElementById('shareCloseBtn'),
             installToast: document.getElementById('installToast'),
             installConfirm: document.getElementById('installConfirm'),
             installDismiss: document.getElementById('installDismiss'),
@@ -1051,15 +1055,15 @@ class HybridApp {
             // When kind is 'text', the description div shows the dedicated
             // content field (poems, prose, long text). Description is a
             // short caption shown as subtitle if content_order puts it first.
-            // kind already declared above at function scope
-            const bodyText = isTextProduct
+            const kind = p.media_kind || (p.type === 'text' ? 'text' : 'image');
+            const bodyText = kind === 'text'
                 ? (p.content || p.description || '')
                 : (p.description || 'No description available.');
             this.el.descriptionText.textContent = bodyText;
             this.el.descriptionText.style.fontFamily = p.font_family || "'Copperplate', serif";
             // In text-mode, use the product's larger font for body text;
             // in image mode, keep the smaller info-panel font.
-            const isTextMode = isTextProduct;
+            const isTextMode = kind === 'text';
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
                 : (p.font_size || 13) + 'px';
@@ -1366,37 +1370,48 @@ class HybridApp {
         }
     }
 
+    async _loadHtml2canvas() {
+        if (typeof html2canvas !== 'undefined') return;
+        return new Promise(function(resolve, reject) {
+            var s = document.createElement('script');
+            s.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
     async shareProduct() {
-        const p = this._viewProducts()[this.currentIndex];
-        if (!p) return;
-        const shareUrl = window.location.href;
-        const shareTitle = (p.title || 'V. Gallery') + ' — V. Gallery';
-        const shareText = (p.description || '').substring(0, 200);
-
-        // Native Web Share API (mobile browsers, some desktop)
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: shareTitle,
-                    text: shareText,
-                    url: shareUrl
-                });
-                return;
-            } catch (e) {
-                if (e.name === 'AbortError') return; // user cancelled
-                // Fall through to manual share
-            }
-        }
-
-        // Fallback: copy link to clipboard
+        this.showLoading(true);
         try {
-            await navigator.clipboard.writeText(shareUrl);
-            this.showNotification('Link copied to clipboard');
+            await this._loadHtml2canvas();
+            const canvas = await html2canvas(this.el.splitContainer, {
+                scale: 2,
+                backgroundColor: document.body.classList.contains('dark-mode') ? '#121212' : '#ffffff',
+                useCORS: true,
+                onclone: (doc, clone) => {
+                    const nav = clone.querySelector('.bottom-nav');
+                    if (nav) nav.style.display = 'none';
+                }
+            });
+            this.el.shareImage.src = canvas.toDataURL('image/png');
+            this.el.shareOverlay.classList.add('active');
         } catch (e) {
-            // Final fallback: select URL in address bar
-            window.history.pushState(null, '', shareUrl);
-            this.showNotification('Share this page URL');
+            this.showNotification('Share failed');
         }
+        this.showLoading(false);
+    }
+
+    downloadShare() {
+        const p = this._viewProducts()[this.currentIndex];
+        const a = document.createElement('a');
+        a.download = (p ? p.title : 'share') + '.png';
+        a.href = this.el.shareImage.src;
+        a.click();
+    }
+
+    closeShare() {
+        this.el.shareOverlay.classList.remove('active');
     }
 
     selectPaymentProvider(provider) {
@@ -1687,18 +1702,13 @@ class HybridApp {
             dropdown.classList.toggle('open');
         };
 
-        // Clean up previous outside-click listener to prevent leaks
-        if (this._closeCollDropdown) {
-            document.removeEventListener('click', this._closeCollDropdown);
-        }
-
         // Close dropdown when clicking outside
-        this._closeCollDropdown = (e) => {
+        const closeDropdown = (e) => {
             if (!dropdown.contains(e.target) && e.target !== collBtn) {
                 dropdown.classList.remove('open');
             }
         };
-        document.addEventListener('click', this._closeCollDropdown);
+        document.addEventListener('click', closeDropdown);
 
         // Collection option clicks
         const options = dropdown.querySelectorAll('.collection-option');
@@ -1735,9 +1745,55 @@ class HybridApp {
     }
 
     renderImmediate() {
-        // Ensure no transition class lingers (used by popstate/grid-click)
+        const vp = this._viewProducts();
+        if (!vp.length) return;
+        if (this.currentIndex >= vp.length) this.currentIndex = vp.length - 1;
+        if (this.currentIndex < 0) this.currentIndex = 0;
+        const p = vp[this.currentIndex];
+        if (!p) return;
+        if (this._displayTimer) { clearTimeout(this._displayTimer); this._displayTimer = null; }
+        // Update variations FIRST so dots use current product data
+        this.currentVariations = p.variations || [];
+        this.variationIndex = 0;
+        // Remove transitioning class immediately (no fade)
         if (this.el.infoContainer) this.el.infoContainer.classList.remove('transitioning');
-        this.updateDisplay();
+        this.renderMedia(p);
+        this.renderText(p);
+        this.renderFrame(p);
+        this.renderBackgrounds(p);
+        this.renderVariationDots();
+        // Update chrome
+        if (this.el.addButton) {
+            this.el.addButton.textContent = '+';
+            this.el.addButton.classList.remove('added');
+            this.el.addButton.disabled = p.stock <= 0;
+            this.el.addButton.style.opacity = p.stock <= 0 ? '0.3' : '';
+            this.el.addButton.style.pointerEvents = p.stock <= 0 ? 'none' : '';
+        }
+        if (this.el.shareButton) {
+            this.el.shareButton.style.display = (p.show_share === true || p.show_share === 'true' || p.show_share === '1') ? 'inline-block' : 'none';
+        }
+        if (this.el.heartButton) {
+            const isSaved = this.savedItems.has(p.product_id);
+            this.el.heartButton.classList.toggle('saved', isSaved);
+            this.el.heartButton.innerHTML = isSaved ? '\u2665' : '\u2661';
+        }
+        if (this.el.pageIndicator) {
+            this.el.pageIndicator.textContent = (this.currentIndex + 1) + '/' + vp.length;
+        }
+        if (this.el.prevBtn) this.el.prevBtn.disabled = this.currentIndex === 0;
+        if (this.el.nextBtn) this.el.nextBtn.disabled = this.currentIndex === vp.length - 1;
+        if (this.el.stockBadge) {
+            const showStock = p.show_stock !== false;
+            this.el.stockBadge.style.display = showStock ? '' : 'none';
+            this.el.stockBadge.className = 'stock-badge';
+            if (showStock) {
+                if (p.stock <= 0) { this.el.stockBadge.textContent = 'Sold Out'; this.el.stockBadge.classList.add('sold-out'); }
+                else if (p.stock <= 2) { this.el.stockBadge.textContent = 'Low Stock (' + p.stock + ')'; this.el.stockBadge.classList.add('low-stock'); }
+                else { this.el.stockBadge.textContent = ''; }
+            }
+        }
+        if (this.zoomActive) this.removeZoom();
     }
 
     filterGrid(filter) {
@@ -1825,14 +1881,12 @@ class HybridApp {
 
     showIntro() {
         if (this.el.introOverlay) this.el.introOverlay.classList.remove('hidden');
-        if (this.el.contentWrapper) this.el.contentWrapper.classList.remove('active');
         if (this.el.splitContainer) this.el.splitContainer.classList.remove('active');
     }
 
     enterGallery() {
         if (this.el.introOverlay) this.el.introOverlay.classList.add('hidden');
         setTimeout(() => {
-            if (this.el.contentWrapper) this.el.contentWrapper.classList.add('active');
             if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
             this.updateDisplay();
             this._pushProductUrl();
@@ -1884,6 +1938,7 @@ class HybridApp {
         const legalModal = document.getElementById('legalModal');
         return (this.el.checkoutPanel && this.el.checkoutPanel.classList.contains('active')) ||
                (this.el.gridOverlay && this.el.gridOverlay.classList.contains('active')) ||
+               (this.el.shareOverlay && this.el.shareOverlay.classList.contains('active')) ||
                (legalModal && legalModal.classList.contains('active'));
     }
 
@@ -1912,6 +1967,8 @@ class HybridApp {
         });
         if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
+        if (this.el.shareDownloadBtn) this.el.shareDownloadBtn.onclick = () => this.downloadShare();
+        if (this.el.shareCloseBtn) this.el.shareCloseBtn.onclick = () => this.closeShare();
 
         // Page indicator: tap left half = prev, right half = next
         if (this.el.pageIndicator) {
@@ -2007,6 +2064,7 @@ class HybridApp {
             if (e.key === 'Escape') {
                 this.closeCart();
                 this.closeGrid();
+                this.closeShare();
                 this.closeLegalModal();
             }
             if (!this.isModalOpen() && !this._isExpanded()) {
@@ -2156,7 +2214,7 @@ class HybridApp {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operation: 'get_realtime_config' })
         })
-        .then(r => { if (!r.ok) return; return r.json(); })
+        .then(r => r.json())
         .then(config => {
             if (!config || !config.url || !config.anonKey) return;
             this._connectRealtimeWs(config.url, config.anonKey);
