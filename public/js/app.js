@@ -738,6 +738,9 @@ class HybridApp {
 
     // Handle back/forward button
     _onPopState(e) {
+        // Ensure content is visible (user may navigate back after intro was dismissed)
+        if (this.el.contentWrapper) this.el.contentWrapper.classList.add('active');
+        if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
         if (e.state && typeof e.state.index === 'number') {
             this.currentIndex = e.state.index;
         } else {
@@ -810,6 +813,7 @@ class HybridApp {
         this.el = {
             introOverlay: document.getElementById('introOverlay'),
             splitContainer: document.getElementById('mainContent'),
+            contentWrapper: document.getElementById('contentWrapper'),
             mainImage: document.getElementById('mainImage'),
             mainVideo: document.getElementById('mainVideo'),
             textContent: document.getElementById('textContent'),
@@ -848,7 +852,6 @@ class HybridApp {
             bankDomDetails: document.getElementById('bankDomDetails'),
             bankRefNumber: document.getElementById('bankRefNumber'),
             whatsappProofBtn: document.getElementById('whatsappProofBtn'),
-            shareOverlay: document.getElementById('shareOverlay'),
             installToast: document.getElementById('installToast'),
             installConfirm: document.getElementById('installConfirm'),
             installDismiss: document.getElementById('installDismiss'),
@@ -1049,14 +1052,14 @@ class HybridApp {
             // content field (poems, prose, long text). Description is a
             // short caption shown as subtitle if content_order puts it first.
             // kind already declared above at function scope
-            const bodyText = kind === 'text'
+            const bodyText = isTextProduct
                 ? (p.content || p.description || '')
                 : (p.description || 'No description available.');
             this.el.descriptionText.textContent = bodyText;
             this.el.descriptionText.style.fontFamily = p.font_family || "'Copperplate', serif";
             // In text-mode, use the product's larger font for body text;
             // in image mode, keep the smaller info-panel font.
-            const isTextMode = kind === 'text';
+            const isTextMode = isTextProduct;
             this.el.descriptionText.style.fontSize = isTextMode
                 ? (p.font_size || 16) + 'px'
                 : (p.font_size || 13) + 'px';
@@ -1678,16 +1681,16 @@ class HybridApp {
         // Populate dropdown with current collection names
         this._populateCollectionDropdown();
 
-        // Clean up previous outside-click listener to prevent leaks
-        if (this._closeCollDropdown) {
-            document.removeEventListener('click', this._closeCollDropdown);
-        }
-
         // Toggle dropdown on click
         collBtn.onclick = (e) => {
             e.stopPropagation();
             dropdown.classList.toggle('open');
         };
+
+        // Clean up previous outside-click listener to prevent leaks
+        if (this._closeCollDropdown) {
+            document.removeEventListener('click', this._closeCollDropdown);
+        }
 
         // Close dropdown when clicking outside
         this._closeCollDropdown = (e) => {
@@ -1822,12 +1825,14 @@ class HybridApp {
 
     showIntro() {
         if (this.el.introOverlay) this.el.introOverlay.classList.remove('hidden');
+        if (this.el.contentWrapper) this.el.contentWrapper.classList.remove('active');
         if (this.el.splitContainer) this.el.splitContainer.classList.remove('active');
     }
 
     enterGallery() {
         if (this.el.introOverlay) this.el.introOverlay.classList.add('hidden');
         setTimeout(() => {
+            if (this.el.contentWrapper) this.el.contentWrapper.classList.add('active');
             if (this.el.splitContainer) this.el.splitContainer.classList.add('active');
             this.updateDisplay();
             this._pushProductUrl();
@@ -1907,7 +1912,6 @@ class HybridApp {
         });
         if (this.el.productFrame) this.el.productFrame.onclick = () => this.handleImageTap();
         if (this.el.eyeToggle) this.el.eyeToggle.onclick = () => this.toggleGridDetails();
-
 
         // Page indicator: tap left half = prev, right half = next
         if (this.el.pageIndicator) {
@@ -2152,7 +2156,7 @@ class HybridApp {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ operation: 'get_realtime_config' })
         })
-        .then(r => r.json())
+        .then(r => { if (!r.ok) return; return r.json(); })
         .then(config => {
             if (!config || !config.url || !config.anonKey) return;
             this._connectRealtimeWs(config.url, config.anonKey);
