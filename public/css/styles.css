@@ -267,7 +267,7 @@ body {
     font-size: 11px;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: background 0.3s, color 0.3s;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
@@ -324,7 +324,7 @@ body {
     opacity: 0.5;
     cursor: pointer;
     padding: 4px 6px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -393,7 +393,7 @@ body {
     min-height: 0;
     position: relative;
     background: inherit;
-    transition: all 0.6s ease;
+    transition: transform 0.6s ease, opacity 0.6s ease, background-color 0.6s ease;
     border: none;
     cursor: zoom-in;
     overflow: hidden;
@@ -414,13 +414,21 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 3000;
-    background: var(--bg-top);
+    background: #f8f8f8;
     padding: 40px;
-    transform: scale(1);
     cursor: zoom-out;
     border: none !important;
     max-width: none;
     max-height: none;
+    aspect-ratio: auto;
+}
+.product-frame.expanded .product-image,
+.product-frame.expanded .product-video {
+    background: transparent;
+}
+.product-frame.expanded .frame-inner {
+    max-height: none;
+    height: 100%;
 }
 .product-frame.has-frame {
     border: 5px solid #2c2c2c;
@@ -454,7 +462,7 @@ body {
     border: 2px solid transparent;
     opacity: 0.6;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
 }
 .expanded-thumb.active {
     border-color: #fff;
@@ -639,7 +647,7 @@ body {
     justify-content: center;
     cursor: pointer;
     color: var(--color-gray);
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     font-size: 15px;
 }
 .action-row .icon-button:hover {
@@ -683,7 +691,7 @@ body {
     border-radius: 4px;
     cursor: pointer;
     background: none;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -738,7 +746,7 @@ body {
     cursor: pointer;
     padding: 4px;
     width: 32px; height: 32px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     touch-action: manipulation;
 }
 .arrow-btn:hover { color: var(--color-primary); }
@@ -795,7 +803,7 @@ body {
     cursor: pointer;
     font-family: 'Copperplate', serif;
     color: var(--color-primary);
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     border-bottom: 1px solid transparent;
 }
 .filter-btn.active { border-bottom-color: var(--color-gray-light); }
@@ -881,7 +889,7 @@ body.dark-mode .collection-option.active {
     color: var(--color-gray);
     padding: 5px 10px;
     border-radius: 20px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
 }
 .eye-toggle:hover {
     color: var(--color-primary);
@@ -901,7 +909,7 @@ body.dark-mode .collection-option.active {
     display: flex;
     flex-direction: column;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     position: relative;
 }
 .grid-item:hover {
@@ -1114,7 +1122,7 @@ body.dark-mode .collection-option.active {
     font-family: 'Copperplate', serif;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     margin-top: 20px;
 }
 .checkout-reveal-btn:hover { opacity: 0.9; }
@@ -1257,7 +1265,7 @@ body.dark-mode .collection-option.active {
     color: var(--color-primary);
     cursor: pointer;
     font-size: 16px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
 }
 .quantity-btn:hover:not(:disabled) {
     background: var(--color-primary);
@@ -1280,7 +1288,7 @@ body.dark-mode .collection-option.active {
     border: 1px solid var(--color-gray-light);
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     min-height: 52px;
 }
 .payment-method-option.selected {
@@ -1333,7 +1341,7 @@ body.dark-mode .collection-option.active {
     font-family: 'Copperplate', serif;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     margin-top: 16px;
 }
 .place-order-btn:hover { opacity: 0.9; }
@@ -1472,49 +1480,6 @@ body.dark-mode .collection-option.active {
     margin-bottom: 0;
 }
 
-/* ---------- Share overlay ---------- */
-.share-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.9);
-    z-index: 3500;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-}
-.share-overlay.active { display: flex; }
-.share-container {
-    max-width: 90%;
-    max-height: 80vh;
-    background: var(--color-surface);
-    padding: 20px;
-    border-radius: 4px;
-}
-.share-image {
-    max-width: 100%;
-    max-height: 60vh;
-    display: block;
-    background: var(--color-surface);
-    margin-bottom: 20px;
-}
-.share-actions {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-}
-.share-btn {
-    padding: 12px 24px;
-    border: none;
-    background: var(--color-primary);
-    color: var(--color-surface);
-    font-size: 11px;
-    font-family: 'Copperplate', serif;
-    cursor: pointer;
-    transition: opacity 0.2s;
-}
-.share-btn:hover { opacity: 0.85; }
-
 /* ---------- Loading + notification ---------- */
 .loading {
     position: fixed;
@@ -1547,7 +1512,7 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
     z-index: 9000;
     opacity: 0;
     transform: translateX(100%);
-    transition: all 0.3s ease;
+    transition: transform 0.3s ease, opacity 0.3s ease;
     max-width: 400px;
     font-family: 'Work Sans', sans-serif;
     border-radius: 4px;
@@ -1609,7 +1574,7 @@ body.dark-mode .loading { background: rgba(10,10,10,0.9); }
     width: 8px; height: 8px;
     border-radius: 8px;
     background: rgba(255,255,255,0.5);
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
     cursor: pointer;
 }
 .variation-dots .dot.active { background: #fff; width: 24px; }
