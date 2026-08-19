@@ -99,18 +99,6 @@ export const handler = async (event) => {
         const { operation, data } = requestBody;
 
         // ============================================================
-        // PUBLIC ENDPOINTS (no auth required)
-        // ============================================================
-        if (operation === 'get_realtime_config') {
-            const url = process.env.VITE_SUPABASE_URL || '';
-            const anonKey = process.env.SUPABASE_ANON_KEY || '';
-            if (!url || !anonKey) {
-                return { statusCode: 200, headers, body: JSON.stringify({ url: '', anonKey: '' }) };
-            }
-            return { statusCode: 200, headers, body: JSON.stringify({ url: url, anonKey: anonKey }) };
-        }
-
-        // ============================================================
         // LOGIN — fails closed if ADMIN_PASSWORD_HASH isn't configured.
         // ============================================================
         if (operation === 'login') {
@@ -232,18 +220,6 @@ export const handler = async (event) => {
                 break;
             }
 
-            case 'get_product': {
-                const pMatch = resolveId(data);
-                if (!pMatch) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Product id required' }) };
-                const { data: product } = await supabase
-                    .from('products')
-                    .select('*')
-                    .eq(pMatch.key, pMatch.val)
-                    .single();
-                result = product;
-                break;
-            }
-
             case 'create_product': {
                 const newProductId = 'prod_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
                 let { data: newProduct, error: createError } = await supabase
@@ -349,6 +325,21 @@ export const handler = async (event) => {
                     return { statusCode: 500, headers, body: JSON.stringify({ error: stockError.message }) };
                 }
                 result = updatedStock;
+                break;
+            }
+
+            case 'update_price': {
+                const { data: updatedPrice, error: priceError } = await supabase
+                    .from('products')
+                    .update({ base_price: parseInt(data.base_price, 10) || 0, updated_at: new Date().toISOString() })
+                    .eq('product_id', data.product_id)
+                    .select()
+                    .single();
+
+                if (priceError) {
+                    return { statusCode: 500, headers, body: JSON.stringify({ error: priceError.message }) };
+                }
+                result = updatedPrice;
                 break;
             }
 
@@ -545,7 +536,7 @@ export const handler = async (event) => {
                         totalProducts: productsResult.count || 0,
                         totalCustomers: customersResult.count || 0
                     },
-                    products: (await supabase.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false })).data || [],
+                    products: (await supabase.from('products').select('*').order('created_at', { ascending: false })).data || [],
                     orders: ordersFull.data || [],
                     settings: settingsResult
                 };
@@ -697,38 +688,19 @@ export const handler = async (event) => {
 
             case 'refresh_currency_rates': {
                 try {
-                    // Frankfurter does NOT support NGN as a base currency.
-                    // Strategy: fetch from USD, then derive NGN-centric rates
-                    // using the admin-configured USD→NGN rate.
-                    const settings = await getSettings(supabase);
-                    let adminRates = {};
-                    if (settings.exchange_rates) {
-                        try { adminRates = JSON.parse(settings.exchange_rates); } catch (e) {}
-                    }
-                    // Admin's USD→NGN rate (how many NGN per 1 USD)
-                    const ngnPerUsd = (adminRates && typeof adminRates.USD === 'number' && adminRates.USD > 0)
-                        ? (1 / adminRates.USD)
-                        : 1500;  // fallback
-
-                    const resp = await fetch('https://api.frankfurter.app/latest?from=USD', {
+                    const resp = await fetch('https://api.frankfurter.app/latest?from=NGN', {
                         signal: AbortSignal.timeout(5000)
                     });
                     if (resp.ok) {
                         const fdata = await resp.json();
                         if (fdata && fdata.rates) {
-                            // fdata.rates are USD-centric: { EUR: 0.92, GBP: 0.79, ... }
-                            // Convert to NGN-centric: NGN = 1, USD = 1/ngnPerUsd, EUR = 0.92/ngnPerUsd, etc.
-                            const ngnRates = { NGN: 1, USD: 1 / ngnPerUsd };
-                            for (const [cur, usdRate] of Object.entries(fdata.rates)) {
-                                ngnRates[cur] = usdRate / ngnPerUsd;
-                            }
-                            const liveRates = JSON.stringify(ngnRates);
+                            const liveRates = JSON.stringify({ NGN: 1, ...fdata.rates });
                             const now = new Date().toISOString();
                             await supabase.from('settings').upsert([
                                 { key: 'live_rates_data', value: liveRates, updated_at: now },
                                 { key: 'live_rates_last_fetched', value: now, updated_at: now }
                             ], { onConflict: 'key' });
-                            result = { success: true, rates: ngnRates, updated_at: now };
+                            result = { success: true, rates: JSON.parse(liveRates), updated_at: now };
                         } else {
                             result = { success: false, error: 'API returned unexpected data' };
                         }
