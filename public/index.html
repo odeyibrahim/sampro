@@ -2,79 +2,673 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login · V. Gallery</title>
-    <meta name="robots" content="noindex, nofollow">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <style>html{touch-action:pan-y;-ms-touch-action:pan-y;overscroll-behavior:none}@media screen and (orientation:landscape) and (max-height:500px){html{transform:rotate(90deg);transform-origin:top left;width:100vh;height:100vw;position:absolute;top:0;left:100%}}</style>
+    <title>V. Gallery · Art + Commerce</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="V. Gallery">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" href="icons/icon-192.png">
+    
+    <!-- Critical: dark mode before first paint -->
+    <script>try{if(localStorage.getItem('vgallery_dark')==='1'){document.documentElement.className='dark-mode';document.documentElement.dataset.darkReady='1'}}catch(e){}</script>
+
+    <!-- Critical: intro overlay painted instantly before external CSS arrives -->
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f5f5f5;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .login-card {
-            background: #fff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
-            max-width: 360px;
-            width: 100%;
-            text-align: center;
-        }
-        h1 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
-        .subtitle { font-size: 12px; color: #888; margin-bottom: 30px; }
-        .error {
-            display: none;
-            background: #fef2f2;
-            color: #dc2626;
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-bottom: 16px;
-            text-align: left;
-        }
-        .form-group { margin-bottom: 16px; text-align: left; }
-        .form-group label {
-            display: block; font-size: 11px; color: #888;
-            text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;
-        }
-        .form-group input {
-            width: 100%; padding: 10px 12px; border: 1px solid #ddd;
-            border-radius: 6px; font-size: 14px; font-family: 'Inter', sans-serif;
-            outline: none; transition: border-color 0.2s;
-        }
-        .form-group input:focus { border-color: #000; }
-        .login-btn {
-            width: 100%; padding: 12px; background: #000; color: #fff;
-            border: none; border-radius: 6px; font-size: 13px;
-            font-family: 'Inter', sans-serif; font-weight: 500;
-            cursor: pointer; transition: opacity 0.2s; margin-top: 8px;
-        }
-        .login-btn:hover { opacity: 0.9; }
-        .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .back-link { display: inline-block; margin-top: 20px; font-size: 11px; color: #888; text-decoration: none; }
-        .back-link:hover { color: #000; }
+        .intro-overlay{position:fixed;inset:0;background:#1a1a1a;z-index:9999;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;opacity:1;transition:opacity .6s ease;pointer-events:all}
+        .intro-overlay.hidden{opacity:0;pointer-events:none}
+        .intro-content{max-width:500px;animation:ciFadeInUp .8s ease}
+        @keyframes ciFadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+        .intro-poem{font-size:14px;line-height:1.6;color:#ccc;margin-bottom:16px;white-space:pre-line;font-family:'Copperplate',Georgia,serif;letter-spacing:0.5px}
+        .intro-loader-logo img{max-height:48px;max-width:160px;object-fit:contain;display:block}
+        .intro-loader-logo img[src]{display:block}
+        .intro-loader-logo img:not([src]),.intro-loader-logo img[style*='none']{display:none}
+        .logo-container .logo-local-img{max-height:36px;max-width:120px;object-fit:contain;display:block}
+        .logo-container .logo-local-img[style*='none']{display:none}
+        .intro-signature{color:#D0A380;font-size:10px;margin-bottom:40px;font-family:'Work Sans',sans-serif;letter-spacing:0.5px;text-transform:uppercase}
+        .enter-gallery{background:none;border:0;color:#ccc;padding:12px 32px;font-size:40px;cursor:pointer;font-family:'Copperplate',Georgia,serif;text-transform:uppercase;letter-spacing:1px;transition:background .3s,color .3s;opacity:0;transform:translateY(10px)}
+        .intro-loaded.ready .enter-gallery{opacity:1;transform:translateY(0);transition:opacity .6s ease,transform .6s ease}
+        .enter-gallery:hover{background:#000;color:#fff}
+        .loading{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;display:none;align-items:center;justify-content:center}
+        .loading.active{display:flex}
+        .spinner{width:24px;height:24px;border:2px solid rgba(255,255,255,.15);border-top-color:#D0A380;border-radius:50%;animation:ciSpin .7s linear infinite}
+        @keyframes ciSpin{to{transform:rotate(360deg)}}
+        .intro-loader{display:flex;align-items:center;justify-content:center}
+        .intro-loader-logo{font-family:'Copperplate',Georgia,serif;font-size:48px;color:#D0A380;animation:ciPulse 1.8s ease-in-out infinite}
+        .intro-loader-logo img{max-height:48px;max-width:160px;object-fit:contain}
+        @keyframes ciPulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+        .intro-loaded{transition:opacity .5s ease}
+        .intro-loaded .intro-poem{opacity:0;transform:translateY(8px);transition:opacity .6s ease .1s,transform .6s ease .1s}
+        .intro-loaded .intro-signature{opacity:0;transform:translateY(8px);transition:opacity .6s ease .25s,transform .6s ease .25s}
+        .intro-loaded.ready .intro-poem,.intro-loaded.ready .intro-signature{opacity:1;transform:translateY(0)}
     </style>
+    <link rel="preload" href="/css/styles.css" as="style">
+    <link rel="stylesheet" href="/css/styles.css">
+    
+    <!-- CDN fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.cdnfonts.com/css/copperplate" rel="stylesheet">
+    <style>
+    /* ADD button: always +, brief flash on add */
+    .icon-button#addButton {
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    /* Share button in action row */
+    .action-row .icon-button.share {
+        font-size: 14px;
+        display: inline-block;
+    }
+
+    /* Currency + Price widget — matches author style */
+    .currency-price {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-left: 10px;
+        flex-shrink: 0;
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
+        color: inherit;
+        letter-spacing: 0.3px;
+    }
+    .currency-price .currency-selector {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
+        padding: 1px 2px;
+        border: 1px solid rgba(128,128,128,0.35);
+        border-radius: 3px;
+        background: none;
+        -webkit-appearance: none;
+        appearance: none;
+        outline: none;
+        color: inherit;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .currency-price .currency-selector:hover,
+    .currency-price .currency-selector:focus {
+        border-color: rgba(128,128,128,0.5);
+    }
+    body.dark-mode .currency-price .currency-selector {
+        background: inherit;
+        color: inherit;
+    }
+    body.dark-mode .currency-price .currency-selector option {
+        background: #1a1a1a;
+        color: #f0f0f0;
+    }
+    .currency-price .price-tag {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
+        font-weight: 400;
+    }
+    .currency-price .original-price {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 10px;
+    }
+
+    /* Notification — author-matching style, bottom on mobile */
+    .notification {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 80px !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) translateY(8px) !important;
+        background: none !important;
+        color: var(--color-gray, #888) !important;
+        font-family: 'Work Sans', sans-serif !important;
+        font-size: 11px !important;
+        letter-spacing: 0.5px !important;
+        text-transform: uppercase !important;
+        padding: 0 !important;
+        max-width: 90vw !important;
+        text-align: center !important;
+        border-radius: 0 !important;
+        white-space: nowrap;
+        pointer-events: none;
+    }
+    .notification.active {
+        opacity: 1 !important;
+        transform: translateX(-50%) translateY(0) !important;
+    }
+    .notification.error {
+        color: var(--color-error, #c62828) !important;
+    }
+    .notification.warning {
+        color: var(--color-warning, #e65100) !important;
+    }
+    @media (min-width: 769px) {
+        .notification {
+            bottom: 60px !important;
+        }
+    }
+
+    /* Cart badge — no background */
+    .cart-badge {
+        background: none !important;
+        color: var(--color-primary, #000) !important;
+        font-weight: 500;
+        width: auto !important;
+        height: auto !important;
+        font-size: 10px;
+    }
+
+    /* Payment method branding */
+    .payment-method-option {
+        gap: 10px;
+        align-items: center;
+    }
+    .pm-brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        flex-shrink: 0;
+    }
+    .pm-brand img {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+    }
+    .pm-brand svg {
+        width: 56px;
+        height: auto;
+    }
+    .pm-bank-icon {
+        font-size: 16px;
+        line-height: 1;
+    }
+    .pm-label {
+        flex: 1;
+        font-size: 12px;
+    }
+    .pm-provider {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--color-gray, #888);
+        font-family: 'Work Sans', sans-serif;
+    }
+    .secure-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        font-size: 10px;
+        color: var(--color-gray, #aaa);
+        margin-top: 8px;
+        padding-bottom: 4px;
+        font-family: 'Work Sans', sans-serif;
+        letter-spacing: 0.3px;
+    }
+
+    /* Required field indicator */
+    .form-group label::after {
+        content: ' *';
+        color: var(--color-gray, #888);
+        font-size: 10px;
+    }
+
+    /* Description: base styles, no weight override */
+    .description { font-size: 13px !important; }
+
+    /* Text page: no italics, scrollable, contained within frame area */
+    .text-content,
+    .frame-inner.text-mode .text-content {
+        font-style: normal !important;
+    }
+    /* Info container: scrollable with hidden scrollbar, bounded to 90% of info-half */
+    .info-container {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        max-height: 90%;
+        box-sizing: border-box;
+    }
+    .info-container::-webkit-scrollbar {
+        display: none;
+    }
+    /* Text content inside frame (text-mode products): scrollable within frame-inner */
+    .frame-inner {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .frame-inner::-webkit-scrollbar {
+        display: none;
+    }
+    /* Ensure text-mode frame-inner is bounded by product-frame */
+    .product-frame .frame-inner {
+        max-height: 90%;
+        box-sizing: border-box;
+    }
+    /* Hints overlay (shown after Explore) */
+    .hints-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.65);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.6s ease;
+    }
+    .hints-overlay.visible {
+        opacity: 1;
+        pointer-events: all;
+    }
+    .hints-content {
+        text-align: center;
+        padding: 24px;
+        max-width: 280px;
+    }
+    .hints-content p {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #ccc;
+        margin: 10px 0;
+        line-height: 1.6;
+    }
+    .hints-content p span.hint-key {
+        display: inline-block;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 3px;
+        padding: 1px 6px;
+        margin: 0 2px;
+        font-size: 10px;
+        color: #D0A380;
+    }
+    /* Logo stays as-is unless a separate dark variant is uploaded in admin */
+
+    /* Nav: compact page indicator, tappable halves for prev/next */
+    .page-indicator {
+        font-family: 'Work Sans', sans-serif;
+        font-size: 9px !important;
+        min-width: auto !important;
+        padding: 6px 2px;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        letter-spacing: 0.5px;
+        position: relative;
+    }
+    .page-indicator::before,
+    .page-indicator::after {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0;
+        width: 50%;
+    }
+    .page-indicator::before { left: 0; }
+    .page-indicator::after { right: 0; }
+
+    /* Bottom nav: brand and arrows have equal edge padding */
+    .bottom-nav .nav-left {
+        padding-left: 4px;
+    }
+    .bottom-nav .nav-arrows {
+        padding-right: 4px;
+    }
+
+    /* Grid item saved heart — matches frontend ♡/♥ style */
+    .grid-item-saved {
+        font-style: normal;
+        font-size: 11px;
+        color: var(--color-heart, #e25555);
+    }
+    /* Dark mode: top-half completely excluded */
+    body.dark-mode .product-half,
+    body.dark-mode .product-frame.expanded {
+        color: #333;
+    }
+    </style>
+    
+    <!-- html2canvas lazy-loaded on share (saved ~300KB on initial load) -->
+    
+    <!-- App Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/app.js" defer></script>
 </head>
 <body>
-    <div class="login-card">
-        <h1>V. Gallery</h1>
-        <p class="subtitle">Admin access</p>
-        <div class="error" id="error"></div>
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" placeholder="Enter admin password" required autocomplete="current-password">
+<script>if(document.documentElement.dataset.darkReady==='1')document.body.classList.add('dark-mode');</script>
+    <a href="#mainContent" class="skip-link">Skip to content</a>
+
+    <!-- Offline banner -->
+    <div class="offline-banner" id="offlineBanner">You're offline — browsing cached gallery</div>
+
+    <!-- Intro overlay -->
+    <div class="intro-overlay" id="introOverlay">
+        <div class="intro-content">
+            <div class="intro-loader" id="introLoader">
+                <div class="intro-loader-logo" id="introLoaderLogo"><img src="logo.png" alt="" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none'"><span>V.</span></div>
             </div>
-            <button type="submit" class="login-btn" id="loginBtn">Login</button>
-        </form>
-        <a class="back-link" href="/">Back to store</a>
+            <div class="intro-loaded" id="introLoaded">
+                <div class="intro-poem" id="introPoem"></div>
+                <div class="intro-signature" id="introSignature"></div>
+                <button class="enter-gallery" id="enterGalleryBtn">Explore</button>
+            </div>
+        </div>
     </div>
-    <script src="admin-login.js"></script>
+
+    <!-- Loading + notifications -->
+    <div class="loading" id="loading"><div class="spinner"></div></div>
+    <div class="notification" id="notification" role="status" aria-live="polite"></div>
+
+    <!-- Hints overlay -->
+    <div class="hints-overlay" id="hintsOverlay">
+        <div class="hints-content">
+            <p><span class="hint-key">Tap</span> left / right to navigate</p>
+            <p><span class="hint-key">Double-tap</span> for full screen</p>
+            <p><span class="hint-key">+</span> add to cart &nbsp; <span class="hint-key">♡</span> trove</p>
+            <p><span class="hint-key">☰</span> grid view &nbsp; <span class="hint-key">𐚱</span> cart</p>
+            <p class="hints-dismiss-hint" style="margin-top:20px;opacity:0.5;font-size:10px;">Tap anywhere to continue</p>
+            <div class="hints-loading" id="hintsLoading" style="display:none;margin-top:16px;">
+                <div class="spinner" style="width:16px;height:16px;border-width:1.5px;margin:0 auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install toast (PWA prompt) -->
+    <div class="install-toast" id="installToast" role="dialog" aria-label="Install app">
+        <span>Add V. Gallery to your home screen</span>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button class="dismiss" id="installDismiss" type="button">Not now</button>
+            <button id="installConfirm" type="button">Install</button>
+        </div>
+    </div>
+
+    <!-- Share overlay (preview screenshot before download) -->
+    <div class="share-overlay" id="shareOverlay" role="dialog" aria-modal="true" aria-label="Share preview">
+        <div class="share-container">
+            <img id="shareImage" class="share-image" alt="Share preview">
+            <div class="share-actions">
+                <button class="share-btn" id="shareDownloadBtn" type="button">Download</button>
+                <button class="share-btn" id="shareCloseBtn" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content wrapper: holds chrome-layer + split-container -->
+    <div class="content-wrapper" id="contentWrapper">
+
+        <!-- Chrome layer: logo + grid icon, anchored to content width -->
+        <div class="chrome-layer" id="chromeLayer">
+            <div class="logo-container" id="siteLogo" role="button" tabindex="0" aria-label="Return to intro">
+                <img src="logo.png" alt="" class="logo-local-img" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none'">
+                <span class="logo-text">V.</span>
+            </div>
+            <button class="grid-icon-top" id="gridIconTop" type="button" aria-label="Open grid view">☷</button>
+        </div>
+
+        <!-- Main split container -->
+        <div class="split-container" id="mainContent">
+            <!-- Top half: product media -->
+            <div class="product-half" id="productHalf">
+                <video class="bg-media-layer" id="bgVideoTop" muted loop playsinline></video>
+                <img class="bg-media-layer" id="bgImageTop" alt="">
+
+                <div class="frame-container">
+                    <div class="product-frame" id="productFrame" role="button" tabindex="0" aria-label="Toggle zoom">
+                        <div class="frame-inner">
+                            <img class="product-image" id="mainImage" alt="">
+                            <video class="product-video" id="mainVideo" playsinline controls></video>
+                            <div class="text-content" id="textContent" style="display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom half: product info -->
+            <div class="info-half" id="infoHalf">
+                <video class="bg-media-layer" id="bgVideoBottom" muted loop playsinline></video>
+                <img class="bg-media-layer" id="bgImageBottom" alt="">
+
+                <div class="info-container" id="infoContainer">
+                    <div class="description" id="descriptionText">Loading...</div>
+                    <div class="title-author">
+                        <span id="productTitle">-</span>
+                        <span id="productCreator" class="product-creator">V.</span>
+                        <div class="currency-price" id="currencyPriceWidget">
+                            <select class="currency-selector" id="currencyDisplay">
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="NGN" selected>NGN</option>
+                            </select>
+                            <span class="price-tag" id="priceTag"></span>
+                            <span class="original-price" id="originalPrice" style="display:none;"></span>
+                        </div>
+                    </div>
+
+                    <div class="action-row" id="priceRow">
+                        <button class="icon-button" id="addButton" type="button" aria-label="Add to cart">+</button>
+                        <button class="icon-button heart" id="heartButton" type="button" aria-label="Save">♡</button>
+                        <button class="icon-button share" id="shareButton" type="button" aria-label="Share" style="display:none;">↗</button>
+                        <button class="icon-button" id="cartIconButton" type="button" aria-label="Open cart">𐚱</button>
+                        <span class="stock-badge" id="stockBadge"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom nav -->
+            <nav class="bottom-nav" aria-label="Gallery navigation">
+                <div class="nav-content">
+                    <div class="nav-left">
+                        <span class="gallery-brand" id="galleryBrand">v.gallery.shop</span>
+                    </div>
+                    <div class="nav-arrows">
+                        <button class="arrow-btn" id="prevBtn" type="button" aria-label="Previous">‹</button>
+                        <span class="page-indicator" id="pageIndicator" role="button" tabindex="0" aria-label="Tap left to go back, right to go forward">1/1</span>
+                        <button class="arrow-btn" id="nextBtn" type="button" aria-label="Next">›</button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Grid overlay (sticky header + eye-toggle) -->
+    <div class="grid-overlay" id="gridOverlay" role="dialog" aria-modal="true" aria-label="Grid view">
+        <div class="grid-header">
+            <div class="grid-filters">
+                <button class="filter-btn active" data-filter="all" type="button">All</button>
+                <div class="filter-btn-collection-wrap">
+                    <button class="filter-btn" id="collectionFilterBtn" type="button">Collections</button>
+                    <div class="collection-dropdown" id="collectionDropdown">
+                        <div class="collection-dropdown-label">Filter by collection</div>
+                        <!-- Populated dynamically from product data -->
+                    </div>
+                </div>
+                <button class="filter-btn" data-filter="trove" type="button" id="troveFilterBtn">Trove</button>
+                <button class="eye-toggle" id="eyeToggle" type="button" title="Toggle details" aria-label="Toggle grid details">⊙</button>
+            </div>
+            <span class="close-grid-btn" data-action="close-grid" role="button" tabindex="0" aria-label="Close grid">←</span>
+        </div>
+        <div class="grid-container" id="gridContainer"></div>
+    </div>
+
+    <!-- Cart drawer (mini-cart) -->
+    <div class="checkout-overlay" id="checkoutOverlay" data-action="close-checkout-overlay"></div>
+    <div class="checkout-panel" id="checkoutPanel" role="dialog" aria-modal="true" aria-label="Cart">
+        <div class="checkout-header">
+            <h2>Cart</h2>
+            <span class="close-checkout" data-action="close-checkout" role="button" tabindex="0" aria-label="Close cart">←</span>
+        </div>
+
+        <!-- Mini-cart: items list -->
+        <div class="cart-items-section" id="cartItemsSection">
+            <div id="cartItemsList"></div>
+            <div class="cart-subtotal-row">
+                <span>Subtotal</span>
+                <span id="cartSubtotal"></span>
+            </div>
+        </div>
+
+        <!-- Empty cart state -->
+        <div class="cart-empty" id="cartEmpty" style="display:none;">
+            <p class="cart-empty-text">Your cart is empty</p>
+        </div>
+
+        <!-- Checkout button (reveals accordion sections) -->
+        <button class="checkout-reveal-btn" id="checkoutRevealBtn" data-action="reveal-checkout" type="button" style="display:none;">Checkout</button>
+
+        <!-- Accordion checkout sections (hidden until checkout is clicked) -->
+        <div class="checkout-accordion" id="checkoutAccordion" style="display:none;">
+
+            <!-- 1. Shipping Information -->
+            <div class="accordion-section" id="accordionShipping">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionShippingBody">
+                    <span>Shipping Information</span>
+                    <span class="accordion-arrow">▸</span>
+                </div>
+                <div class="accordion-body" id="accordionShippingBody">
+                    <div class="form-group">
+                        <label for="checkoutEmail">Email</label>
+                        <input type="email" id="checkoutEmail" placeholder="you@example.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutPhone">Phone</label>
+                        <input type="tel" id="checkoutPhone" placeholder="+1 555 000 0000" required autocomplete="tel">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutName">Full Name</label>
+                        <input type="text" id="checkoutName" placeholder="John Doe" required autocomplete="name">
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutAddress">Street Address</label>
+                        <input type="text" id="checkoutAddress" placeholder="123 Main St" required autocomplete="street-address">
+                    </div>
+                    <div class="form-row-inline">
+                        <div class="form-group form-group-half">
+                            <label for="checkoutCity">City</label>
+                            <input type="text" id="checkoutCity" placeholder="City" required autocomplete="address-level2">
+                        </div>
+                        <div class="form-group form-group-half">
+                            <label for="checkoutZip">Zip / Postal</label>
+                            <input type="text" id="checkoutZip" placeholder="10001" required autocomplete="postal-code">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="checkoutCountryInput">Country</label>
+                        <input type="text" id="checkoutCountryInput" placeholder="Country" required autocomplete="country-name">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Order Total -->
+            <div class="accordion-section" id="accordionTotals">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionTotalsBody">
+                    <span>Order Total</span>
+                    <span class="accordion-arrow">▸</span>
+                </div>
+                <div class="accordion-body" id="accordionTotalsBody">
+                    <div class="summary-row">
+                        <span>Subtotal</span>
+                        <span id="checkoutSubtotal"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Shipping</span>
+                        <span id="checkoutShipping"></span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax</span>
+                        <span id="checkoutTax"></span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total</span>
+                        <span id="checkoutTotal"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Discount Code -->
+            <div class="accordion-section" id="accordionDiscount">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionDiscountBody">
+                    <span>Discount Code</span>
+                    <span class="accordion-arrow">▸</span>
+                </div>
+                <div class="accordion-body" id="accordionDiscountBody">
+                    <div class="form-group">
+                        <input type="text" id="checkoutDiscountCode" placeholder="Enter code">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Payment Method -->
+            <div class="accordion-section" id="accordionPayment">
+                <div class="accordion-header" data-action="toggle-accordion" data-target="accordionPaymentBody">
+                    <span>Payment Method</span>
+                    <span class="accordion-arrow">▸</span>
+                </div>
+                <div class="accordion-body" id="accordionPaymentBody">
+                                        <div class="payment-method-options" id="paymentMethodOptions">
+                        <label class="payment-method-option selected">
+                            <input type="radio" name="paymentProvider" value="paystack" checked>
+                            <span class="pm-badge"><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Paystack_Logo.svg/250px-Paystack_Logo.svg.png" alt="Paystack"></span>
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="flutterwave">
+                            <span class="pm-badge"><svg xmlns="http://www.w3.org/2000/svg" viewBox="40 50 200 150"><path fill="#009a46" d="M8.23,29.89c0-9.37,2.74-17.37,8.49-23.12l10,10C-4.41,27.86,25.31,62.34,57,94.06s66.19,41.43,77.31,30.32l10,10c-18.76,18.76-61.49,5.45-97.26-30.33C22.24,79.23,8.23,51.07,8.23,29.89Z"/><path fill="#ff5805" d="M71.29,143c-9.37,0-17.37-2.74-23.13-8.49l10-10c11.11,11.11,45.59,1.39,77.31-30.32S176.89,28,165.78,16.89l10-10c18.77,18.76,5.45,61.49-30.33,97.26C120.63,129,92.47,143,71.29,143Z"/><path fill="#f5afcb" d="M148.76,89.84c-6.07-17.48-18.47-36.16-34.92-52.6-35.77-35.78-78.5-49.1-97.26-30.33h0c-1.33,1.34-.18,4.65,2.58,7.41s6.07,3.9,7.4,2.57c11.12-11.11,45.6-1.39,77.31,30.33,15,15,26.18,31.75,31.57,47.25,4.72,13.59,4.26,24.55-1.24,30.05h0c-1.34,1.33-.18,4.65,2.57,7.4s6.07,3.91,7.41,2.57C153.79,124.88,155.42,109,148.76,89.84Z"/><path fill="#ff9b00" d="M175.76,6.91c-9.63-9.63-25.49-11.26-44.67-4.59-17.47,6.06-36.16,18.47-52.6,34.91C42.72,73,29.4,115.73,48.16,134.5h0c1.34,1.33,4.65.18,7.41-2.57s3.91-6.07,2.57-7.41C47,113.41,56.75,78.93,88.47,47.21c15-15,31.75-26.18,47.25-31.57,13.59-4.71,24.55-4.26,30.06,1.24h0c1.33,1.33,4.65.18,7.4-2.58S177.09,8.24,175.76,6.91Z"/></svg></span>
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="stripe">
+                            <span class="pm-badge"><img src="stripe-logo.svg" alt="Stripe" onerror="this.style.display='none'"></span>
+                        </label>
+                        <label class="payment-method-option">
+                            <input type="radio" name="paymentProvider" value="bank_transfer">
+                            <span class="pm-badge pm-bank-badge"><span>💳</span><span>Bank</span></span>
+                        </label>
+                    </div>
+                    </div>
+                    <div class="secure-hint">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Secured with 256-bit encryption
+                    </div>
+                </div>
+            </div>
+
+            <button class="place-order-btn" data-action="place-order" type="button">Place Order</button>
+        </div>
+
+            <!-- Bank transfer details (hidden until selected) -->
+            <div class="bank-details-panel" id="bankDetailsPanel">
+                <h4>Local Bank Account (NGN)</h4>
+                <div class="bank-block" id="bankLocalDetails"></div>
+                <h4>Domiciliary Account (USD)</h4>
+                <div class="bank-block" id="bankDomDetails"></div>
+                <p style="font-size: 11px; margin: 10px 0;">Use reference <strong id="bankRefNumber"></strong>, then send proof below.</p>
+                <button class="whatsapp-proof-btn" id="whatsappProofBtn" type="button">Send Proof via WhatsApp</button>
+            </div>
+
+            <!-- Terms / Privacy (modal trigger) -->
+            <div class="checkout-legal">
+                <a href="#" data-action="show-terms" id="termsLink">Terms</a>
+                <a href="#" data-action="show-privacy" id="privacyLink">Privacy</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms / Privacy modal -->
+    <div class="legal-modal-overlay" id="legalModalOverlay" data-action="close-legal-modal"></div>
+    <div class="legal-modal" id="legalModal" role="dialog" aria-modal="true">
+        <div class="legal-modal-header">
+            <h3 id="legalModalTitle">Terms</h3>
+            <span class="close-legal-modal" data-action="close-legal-modal" role="button" tabindex="0" aria-label="Close">←</span>
+        </div>
+        <div class="legal-modal-body" id="legalModalBody"></div>
+    </div>
 </body>
 </html>
