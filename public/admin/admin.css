@@ -26,11 +26,6 @@
     }
 }
 
-/* Prevent pinch-to-zoom on the entire dashboard */
-html {
-    touch-action: pan-x pan-y;
-}
-
 body.admin-dashboard-body {
     touch-action: manipulation;
     -ms-touch-action: manipulation;
@@ -115,7 +110,7 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
 .admin-panel {
     background: var(--color-surface, #ffffff);
     color: var(--color-primary, #000);
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     display: flex;
     flex-direction: column;
     padding: 30px;
@@ -166,7 +161,7 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
+    transition: all 0.2s;
     color: #333;
 }
 .dark-toggle:hover { background: #f0f0f0; }
@@ -176,7 +171,7 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
     border: none;
     cursor: pointer;
     font-size: 11px;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     transition: color 0.2s;
@@ -232,8 +227,8 @@ body.admin-dashboard-body.dark-mode .edit-section { background: #1a1a1a; border-
     text-align: center;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
-.stat-value { font-size: 28px; font-weight: 400; margin-bottom: 6px; letter-spacing: -0.5px; }
-.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Work Sans', sans-serif; }
+.stat-value { font-size: 28px; font-weight: 600; margin-bottom: 6px; letter-spacing: -0.5px; }
+.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'Roboto Mono', monospace; }
 
 .admin-section-title {
     font-size: 14px;
@@ -296,10 +291,10 @@ tr[draggable] { transition: opacity 0.2s; }
     color: #000;
     cursor: pointer;
     font-size: 11px;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     font-weight: 400;
     margin-right: 4px;
-    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
+    transition: all 0.2s;
     border-radius: 6px;
     text-decoration: none;
     display: inline-block;
@@ -317,7 +312,7 @@ tr[draggable] { transition: opacity 0.2s; }
     border-radius: 10px;
     font-size: 11px;
     text-transform: capitalize;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
 }
 .badge.paid { background: #dcfce7; color: #16a34a; }
 .badge.pending { background: #fef3c7; color: #b45309; }
@@ -410,7 +405,7 @@ tr[draggable] { transition: opacity 0.2s; }
     font-size: 13px;
     background: #fff;
     color: #000;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     margin-bottom: 10px;
 }
 .edit-section textarea { min-height: 70px; resize: vertical; }
@@ -442,7 +437,7 @@ tr[draggable] { transition: opacity 0.2s; }
     font-size: 13px;
     background: #fff;
     color: #000;
-    font-family: 'Work Sans', sans-serif;
+    font-family: 'Roboto Mono', monospace;
     margin-bottom: 2px;
 }
 .accordion-body .form-group textarea,
@@ -503,7 +498,7 @@ tr[draggable] { transition: opacity 0.2s; }
     text-align: center;
     cursor: pointer;
     margin-bottom: 10px;
-    transition: opacity 0.2s, transform 0.2s, border-color 0.2s, background-color 0.2s;
+    transition: all 0.2s;
     border-radius: 6px;
     font-size: 12px;
     color: #888;
@@ -624,7 +619,7 @@ tr[draggable] { transition: opacity 0.2s; }
     padding: 10px 12px;
     cursor: pointer;
     font-size: 11px;
-    font-weight: 400;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: #D0A380;
