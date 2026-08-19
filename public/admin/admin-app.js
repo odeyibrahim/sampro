@@ -44,7 +44,7 @@
         var n = document.createElement('div');
         n.className = 'admin-notification' + (type ? ' ' + type : '');
         n.textContent = message;
-        n.style.cssText = 'position:fixed; top:20px; right:20px; padding:12px 20px; background:#000; color:#fff; border-radius:6px; font-size:13px; z-index:10000; font-family:"Work Sans",sans-serif; opacity:0; transform:translateX(20px); transition:opacity 0.3s, transform 0.3s;';
+        n.style.cssText = 'position:fixed; top:20px; right:20px; padding:12px 20px; background:#000; color:#fff; border-radius:6px; font-size:13px; z-index:10000; font-family:Inter,sans-serif; opacity:0; transform:translateX(20px); transition:all 0.3s;';
         document.body.appendChild(n);
         requestAnimationFrame(() => {
             n.style.opacity = '1';
@@ -134,7 +134,7 @@
                 '<td><img src="' + attr(p.image_url || '') + '" style="width:32px;height:32px;object-fit:cover;border-radius:4px;"></td>' +
                 '<td>' + esc(p.title || '') + imgCount + featured + '</td>' +
                 '<td>' + esc(typeDisplay) + (collDisplay ? ' · ' + collDisplay : '') + '</td>' +
-                '<td><input type="number" value="' + (p.base_price || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="price-input" style="width:80px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;"></td>' +
+                '<td>' + esc(formatAdminPrice(p.base_price)) + '</td>' +
                 '<td><input type="number" value="' + esc(p.stock || 0) + '" min="0" data-product-id="' + attr(p.product_id) + '" class="stock-input" style="width:54px;padding:3px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;"></td>' +
                 '<td style="white-space:nowrap;">' +
                     '<button class="admin-btn" data-edit-id="' + attr(p.product_id) + '" title="Edit">Edit</button> ' +
@@ -155,9 +155,6 @@
         });
         tbody.querySelectorAll('.stock-input').forEach(function (input) {
             input.onchange = function () { updateStock(input.dataset.productId, input.value); };
-        });
-        tbody.querySelectorAll('.price-input').forEach(function (input) {
-            input.onchange = function () { updatePrice(input.dataset.productId, input.value); };
         });
 
         // Setup drag reorder
@@ -662,13 +659,6 @@
         var result = await apiCall('update_stock', { product_id: productId, stock: parseInt(newStock, 10) || 0 });
         if (result.error) { showNotification(result.error, 'error'); return; }
         showNotification('Stock updated');
-        broadcastChange('products_updated');
-    }
-
-    async function updatePrice(productId, newPrice) {
-        var result = await apiCall('update_price', { product_id: productId, base_price: parseInt(newPrice, 10) || 0 });
-        if (result.error) { showNotification(result.error, 'error'); return; }
-        showNotification('Price updated');
         broadcastChange('products_updated');
     }
 
